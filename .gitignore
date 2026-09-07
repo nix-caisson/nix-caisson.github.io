@@ -1,5 +1,8 @@
 # Built by CI (mdBook build-dir); never committed
 /site/docs/
 
+# Copied from assets/brand/ by CI; never committed
+/site/assets/brand/
+
 # Claude Code
 /.claude/

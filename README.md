@@ -8,7 +8,7 @@ family, published at <https://nix-caisson.github.io/>.
 | `site/` | The landing page (static HTML and CSS) and the files the built book is served next to |
 | `docs/` | The mdBook source for the documentation, served at `/docs/` |
 | `theme/` | The mdBook theme overrides |
-| `assets/brand/` | Brand sources: emblem, wordmark, favicon, and social card, with the palette and usage rules |
+| `assets/brand/` | Brand sources: emblem, wordmark, favicon, and social card, with the palette and usage rules; published at `/assets/brand/` |
 
 The documentation describes the caisson revision it was last checked
 against, and the framework repository does not carry it, so a change

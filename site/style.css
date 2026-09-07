@@ -1,0 +1,369 @@
+/* caisson site — the page is the emblem: sky, bridge, water, bedrock.
+   Theming: day/night variables set below; night applies either through
+   the system preference (no override stored, or no JS) or through
+   html[data-theme="dark"] set by the toggle. */
+
+:root {
+  --iron: #43464B;
+  --iron-soft: #5C6167;
+  --fog-light: #D8DBDE;
+  --fog-lighter: #E4E6E9;
+  --deep-water: #27394E;
+  --bedrock: #1B2635;
+  --nix-blue: #5277C3;
+  --nix-sky: #7EBAE4;
+  --gold: #C9A227;
+  --violet: #7F5AB6;
+
+  /* day theme */
+  --t-bg: var(--fog-light);
+  --t-text: var(--iron);
+  --t-link: var(--nix-blue);
+  --t-sky-hi: var(--fog-lighter);
+  --t-sky-lo: var(--fog-light);
+  --t-muted: var(--iron-soft);
+  --t-ghost-text: var(--iron);
+  --t-ghost-border: var(--iron-soft);
+  --t-pre-bg: var(--bedrock);
+  --t-pre-text: #D5DCE4;
+  --t-comment: #8A97A6;
+  --t-water-bg: var(--deep-water);
+  --t-h2: #E4E6E9;
+  --t-bedrock-bg: var(--bedrock);
+  --bb-struct: var(--iron);
+  --bb-struct-op: 0.8;
+  --bb-susp-disp: initial;
+  --bb-led-disp: none;
+  --bb-embellish-disp: none;
+  --bb-waterline: var(--bedrock);
+  --bb-caisson: #2E4158;
+  --bb-violet-op: 0.18;
+  --toggle-glyph: "\263E"; /* offer the moon by day */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --t-bg: #151B24;
+    --t-text: #C7CCD3;
+    --t-link: var(--nix-sky);
+    --t-sky-hi: #171D27;
+    --t-sky-lo: #131820;
+    --t-muted: #93A0AE;
+    --t-ghost-text: #C7CCD3;
+    --t-ghost-border: #93A0AE;
+    --t-pre-bg: #090E15;
+    --t-pre-text: #C7CCD3;
+    --t-comment: #6C7886;
+    --t-water-bg: #0E141D;
+    --t-h2: #D8DBDE;
+    --t-bedrock-bg: #090E15;
+    --bb-struct: #39414C;
+    --bb-struct-op: 0.9;
+    --bb-susp-disp: none;
+    --bb-led-disp: initial;
+    --bb-embellish-disp: initial;
+    --bb-waterline: #05080C;
+    --bb-caisson: #1C2836;
+    --bb-violet-op: 0.25;
+    --toggle-glyph: "\2600"; /* offer the sun by night */
+  }
+}
+
+:root[data-theme="dark"] {
+  --t-bg: #151B24;
+  --t-text: #C7CCD3;
+  --t-link: var(--nix-sky);
+  --t-sky-hi: #171D27;
+  --t-sky-lo: #131820;
+  --t-muted: #93A0AE;
+  --t-ghost-text: #C7CCD3;
+  --t-ghost-border: #93A0AE;
+  --t-pre-bg: #090E15;
+  --t-pre-text: #C7CCD3;
+  --t-comment: #6C7886;
+  --t-water-bg: #0E141D;
+  --t-h2: #D8DBDE;
+  --t-bedrock-bg: #090E15;
+  --bb-struct: #39414C;
+  --bb-struct-op: 0.9;
+  --bb-susp-disp: none;
+  --bb-led-disp: initial;
+  --bb-embellish-disp: initial;
+  --bb-waterline: #05080C;
+  --bb-caisson: #1C2836;
+  --bb-violet-op: 0.25;
+  --toggle-glyph: "\2600";
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, "IBM Plex Sans", system-ui, sans-serif;
+  line-height: 1.6;
+  color: var(--t-text);
+  background: var(--t-bg);
+}
+
+::selection { background: var(--violet); color: #fff; }
+
+a { color: var(--t-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- sky --- */
+
+.sky {
+  background: linear-gradient(var(--t-sky-hi), var(--t-sky-lo));
+  padding: 0 1.5rem;
+}
+
+nav {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.25rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand img { border-radius: 6px; }
+
+.links { display: inline-flex; align-items: center; gap: 1.25rem; }
+
+.links a { color: var(--t-muted); }
+
+.theme-toggle {
+  background: none;
+  border: none;
+  padding: 0.1rem 0.3rem;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--t-muted);
+}
+
+.theme-toggle::after { content: var(--toggle-glyph); }
+
+.theme-toggle:hover { color: var(--t-text); }
+
+/* the hero sits in the valley of the cables */
+
+.hero-scene {
+  position: relative;
+  background: var(--t-sky-lo);
+  /* past the width where the text-driven height would squash the scene,
+     grow with the viewport at the scene's own aspect ratio */
+  min-height: 48.4375vw;
+}
+
+/* the text drives the container height; the scene is a backdrop that
+   covers it, so the deck always clears the reserved bottom band */
+.hero {
+  position: relative;
+  z-index: 1;
+  padding: 2.25rem 1.5rem 400px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(2.5rem, 5.5vw, 4.25rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.tagline {
+  font-size: clamp(1rem, 1.9vw, 1.35rem);
+  color: var(--t-muted);
+  margin: 0.25rem 0 1.25rem;
+}
+
+.lede {
+  max-width: 38rem;
+  margin: 0 auto;
+}
+
+.hero-actions { margin: 1.5rem 0 0; }
+
+@media (max-width: 900px) {
+  .hero {
+    text-align: left;
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 1rem;
+  }
+  .lede { margin: 0; }
+}
+
+.button {
+  display: inline-block;
+  padding: 0.55rem 1.2rem;
+  border-radius: 8px;
+  background: var(--nix-blue);
+  color: #fff;
+  font-weight: 500;
+  margin-right: 0.75rem;
+}
+
+.button:hover { text-decoration: none; filter: brightness(1.08); }
+
+.button.ghost {
+  background: var(--t-sky-lo);
+  color: var(--t-ghost-text);
+  border: 1px solid var(--t-ghost-border);
+}
+
+/* --- the bridge band --- */
+
+.bridge-band {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .bridge-band {
+    position: static;
+    height: 380px;
+  }
+}
+
+.bb-sky { fill: var(--t-sky-lo); }
+.bb-water { fill: var(--t-water-bg); }
+.bb-structure { stroke: var(--bb-struct); opacity: var(--bb-struct-op); }
+.bb-susp { display: var(--bb-susp-disp); }
+.bb-led { stroke: #E8ECF2; display: var(--bb-led-disp); }
+.bb-cover { display: var(--bb-embellish-disp); stroke: var(--t-sky-lo); }
+.bb-bloom { display: var(--bb-embellish-disp); stroke: #E8ECF2; }
+.bb-anchorage { fill: var(--bb-struct); }
+.bb-waterline { stroke: var(--bb-waterline); }
+.bb-caisson { fill: var(--bb-caisson); stroke: var(--nix-sky); }
+.bb-walls { stroke: var(--nix-blue); }
+.bb-violet { fill: var(--violet); fill-opacity: var(--bb-violet-op); }
+.bb-lambda { stroke: var(--nix-blue); }
+.bb-rivet { fill: var(--gold); }
+
+/* --- water --- */
+
+.water {
+  background: var(--t-water-bg);
+  color: #C9CDD2;
+  padding: 3rem 1.5rem 4rem;
+}
+
+.water a { color: var(--nix-sky); }
+
+.water h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--t-h2);
+}
+
+.water pre code { background: none; }
+
+.water code {
+  background: rgba(126, 186, 228, 0.12);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+pre {
+  background: var(--t-pre-bg);
+  color: var(--t-pre-text);
+  padding: 1.1rem 1.3rem;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  border-bottom: 3px solid var(--nix-blue);
+  margin: 0;
+}
+
+pre code { background: none; padding: 0; font-size: inherit; }
+
+pre .c { color: var(--t-comment); }
+
+.features {
+  max-width: 62rem;
+  margin: 0 auto;
+  display: grid;
+  gap: 2.5rem;
+}
+
+.feature {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.feature:nth-child(even) pre { order: -1; }
+
+@media (max-width: 46rem) {
+  .feature { grid-template-columns: 1fr; }
+  .feature:nth-child(even) pre { order: 0; }
+}
+
+.get-started, .design, .integrations {
+  max-width: 46rem;
+  margin: 3.5rem auto 0;
+}
+
+.steps { padding-left: 1.25rem; }
+.steps li { margin-bottom: 0.5rem; }
+.get-started pre { margin: 1.25rem 0; }
+
+.design h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--t-h2);
+  margin-top: 2rem;
+}
+
+.design pre { margin: 1.25rem 0; }
+
+.where {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.25rem 0;
+  font-size: 0.95rem;
+}
+
+.where th {
+  text-align: left;
+  color: var(--t-h2);
+  border-bottom: 2px solid var(--nix-blue);
+  padding: 0.4rem 0.75rem 0.4rem 0;
+}
+
+.where td {
+  vertical-align: top;
+  border-bottom: 1px solid rgba(126, 186, 228, 0.18);
+  padding: 0.55rem 0.75rem 0.55rem 0;
+}
+
+/* --- bedrock --- */
+
+.bedrock {
+  background: var(--t-bedrock-bg);
+  color: #8A97A6;
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.bedrock a { color: #A9B4C0; }
+
+.colophon { font-size: 0.8rem; opacity: 0.8; margin-bottom: 0; }

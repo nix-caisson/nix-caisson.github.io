@@ -1,0 +1,5 @@
+# Built by CI (mdBook build-dir); never committed
+/site/docs/
+
+# Claude Code
+/.claude/

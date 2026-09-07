@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <!-- caisson social preview card, dark mode: night on the bay — the Bay
+       Lights on the suspender strands, structure as silhouette, the
+       foundation still glowing. Geometry identical to the light card. -->
+  <rect x="0" y="0" width="1280" height="640" fill="#151B24"/>
+  <!-- night water -->
+  <rect x="0" y="416" width="1280" height="224" fill="#0E141D"/>
+  <!-- bedrock -->
+  <rect x="0" y="584" width="1280" height="56" fill="#090E15"/>
+
+  <!-- structure as silhouette -->
+  <g stroke="#39414C" stroke-linecap="round" fill="none" opacity="0.9">
+    <line x1="-24" y1="376" x2="1304" y2="376" stroke-width="12"/>
+    <path d="M -24 100 Q 300 344 606 352" stroke-width="8"/>
+    <path d="M 1304 100 Q 980 344 674 352" stroke-width="8"/>
+    <rect x="602" y="343" width="76" height="73" fill="#39414C" stroke="none"/>
+  </g>
+
+  <!-- the Bay Lights: strands of LEDs hung from the cables, ending above
+       the deck -->
+  <g stroke="#E8ECF2" stroke-linecap="round" fill="none" stroke-width="3.5" stroke-dasharray="0.1 9">
+    <line x1="80" y1="172" x2="80" y2="366"/>
+    <line x1="140" y1="209" x2="140" y2="366"/>
+    <line x1="200" y1="242" x2="200" y2="366"/>
+    <line x1="260" y1="270" x2="260" y2="366"/>
+    <line x1="320" y1="294" x2="320" y2="366"/>
+    <line x1="380" y1="315" x2="380" y2="366"/>
+    <line x1="440" y1="331" x2="440" y2="366"/>
+    <line x1="500" y1="342" x2="500" y2="366"/>
+    <line x1="560" y1="350" x2="560" y2="366"/>
+    <line x1="1200" y1="172" x2="1200" y2="366"/>
+    <line x1="1140" y1="209" x2="1140" y2="366"/>
+    <line x1="1080" y1="242" x2="1080" y2="366"/>
+    <line x1="1020" y1="270" x2="1020" y2="366"/>
+    <line x1="960" y1="294" x2="960" y2="366"/>
+    <line x1="900" y1="315" x2="900" y2="366"/>
+    <line x1="840" y1="331" x2="840" y2="366"/>
+    <line x1="780" y1="342" x2="780" y2="366"/>
+    <line x1="720" y1="350" x2="720" y2="366"/>
+  </g>
+  <!-- LEDs out: sky-colored covers over single bulbs -->
+  <g stroke="#151B24" stroke-width="5" stroke-linecap="butt">
+    <line x1="80" y1="240" x2="80" y2="248"/>
+    <line x1="80" y1="339" x2="80" y2="347"/>
+    <line x1="140" y1="304" x2="140" y2="312"/>
+    <line x1="200" y1="283" x2="200" y2="291"/>
+    <line x1="320" y1="326" x2="320" y2="334"/>
+    <line x1="440" y1="345" x2="440" y2="353"/>
+    <line x1="1200" y1="276" x2="1200" y2="284"/>
+    <line x1="1140" y1="259" x2="1140" y2="267"/>
+    <line x1="1020" y1="329" x2="1020" y2="337"/>
+    <line x1="900" y1="338" x2="900" y2="346"/>
+    <line x1="780" y1="347" x2="780" y2="355"/>
+  </g>
+  <!-- adjacent LEDs blooming into lit segments -->
+  <g stroke="#E8ECF2" stroke-width="3.5" stroke-linecap="round">
+    <line x1="80" y1="298" x2="80" y2="307"/>
+    <line x1="140" y1="236" x2="140" y2="245"/>
+    <line x1="200" y1="323" x2="200" y2="341"/>
+    <line x1="260" y1="288" x2="260" y2="297"/>
+    <line x1="380" y1="324" x2="380" y2="333"/>
+    <line x1="1200" y1="217" x2="1200" y2="226"/>
+    <line x1="1140" y1="326" x2="1140" y2="335"/>
+    <line x1="1080" y1="260" x2="1080" y2="278"/>
+    <line x1="960" y1="339" x2="960" y2="348"/>
+  </g>
+
+  <!-- waterline -->
+  <line x1="0" y1="416" x2="1280" y2="416" stroke="#05080C" stroke-width="6"/>
+
+  <!-- caisson block, still glowing -->
+  <rect x="552" y="416" width="176" height="168" fill="#1C2836" stroke="#7EBAE4" stroke-width="4"/>
+  <g stroke="#5277C3" stroke-width="3">
+    <line x1="640" y1="416" x2="640" y2="584"/>
+    <line x1="552" y1="500" x2="728" y2="500"/>
+  </g>
+  <rect x="642" y="502" width="84" height="80" fill="#7F5AB6" fill-opacity="0.25"/>
+  <g stroke="#5277C3" stroke-width="8" stroke-linecap="round" fill="none">
+    <path d="M 578 430 L 612 486 M 595 458 L 578 486"/>
+    <path d="M 666 430 L 700 486 M 683 458 L 666 486"/>
+    <path d="M 578 514 L 612 570 M 595 542 L 578 570"/>
+    <path d="M 666 514 L 700 570 M 683 542 L 666 570"/>
+  </g>
+
+  <!-- the rivet, lit -->
+  <circle cx="640" cy="416" r="10" fill="#C9A227"/>
+
+  <!-- wordmark + tagline cradled between the cables -->
+  <text x="640" y="170" text-anchor="middle" font-family="Inter, 'IBM Plex Sans', 'DejaVu Sans', system-ui, sans-serif"
+        font-size="132" font-weight="500" letter-spacing="-3" fill="#D8DBDE">caisson</text>
+  <text x="640" y="234" text-anchor="middle" font-family="Inter, 'IBM Plex Sans', 'DejaVu Sans', system-ui, sans-serif"
+        font-size="38" font-weight="400" fill="#93A0AE">The foundation framework</text>
+  <text x="640" y="282" text-anchor="middle" font-family="Inter, 'IBM Plex Sans', 'DejaVu Sans', system-ui, sans-serif"
+        font-size="38" font-weight="400" fill="#93A0AE">for composable Nix flakes</text>
+</svg>

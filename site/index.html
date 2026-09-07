@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>caisson: the foundation framework for composable Nix flakes</title>
+<meta name="description" content="caisson is a structural framework for building composable Nix flakes on flake-parts: closed inputs, disciplined library overlays, and class-keyed module composition.">
+<meta property="og:title" content="caisson">
+<meta property="og:description" content="The foundation framework for composable Nix flakes.">
+<meta property="og:image" content="assets/social-card.png">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="stylesheet" href="style.css">
+<script>
+// day/night: default follows the system; the toggle stores an override,
+// and choosing the theme the system already has clears it again
+(function () {
+  var media = matchMedia("(prefers-color-scheme: dark)");
+  var system = function () { return media.matches ? "dark" : "light"; };
+  var apply = function (t) { document.documentElement.dataset.theme = t; };
+  var stored = localStorage.getItem("theme");
+  if (stored) apply(stored);
+  media.addEventListener("change", function () {
+    if (!localStorage.getItem("theme")) apply(system());
+  });
+  window.__toggleTheme = function () {
+    var current = document.documentElement.dataset.theme || system();
+    var next = current === "dark" ? "light" : "dark";
+    if (next === system()) localStorage.removeItem("theme");
+    else localStorage.setItem("theme", next);
+    apply(next);
+  };
+})();
+</script>
+</head>
+<body>
+
+<header class="sky">
+  <nav>
+    <span class="brand"><img src="assets/favicon.svg" alt="" width="28" height="28"> caisson</span>
+    <span class="links">
+      <a href="https://github.com/nix-caisson/caisson">GitHub</a>
+      <a href="docs/">Docs</a>
+      <button class="theme-toggle" onclick="__toggleTheme()" aria-label="Toggle day / night" title="Toggle day / night"></button>
+    </span>
+  </nav>
+</header>
+
+<!-- the hero lives in the valley of the cables; day shows the iron,
+     night shows the Bay Lights -->
+<div class="hero-scene">
+<section class="hero">
+  <h1>caisson</h1>
+  <p class="tagline">The foundation framework for composable Nix flakes.</p>
+  <p class="lede">
+    A caisson is sunk to bedrock, sealed, and becomes the foundation:
+    the part of the bridge no one sees, and the part everything else
+    stands on. caisson can provide that structure for your flake: closed inputs,
+    disciplined library composition, and module classes, based upon
+    <a href="https://flake.parts">flake.parts</a>.
+  </p>
+  <p class="hero-actions">
+    <a class="button" href="#get-started">Get started</a>
+    <a class="button ghost" href="docs/">Read the docs</a>
+  </p>
+</section>
+<svg class="bridge-band" viewBox="0 0 1280 620" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <rect class="bb-sky" x="0" y="0" width="1280" height="416"/>
+  <rect class="bb-water" x="0" y="416" width="1280" height="204"/>
+  <g class="bb-structure" stroke-linecap="round" fill="none">
+    <line x1="-24" y1="376" x2="1304" y2="376" stroke-width="12"/>
+    <path d="M -24 100 Q 300 344 606 352" stroke-width="8"/>
+    <path d="M 1304 100 Q 980 344 674 352" stroke-width="8"/>
+    <g class="bb-susp" stroke-width="3.5">
+      <line x1="80" y1="172" x2="80" y2="376"/>
+      <line x1="140" y1="209" x2="140" y2="376"/>
+      <line x1="200" y1="242" x2="200" y2="376"/>
+      <line x1="260" y1="270" x2="260" y2="376"/>
+      <line x1="320" y1="294" x2="320" y2="376"/>
+      <line x1="380" y1="315" x2="380" y2="376"/>
+      <line x1="440" y1="331" x2="440" y2="376"/>
+      <line x1="500" y1="342" x2="500" y2="376"/>
+      <line x1="560" y1="350" x2="560" y2="376"/>
+      <line x1="1200" y1="172" x2="1200" y2="376"/>
+      <line x1="1140" y1="209" x2="1140" y2="376"/>
+      <line x1="1080" y1="242" x2="1080" y2="376"/>
+      <line x1="1020" y1="270" x2="1020" y2="376"/>
+      <line x1="960" y1="294" x2="960" y2="376"/>
+      <line x1="900" y1="315" x2="900" y2="376"/>
+      <line x1="840" y1="331" x2="840" y2="376"/>
+      <line x1="780" y1="342" x2="780" y2="376"/>
+      <line x1="720" y1="350" x2="720" y2="376"/>
+    </g>
+    <rect class="bb-anchorage" x="602" y="343" width="76" height="73" stroke="none"/>
+  </g>
+  <g class="bb-led" stroke-linecap="round" fill="none" stroke-width="3.5" stroke-dasharray="0.1 9">
+    <line x1="80" y1="172" x2="80" y2="366"/>
+    <line x1="140" y1="209" x2="140" y2="366"/>
+    <line x1="200" y1="242" x2="200" y2="366"/>
+    <line x1="260" y1="270" x2="260" y2="366"/>
+    <line x1="320" y1="294" x2="320" y2="366"/>
+    <line x1="380" y1="315" x2="380" y2="366"/>
+    <line x1="440" y1="331" x2="440" y2="366"/>
+    <line x1="500" y1="342" x2="500" y2="366"/>
+    <line x1="560" y1="350" x2="560" y2="366"/>
+    <line x1="1200" y1="172" x2="1200" y2="366"/>
+    <line x1="1140" y1="209" x2="1140" y2="366"/>
+    <line x1="1080" y1="242" x2="1080" y2="366"/>
+    <line x1="1020" y1="270" x2="1020" y2="366"/>
+    <line x1="960" y1="294" x2="960" y2="366"/>
+    <line x1="900" y1="315" x2="900" y2="366"/>
+    <line x1="840" y1="331" x2="840" y2="366"/>
+    <line x1="780" y1="342" x2="780" y2="366"/>
+    <line x1="720" y1="350" x2="720" y2="366"/>
+  </g>
+  <!-- LEDs out: sky-colored covers over single bulbs (night only) -->
+  <g class="bb-cover" stroke-width="5" stroke-linecap="butt" fill="none">
+    <line x1="80" y1="240" x2="80" y2="248"/>
+    <line x1="80" y1="339" x2="80" y2="347"/>
+    <line x1="140" y1="304" x2="140" y2="312"/>
+    <line x1="200" y1="283" x2="200" y2="291"/>
+    <line x1="320" y1="326" x2="320" y2="334"/>
+    <line x1="440" y1="345" x2="440" y2="353"/>
+    <line x1="1200" y1="276" x2="1200" y2="284"/>
+    <line x1="1140" y1="259" x2="1140" y2="267"/>
+    <line x1="1020" y1="329" x2="1020" y2="337"/>
+    <line x1="900" y1="338" x2="900" y2="346"/>
+    <line x1="780" y1="347" x2="780" y2="355"/>
+  </g>
+  <!-- adjacent LEDs blooming into lit segments (night only) -->
+  <g class="bb-bloom" stroke-width="3.5" stroke-linecap="round" fill="none">
+    <line x1="80" y1="298" x2="80" y2="307"/>
+    <line x1="140" y1="236" x2="140" y2="245"/>
+    <line x1="200" y1="323" x2="200" y2="341"/>
+    <line x1="260" y1="288" x2="260" y2="297"/>
+    <line x1="380" y1="324" x2="380" y2="333"/>
+    <line x1="1200" y1="217" x2="1200" y2="226"/>
+    <line x1="1140" y1="326" x2="1140" y2="335"/>
+    <line x1="1080" y1="260" x2="1080" y2="278"/>
+    <line x1="960" y1="339" x2="960" y2="348"/>
+  </g>
+  <line class="bb-waterline" x1="0" y1="416" x2="1280" y2="416" stroke-width="6"/>
+  <rect class="bb-caisson" x="552" y="416" width="176" height="168" stroke-width="4"/>
+  <g class="bb-walls" stroke-width="3">
+    <line x1="640" y1="416" x2="640" y2="584"/>
+    <line x1="552" y1="500" x2="728" y2="500"/>
+  </g>
+  <rect class="bb-violet" x="642" y="502" width="84" height="80"/>
+  <g class="bb-lambda" stroke-width="8" stroke-linecap="round" fill="none">
+    <path d="M 578 430 L 612 486 M 595 458 L 578 486"/>
+    <path d="M 666 430 L 700 486 M 683 458 L 666 486"/>
+    <path d="M 578 514 L 612 570 M 595 542 L 578 570"/>
+    <path d="M 666 514 L 700 570 M 683 542 L 666 570"/>
+  </g>
+  <circle class="bb-rivet" cx="640" cy="416" r="10"/>
+</svg>
+</div>
+
+<main class="water">
+
+  <section class="features">
+    <article class="feature">
+      <div class="feature-text">
+        <h2>Closed inputs</h2>
+        <p>
+          Modules and overlays close over <em>your</em> flake's inputs, not
+          your consumer's. Downstream users are not required to re-declare
+          your internal dependencies, and can still override any input
+          through standard flake mechanisms.
+        </p>
+      </div>
+<pre><code><span class="c"># a module, closed over the</span>
+<span class="c"># defining flake's inputs</span>
+{ closure-inputs, ... }:
+{ ... }:
+{
+  imports = [
+    closure-inputs.some-helper.modules.flake.default
+  ];
+  <span class="c"># consumers are not required to declare</span>
+  <span class="c"># their own dependency on some-helper</span>
+}</code></pre>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <h2>Library overlays</h2>
+        <p>
+          Flakes should export their logic under <code>lib.&lt;namespace&gt;</code>:
+          namespacing instead of a fight over the global namespace.
+          Overlays declare their dependencies explicitly and compose in
+          dependency order, so layered abstractions stay predictable.
+        </p>
+      </div>
+<pre><code><span class="c"># lib-overlays/default/default.nix</span>
+{ closure-inputs, ... }:
+{
+  imports = [
+    closure-inputs.other-flake.libOverlays.default
+  ];
+  overlay = final: prev: {
+    my-flake = (prev.my-flake or { }) // {
+      greet = name: "hello, ${name}";
+    };
+  };
+}</code></pre>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <h2>Module classes</h2>
+        <p>
+          Modules register under a class key naming the module system
+          they belong to: <code>flake</code> for flake-parts modules.
+          The class keeps a module from being imported into an
+          evaluation that can't understand it; each shipped
+          integration registers its own class for its module
+          ecosystem.
+        </p>
+      </div>
+<pre><code>modules = lib: {
+  flake = {
+    default = lib.caisson.mkFlakeModule
+      ./modules/flake-parts/default;
+  };
+};
+<span class="c"># exportable to consumers,</span>
+<span class="c"># closed over your inputs</span></code></pre>
+    </article>
+  </section>
+
+  <section class="get-started" id="get-started">
+    <h2>Get started</h2>
+    <ol class="steps">
+      <li><strong>Add the input.</strong> <code>inputs.caisson.url = "github:nix-caisson/caisson";</code></li>
+      <li><strong>Compose your library.</strong> <code>caisson-core.mkLib</code> merges your overlays with caisson's into your flake's <code>lib</code>.</li>
+      <li><strong>Emit your outputs.</strong> <code>mkFlake</code> evaluates your config module and module selections into flake outputs.</li>
+    </ol>
+<pre><code><span class="c"># flake.nix</span>
+{
+  inputs.caisson.url = "github:nix-caisson/caisson";
+
+  outputs = inputs@{ caisson, ... }:
+    let
+      lib = caisson.lib.caisson-core.mkLib {
+        inherit inputs;
+        projects = { inherit caisson; };
+        libOverlays = mkLibOverlay: {
+          default = mkLibOverlay ./lib-overlays/default;
+        };
+      };
+    in lib.caisson.mkFlake {
+      configModule =
+        lib.caisson.mkFlakeModule ./configs/flake-parts/my-flake;
+    };
+}</code></pre>
+    <p>
+      The <a href="https://github.com/nix-caisson/caisson">repository</a>'s
+      <code>examples/literate-flake</code> walks the whole structure with
+      commentary; <a href="docs/">the docs</a> explain each concept
+      (closed inputs, module classes, library overlays, and the library
+      lifecycle) with the reasoning behind the design, and the
+      <a href="docs/layout.html">layout conventions</a> cover how a
+      caisson repository is arranged.
+    </p>
+  </section>
+
+  <section class="integrations" id="integrations">
+    <h2>Integrations</h2>
+    <p>
+      caisson ships integrations that carry the same conventions
+      (closed inputs, library overlays, class-keyed modules) into
+      other module ecosystems, each registering its own module class.
+      flake-parts itself is one of them:
+    </p>
+    <table class="where">
+      <tr><th>Integration</th><th>brings caisson's conventions to…</th></tr>
+      <tr><td><code>flake-parts</code></td><td>flake outputs: mkFlake, plus exporting modules and overlays</td></tr>
+      <tr><td><code>nixpkgs</code></td><td>nixpkgs package sets and overlays</td></tr>
+      <tr><td><code>nixos</code></td><td>NixOS configurations</td></tr>
+      <tr><td><code>home-manager</code></td><td>Home Manager configurations</td></tr>
+      <tr><td><code>terranix</code></td><td>Terranix / Terraform configurations</td></tr>
+      <tr><td><code>colmena</code></td><td>Colmena deployment hives</td></tr>
+      <tr><td><code>system-manager</code></td><td>system-manager configurations on foreign distros</td></tr>
+    </table>
+    <p>
+      Each integration is a library overlay exported by this flake,
+      also consumable as keyed entries through
+      <a href="https://github.com/nix-caisson/caisson-core">caisson-core</a>
+      directly. Integrations take their ecosystem as
+      an explicit <code>ecosystemSrc</code> argument and pin nothing
+      themselves.
+    </p>
+  </section>
+
+</main>
+
+<footer class="bedrock">
+  <p>
+    <a href="docs/">Docs</a> ·
+    <a href="https://github.com/nix-caisson/caisson">GitHub</a> ·
+    MIT licensed · Built on <a href="https://flake.parts">flake-parts</a>
+  </p>
+  <p class="colophon">Despite the org name, caisson is an independent project, not affiliated with or endorsed
+  by the NixOS Foundation. Nix and NixOS are trademarks of the NixOS
+  Foundation.</p>
+  <p class="colophon">Fog rolls in and lights come on.</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+/* caisson brand accents over the mdBook themes */
+
+:root {
+  --caisson-blue: #5277C3;
+  --caisson-sky: #7EBAE4;
+  --caisson-gold: #C9A227;
+  --caisson-violet: #7F5AB6;
+}
+
+.light {
+  --links: #5277C3;
+  --bg: #E4E6E9;
+  --sidebar-bg: #D8DBDE;
+  --sidebar-active: #5277C3;
+}
+
+.navy {
+  --links: #7EBAE4;
+  --bg: #151B24;
+  --sidebar-bg: #0E141D;
+  --sidebar-active: #7EBAE4;
+}
+
+::selection { background: var(--caisson-violet); color: #fff; }
+
+.menu-title { letter-spacing: -0.02em; font-weight: 600; }
+
+
+/* The way back up to the landing page, in mdBook's sticky menu bar so
+   it stays reachable while reading. theme/index.hbs places it. */
+
+/* A flex row centers the mark against the word. The box is exactly
+   as tall as the bar and aligns to the top of the line box, so it
+   fills the bar the way mdBook's own buttons do with their
+   line-height; without the top alignment an inline-flex box sits on
+   the baseline and rides high. */
+.caisson-site-link {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: top;
+  gap: 0.35rem;
+  height: var(--menu-bar-height);
+  /* The sibling icons bring their own 8px of left padding, so this
+     side needs less to sit the same distance from the next button. */
+  padding: 0 2px 0 8px;
+  color: var(--icons);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.caisson-site-link img { display: block; }
+
+.caisson-site-link:hover { color: var(--icons-hover); }
+
+/* On narrow screens the icon alone carries it. */
+@media only screen and (max-width: 500px) {
+  .caisson-site-link span { display: none; }
+}

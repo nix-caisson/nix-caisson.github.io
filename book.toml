@@ -1,0 +1,16 @@
+[book]
+title = "caisson"
+description = "The foundation framework for composable Nix flakes"
+src = "docs"
+language = "en"
+
+[build]
+build-dir = "site/docs"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+additional-css = ["site/docs-brand.css"]
+site-url = "/docs/"
+git-repository-url = "https://github.com/nix-caisson/caisson"
+edit-url-template = "https://github.com/nix-caisson/nix-caisson.github.io/edit/main/{path}"

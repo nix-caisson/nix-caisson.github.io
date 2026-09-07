@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- caisson badge: the emblem reduced for avatar sizes (32-260 px).
+       The bridge survives as the deck and anchorage block; the
+       lattice as a single cell with one bold lambda; gold appears
+       once, the rivet at the waterline. -->
+  <defs>
+    <clipPath id="frame">
+      <rect x="0" y="0" width="512" height="512" rx="48"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect x="0" y="0" width="512" height="512" fill="#D8DBDE"/>
+    <g stroke="#43464B" stroke-linecap="round" fill="none" opacity="0.8">
+      <line x1="-16" y1="128" x2="528" y2="128" stroke-width="22"/>
+      <rect x="214" y="96" width="84" height="104" fill="#43464B" stroke="none"/>
+    </g>
+    <rect x="0" y="200" width="512" height="312" fill="#27394E"/>
+    <rect x="0" y="444" width="512" height="68" fill="#1B2635"/>
+    <line x1="0" y1="200" x2="512" y2="200" stroke="#1B2635" stroke-width="14"/>
+    <rect x="136" y="200" width="240" height="244" fill="#2E4158" stroke="#7EBAE4" stroke-width="14"/>
+    <g stroke="#5277C3" stroke-width="44" stroke-linecap="round" fill="none">
+      <path d="M 206 252 L 306 398 M 256 325 L 206 398"/>
+    </g>
+    <circle cx="256" cy="200" r="22" fill="#C9A227"/>
+  </g>
+</svg>

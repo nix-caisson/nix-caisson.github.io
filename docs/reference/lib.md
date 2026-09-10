@@ -284,10 +284,13 @@ Common conventions:
 - `specialArgs`: extra module arguments; the one name on every entry
   point, translated to the evaluator's own spelling where it differs
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
-- `pkgSets`: an attrset of package sets; `pkgSets.pkgs` is required
-  where the target consumes a package set (nixos, home-manager) and
-  becomes the evaluation's package set (also passed through in
-  `specialArgs`).
+- `pkgSets`: an attrset of package sets, accepted by every entry
+  point and passed through as the `pkgSets` special argument. Where
+  the evaluator has a package-set slot of its own, `pkgSets.pkgs`
+  fills it: required for nixos and home-manager (the evaluation's
+  package set), the default for terranix's `pkgs` and colmena's
+  `meta.nixpkgs`, and the source of system-manager's default
+  `nixpkgs.hostPlatform`. flake-parts only forwards it.
 - `moduleImports`: a selection function over the corresponding class
   registry (`lib.caisson-core.modules.<class>`), returning the list
   of modules to apply; the default, `builtins.attrValues`, applies
@@ -311,6 +314,7 @@ mkConfiguration :
   , moduleImports ? builtins.attrValues
                   : attrsOf module -> listOf module          # selection from the flake class registry
   , name          ? null : nullOr string                    # rev-independent module identity
+  , pkgSets       ? null                                    # the `pkgSets` special argument
   , ...                                                     # forwarded to flake-parts mkFlake
   } -> flakeOutputs
 ```
@@ -402,7 +406,7 @@ mkConfiguration :
 - **Source:** `lib-overlays/colmena/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
-  specialArgs?, ... } -> hive`: `ecosystemSrc.lib.makeHive` over the
+  specialArgs?, pkgSets?, ... } -> hive`: `ecosystemSrc.lib.makeHive` over the
   passthrough arguments, with the selected class modules, the config
   module and framework `specialArgs` merged into `meta` and `defaults`.
 
@@ -411,7 +415,7 @@ mkConfiguration :
 - **Source:** `lib-overlays/terranix/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
-  specialArgs?, ... } -> derivation`:
+  specialArgs?, pkgSets?, ... } -> derivation`:
   `ecosystemSrc.lib.terranixConfiguration` with the selected class
   modules and the config module; `specialArgs` becomes terranix's
   `extraArgs`.
@@ -421,7 +425,7 @@ mkConfiguration :
 - **Source:** `lib-overlays/system-manager/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
-  specialArgs?, ... } -> systemConfig`:
+  specialArgs?, pkgSets?, ... } -> systemConfig`:
   `ecosystemSrc.lib.makeSystemConfig` with the selected class
   modules and the config module, plus a compatibility bridge for the current
   nixos-unstable restructuring of the NixOS nix module (each half

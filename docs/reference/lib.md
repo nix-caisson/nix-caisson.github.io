@@ -273,11 +273,12 @@ miss throws at the adapter, naming the three places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
 Common conventions:
 
-- Every integration with a module class exports the same two names:
-  `mkModule` (the class-bound form of `caisson-core.mkModule`) and
-  `mkConfiguration` (evaluate the target's module system with the
-  selected class modules). Target-specific variants and helpers sit
-  beside them under the same namespace.
+- Every integration exports `mkConfiguration` (evaluate the target's
+  module system with the selected class modules), and every
+  integration with a module class of its own also exports `mkModule`
+  (the class-bound form of `caisson-core.mkModule`); colmena has
+  none, its nodes being NixOS configurations. Target-specific
+  variants and helpers sit beside them under the same namespace.
 - `configModule`: the configuration's own top-level module, always a
   single module (compose several with `imports`); the framework's
   selected class modules are applied beside it.
@@ -426,18 +427,30 @@ mkConfiguration :
   alongside package overlays; the name is ignored.
 - `types.nixpkgsOverlay`, `types.nixpkgs`: option types.
 
-### `caisson.colmena` (module class `colmena`)
+### `caisson.colmena`
 
 - **Source:** `lib-overlays/colmena/default.nix`
-- `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
-  specialArgs?, pkgSets?, meta?, nodes? } -> hive`:
-  `ecosystemSrc.lib.makeHive` over a hive built from the arguments:
-  `nodes` are the hive's nodes, the selected class modules and the
-  config module are its `defaults`, and framework `specialArgs` merge
-  into `meta.specialArgs` (`meta` is passed through otherwise).
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`, merged
-  over the hive attrset itself.
+- `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
+  moduleImports?, specialArgs?, meta?, nodes? } -> hive`:
+  `ecosystemSrc.lib.makeHive` over a hive whose nodes are NixOS
+  configurations composed exactly as `caisson.nixos.mkConfiguration`
+  composes them (one shared definition): the selected nixos-class
+  modules, the hive-wide `configModule` and the framework's
+  package-set module are the hive's `defaults`; each
+  `nodes.<name> = { configModule, deployment? }` adds the node's own
+  module and its `deployment` settings. Colmena is handed the package
+  set's identity (`path`, `lib`, `stdenv`) with empty `overlays` and
+  `config`, so the nodes take the instance through `nixpkgs.pkgs`
+  like every other caisson NixOS evaluation. A node's toplevel is the
+  derivation `caisson.nixos.mkConfiguration` builds from the same
+  modules. `meta` carries colmena's hive metadata (`name`,
+  `description`, `machinesFile`, `allowApplyAll`); its `nixpkgs`,
+  `specialArgs` and per-node forms are composed by the integration and
+  refused. There is no colmena module class: colmena modules are
+  nixos-class modules.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the hive attrset itself (`meta.nodeNixpkgs` and
+  `meta.nodeSpecialArgs` live there).
 
 ### `caisson.terranix` (module class `terranix`)
 

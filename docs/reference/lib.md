@@ -278,9 +278,16 @@ Common conventions:
   `mkConfiguration` (evaluate the target's module system with the
   selected class modules). Target-specific variants and helpers sit
   beside them under the same namespace.
+- `configModule`: the configuration's own top-level module, always a
+  single module (compose several with `imports`); the framework's
+  selected class modules are applied beside it.
+- `specialArgs`: extra module arguments; the one name on every entry
+  point, translated to the evaluator's own spelling where it differs
+  (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
 - `pkgSets`: an attrset of package sets; `pkgSets.pkgs` is required
-  where present and becomes the evaluation's package set (also passed
-  through in `specialArgs`/`extraSpecialArgs`).
+  where the target consumes a package set (nixos, home-manager) and
+  becomes the evaluation's package set (also passed through in
+  `specialArgs`).
 - `moduleImports`: a selection function over the corresponding class
   registry (`lib.caisson-core.modules.<class>`), returning the list
   of modules to apply; the default, `builtins.attrValues`, applies
@@ -352,7 +359,7 @@ mkConfiguration :
 - **Source:** `lib-overlays/home-manager/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, extraSpecialArgs?, osConfig?, check?, minimal?,
+  moduleImports?, specialArgs?, osConfig?, check?, minimal?,
   sourceMeta? } -> homeConfiguration`: runs home-manager's own
   evaluator (`<ecosystemSrc>/modules`). Source metadata defaults
   derive from what actually composes: `homeManagerOutPath` from
@@ -366,7 +373,7 @@ mkConfiguration :
 - `mkNixosAdapter : { users, ecosystemSrc, hostName?, hostKind?,
   baseSystem?, sourceMeta?, moduleImports?, sharedModules?,
   useGlobalPkgs?, useUserPackages?, activationMode?,
-  extraSpecialArgs?, ... } -> module (nixos class)`: embeds
+  specialArgs?, ... } -> module (nixos class)`: embeds
   home-manager in a NixOS generation. `activationMode = "upstream"`
   uses home-manager's own NixOS module; `"user-service"` embeds
   standalone activation packages behind a `ConditionUser` user unit
@@ -394,27 +401,28 @@ mkConfiguration :
 
 - **Source:** `lib-overlays/colmena/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, modules?, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
   specialArgs?, ... } -> hive`: `ecosystemSrc.lib.makeHive` over the
-  passthrough arguments, with the selected class modules and
-  framework `specialArgs` merged into `meta` and `defaults`.
+  passthrough arguments, with the selected class modules, the config
+  module and framework `specialArgs` merged into `meta` and `defaults`.
 
 ### `caisson.terranix` (module class `terranix`)
 
 - **Source:** `lib-overlays/terranix/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, modules?, moduleImports?,
-  extraArgs?, ... } -> derivation`:
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
+  specialArgs?, ... } -> derivation`:
   `ecosystemSrc.lib.terranixConfiguration` with the selected class
-  modules and framework `extraArgs`.
+  modules and the config module; `specialArgs` becomes terranix's
+  `extraArgs`.
 
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, modules?, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
   specialArgs?, ... } -> systemConfig`:
   `ecosystemSrc.lib.makeSystemConfig` with the selected class
-  modules, plus a compatibility bridge for the current
+  modules and the config module, plus a compatibility bridge for the current
   nixos-unstable restructuring of the NixOS nix module (each half
   self-retires; see the source comments).

@@ -22,7 +22,7 @@ Example:
 ```nix
 modules = {
   flake = {
-    default = lib.caisson.mkFlakeModule ./modules/flake-parts/default;
+    default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
   };
 
   generic = {
@@ -43,7 +43,7 @@ in three ways:
 
 - **Local registration**, `mkLib`'s `modules` hook: a function
   `lib: { ... }` receiving the composed `lib` (whose helpers, like
-  `lib.caisson.mkFlakeModule`, build the entries) and returning the
+  `lib.caisson.flake-parts.mkModule`, build the entries) and returning the
   class-keyed registration. This is for the flake's own modules.
 - **Overlay contribution**, for modules contributed by a library
   overlay: the overlay closure contains `mkModule` and

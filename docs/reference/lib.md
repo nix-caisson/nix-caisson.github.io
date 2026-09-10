@@ -50,7 +50,7 @@ defaults it to that composition's own base.
 - `modules` receives the composed `lib` (usable through the fixpoint)
   and returns the class-keyed registration, typically built with
   helpers like `lib.caisson-core.mkModule` and
-  `lib.caisson.mkFlakeModule`.
+  `lib.caisson.flake-parts.mkModule`.
 - `libOverlays` receives the input-closed `mkLibOverlay` helper and
   returns the registered overlays. Both arguments take exactly the
   function shape shown; passing anything else is an error.
@@ -194,41 +194,11 @@ caisson-core's own documentation.
 
 ## The caisson namespace
 
-### `mkFlake`
-
-- **Source:** `lib-overlays/flake-parts/default.nix`
-
-```
-mkFlake :
-  { configModule  : module                                  # flake class
-  , moduleImports ? builtins.attrValues
-                  : attrsOf module -> listOf module          # selection from the flake class registry
-  , name          ? null : nullOr string                    # rev-independent module identity
-  , ...                                                     # forwarded to flake-parts mkFlake
-  } -> flakeOutputs
-```
-
-Builds final flake outputs via `flake-parts` using the composed
-`lib`: the flake's `inputs` come from `lib.caisson-core.manifest`
-(so `mkFlake` requires a manifest-carrying, mkLib-built composition),
-and `moduleImports` selects over the `flake` class of
-`lib.caisson-core.modules`, the same registry every adapter selects
-from, so modules arriving by local registration, overlay
-contribution, or consumed project are all selectable. The
-flake-parts pin is caisson's own, closed over at the integration's
-definition; consumers declare no flake-parts input. `name` sets
-flake-parts' `moduleLocation` (so exported modules deduplicate across
-revs) and defaults `caisson.configInfo.configName`.
-
-### `mkFlakeModule`
-
-- **Source:** `lib-overlays/flake-parts/default.nix`
-
-```
-mkFlakeModule : freeformModule -> module    # = caisson-core.mkModule "flake"
-```
-
-Convenience form of `mkModule "flake"` for flake-parts modules.
+`lib.caisson` holds one namespace per integration target
+(`lib.caisson.flake-parts`, `lib.caisson.nixos`, and so on; see
+[Integration namespaces](#integration-namespaces)), plus the
+pkgs-dependent tooling documented at the end of this section.
+caisson's registered flake modules are listed here too.
 
 ### `modules.flake."caisson/partitions"`
 
@@ -281,36 +251,14 @@ deterministic metrics against a committed baseline. Documented in
 
 Builds memoized derivation-content readers; see the source header.
 
-## Types
-
-### `types.libOverlay`
-
-- **Source:** `lib-overlays/flake-parts/default.nix`
-
-A module-system option type for built library overlays. Its `check`
-verifies the structure recursively: an attrset with an `overlay`
-function and a (possibly absent) `imports` list whose entries are
-themselves valid `libOverlay`s. Used by options that carry overlays,
-such as `caisson.libOverlays.exported`.
-
-### `types.manifest`
-
-- **Source:** `lib-overlays/flake-parts/default.nix`
-
-A structural option type for the caisson-core manifest
-(`{ inputs, modules, libOverlays }`). The export-side check: the core
-flake-parts module reads `lib.caisson-core.manifest` through an
-option of this type before projecting the `flake.libOverlays` and
-`flake.modules` outputs.
-
 ## Integration namespaces
 
 Each integration is a library overlay exported by this flake
 (`libOverlays.<ecosystem>`) and available as a keyed entry via
 `lib.composition.entriesFor`. Composing one contributes its
 `lib.caisson.<ecosystem>` namespace, documented below (the flake-parts
-integration contributes directly under `lib.caisson`, plus the
-`lib.flake-parts` mirror of flake-parts' own library). Each entry
+integration also contributes the `lib.flake-parts` mirror of
+flake-parts' own library). Each entry
 point takes its ecosystem as an `ecosystemSrc` argument, and
 the integrations pin nothing themselves, with one exception:
 flake-parts, whose pin is caisson's own hidden input.
@@ -325,6 +273,11 @@ miss throws at the adapter, naming the three places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
 Common conventions:
 
+- Every integration with a module class exports the same two names:
+  `mkModule` (the class-bound form of `caisson-core.mkModule`) and
+  `mkConfiguration` (evaluate the target's module system with the
+  selected class modules). Target-specific variants and helpers sit
+  beside them under the same namespace.
 - `pkgSets`: an attrset of package sets; `pkgSets.pkgs` is required
   where present and becomes the evaluation's package set (also passed
   through in `specialArgs`/`extraSpecialArgs`).
@@ -337,34 +290,75 @@ Common conventions:
 - Framework-provided special arguments compose first; the caller's
   win on conflict.
 
+### `caisson.flake-parts` (module class `flake`)
+
+- **Source:** `lib-overlays/flake-parts/default.nix`
+- `mkModule : freeformModule -> module`: class-bound `mkModule`, the
+  convenience form of `caisson-core.mkModule "flake"` for flake-parts
+  modules.
+- `mkConfiguration`:
+
+```
+mkConfiguration :
+  { configModule  : module                                  # flake class
+  , moduleImports ? builtins.attrValues
+                  : attrsOf module -> listOf module          # selection from the flake class registry
+  , name          ? null : nullOr string                    # rev-independent module identity
+  , ...                                                     # forwarded to flake-parts mkFlake
+  } -> flakeOutputs
+```
+
+  Builds final flake outputs via `flake-parts` using the composed
+  `lib`: the flake's `inputs` come from `lib.caisson-core.manifest`
+  (so `mkConfiguration` requires a manifest-carrying, mkLib-built
+  composition), and `moduleImports` selects over the `flake` class
+  of `lib.caisson-core.modules`, the same registry every adapter
+  selects from, so modules arriving by local registration, overlay
+  contribution, or consumed project are all selectable. The
+  flake-parts pin is caisson's own, closed over at the integration's
+  definition; consumers declare no flake-parts input. `name` sets
+  flake-parts' `moduleLocation` (so exported modules deduplicate
+  across revs) and defaults `caisson.configInfo.configName`.
+- `types.libOverlay`: a module-system option type for built library
+  overlays. Its `check` verifies the structure recursively: an
+  attrset with an `overlay` function and a (possibly absent)
+  `imports` list whose entries are themselves valid `libOverlay`s.
+  Used by options that carry overlays, such as
+  `caisson.libOverlays.exported`.
+- `types.manifest`: a structural option type for the caisson-core
+  manifest (`{ inputs, modules, libOverlays }`). The export-side
+  check: the core flake-parts module reads `lib.caisson-core.manifest`
+  through an option of this type before projecting the
+  `flake.libOverlays` and `flake.modules` outputs.
+
 ### `caisson.nixos` (module class `nixos`)
 
 - **Source:** `lib-overlays/nixos/default.nix`
-- `mkNixosModule : freeformModule -> module`: class-bound `mkModule`.
-- `mkSystem : { ecosystemSrc, pkgSets, configModule, moduleImports?,
+- `mkModule : freeformModule -> module`: class-bound `mkModule`.
+- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?,
   specialArgs?, ... } -> nixosSystem`: evaluates
   `<ecosystemSrc>/nixos/lib/eval-config.nix` (a nixpkgs source tree)
   with the selected class modules, the config module, and a framework
   module pinning `nixpkgs.pkgs` to `pkgSets.pkgs`. Extra arguments
   pass through to `eval-config.nix`.
-- `mkSystemFull`: as `mkSystem`, additionally passing nixpkgs'
+- `mkConfigurationFull`: as `mkConfiguration`, additionally passing nixpkgs'
   `module-list.nix` as `baseModules`.
-- `mkSystemMinimal : { ecosystemSrc, prefix?, ... }`: bare
+- `mkConfigurationMinimal : { ecosystemSrc, prefix?, ... }`: bare
   `evalModules` from `<ecosystemSrc>/nixos/lib`; no NixOS base
   modules, so the config module declares any options it uses.
 
 ### `caisson.home-manager` (module class `homeManager`)
 
 - **Source:** `lib-overlays/home-manager/default.nix`
-- `mkHomeManagerModule : freeformModule -> module`.
-- `mkHomeConfiguration : { ecosystemSrc, pkgSets, configModule,
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
   moduleImports?, extraSpecialArgs?, osConfig?, check?, minimal?,
   sourceMeta? } -> homeConfiguration`: runs home-manager's own
   evaluator (`<ecosystemSrc>/modules`). Source metadata defaults
   derive from what actually composes: `homeManagerOutPath` from
   `ecosystemSrc` and `nixpkgsOutPath` from `pkgSets.pkgs.path`
   (`schemaVersion` 3).
-- `mkHomeConfigurationMinimal`: `mkHomeConfiguration` with
+- `mkConfigurationMinimal`: `mkConfiguration` with
   `minimal = true`.
 - `mkStandaloneAdapter : { moduleImports?, ... } -> { homeModules,
   buildHome }`: the selected class modules as a list plus a
@@ -399,8 +393,8 @@ Common conventions:
 ### `caisson.colmena` (module class `colmena`)
 
 - **Source:** `lib-overlays/colmena/default.nix`
-- `mkColmenaModule : freeformModule -> module`.
-- `mkColmenaHive : { ecosystemSrc, modules?, moduleImports?,
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { ecosystemSrc, modules?, moduleImports?,
   specialArgs?, ... } -> hive`: `ecosystemSrc.lib.makeHive` over the
   passthrough arguments, with the selected class modules and
   framework `specialArgs` merged into `meta` and `defaults`.
@@ -408,8 +402,8 @@ Common conventions:
 ### `caisson.terranix` (module class `terranix`)
 
 - **Source:** `lib-overlays/terranix/default.nix`
-- `mkTerranixModule : freeformModule -> module`.
-- `mkTerranixConfiguration : { ecosystemSrc, modules?, moduleImports?,
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { ecosystemSrc, modules?, moduleImports?,
   extraArgs?, ... } -> derivation`:
   `ecosystemSrc.lib.terranixConfiguration` with the selected class
   modules and framework `extraArgs`.
@@ -417,8 +411,8 @@ Common conventions:
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`
-- `mkSystemManagerModule : freeformModule -> module`.
-- `mkSystemConfig : { ecosystemSrc, modules?, moduleImports?,
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { ecosystemSrc, modules?, moduleImports?,
   specialArgs?, ... } -> systemConfig`:
   `ecosystemSrc.lib.makeSystemConfig` with the selected class
   modules, plus a compatibility bridge for the current

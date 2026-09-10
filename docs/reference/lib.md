@@ -300,9 +300,9 @@ Common conventions:
   not take), or surfacing as a conflict inside the evaluator
   (`pkgs` beside the framework's `nixpkgs.pkgs`).
 - The evaluator's own surface is reachable, deliberately, through
-  the `mkConfigurationUnsupervised` twin of each entry point (nixos
-  also has `mkConfigurationMinimalUnsupervised`). It takes the same
-  arguments plus `evaluatorArgs`, an attrset merged over the composed
+  the `mkConfigurationWithUpstreamArgs` twin of each entry point (nixos
+  also has `mkConfigurationMinimalWithUpstreamArgs`). It takes the same
+  arguments plus `upstreamArgs`, an attrset merged over the composed
   evaluator call verbatim, last: anything the evaluator accepts can
   be set or replaced there, including what caisson composed
   (`modules`, `specialArgs`, the package set). The name is the
@@ -376,8 +376,8 @@ mkConfiguration :
   `<ecosystemSrc>/nixos/lib`; no NixOS base modules, so the config
   module declares any options it uses, and the package set arrives as
   the `pkgs` module argument rather than through `nixpkgs.pkgs`.
-- `mkConfigurationUnsupervised`, `mkConfigurationMinimalUnsupervised`:
-  the twins with `evaluatorArgs` (see the conventions above);
+- `mkConfigurationWithUpstreamArgs`, `mkConfigurationMinimalWithUpstreamArgs`:
+  the twins with `upstreamArgs` (see the conventions above);
   eval-config's `baseModules` is one of the arguments reachable that
   way.
 
@@ -388,7 +388,7 @@ mkConfiguration :
 - `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
   moduleImports?, specialArgs?, osConfig?, check?, minimal?,
   sourceMeta? } -> homeConfiguration`
-  (`mkConfigurationUnsupervised` is the twin with `evaluatorArgs`;
+  (`mkConfigurationWithUpstreamArgs` is the twin with `upstreamArgs`;
   home-manager's `lib` argument is reachable that way): runs home-manager's own
   evaluator (`<ecosystemSrc>/modules`). Source metadata defaults
   derive from what actually composes: `homeManagerOutPath` from
@@ -436,7 +436,7 @@ mkConfiguration :
   `nodes` are the hive's nodes, the selected class modules and the
   config module are its `defaults`, and framework `specialArgs` merge
   into `meta.specialArgs` (`meta` is passed through otherwise).
-- `mkConfigurationUnsupervised`: the twin with `evaluatorArgs`, merged
+- `mkConfigurationWithUpstreamArgs`: the twin with `upstreamArgs`, merged
   over the hive attrset itself.
 
 ### `caisson.terranix` (module class `terranix`)
@@ -448,7 +448,7 @@ mkConfiguration :
   `ecosystemSrc.lib.terranixConfiguration` against `pkgSets.pkgs`,
   with the selected class modules and the config module;
   `specialArgs` becomes terranix's `extraArgs`.
-- `mkConfigurationUnsupervised`: the twin with `evaluatorArgs`
+- `mkConfigurationWithUpstreamArgs`: the twin with `upstreamArgs`
   (`system`, `pkgs`, `strip_nulls`, and the composed ones); `pkgSets`
   is optional there.
 
@@ -462,5 +462,5 @@ mkConfiguration :
   modules and the config module, plus a compatibility bridge for the current
   nixos-unstable restructuring of the NixOS nix module (each half
   self-retires; see the source comments).
-- `mkConfigurationUnsupervised`: the twin with `evaluatorArgs`
+- `mkConfigurationWithUpstreamArgs`: the twin with `upstreamArgs`
   (`overlays`, `allowUnsupportedNixpkgs`, and the composed ones).

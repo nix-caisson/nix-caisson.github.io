@@ -287,10 +287,27 @@ Common conventions:
 - `pkgSets`: an attrset of package sets, accepted by every entry
   point and passed through as the `pkgSets` special argument. Where
   the evaluator has a package-set slot of its own, `pkgSets.pkgs`
-  fills it: required for nixos and home-manager (the evaluation's
-  package set), the default for terranix's `pkgs` and colmena's
+  fills it: required for nixos, home-manager and terranix (the
+  evaluation's package set), the default for colmena's
   `meta.nixpkgs`, and the source of system-manager's default
   `nixpkgs.hostPlatform`. flake-parts only forwards it.
+- The signature is the whole surface. An entry point takes exactly
+  the arguments listed for it and composes the evaluator's call from
+  them; nothing else is forwarded, and an unknown argument is an
+  error naming the caisson argument to use where one exists. That
+  keeps an evaluator argument from being silently overwritten
+  (`modules`), silently dropped (anything the minimal evaluator does
+  not take), or surfacing as a conflict inside the evaluator
+  (`pkgs` beside the framework's `nixpkgs.pkgs`).
+- The evaluator's own surface is reachable, deliberately, through
+  the `mkConfigurationUnsupervised` twin of each entry point (nixos
+  also has `mkConfigurationMinimalUnsupervised`). It takes the same
+  arguments plus `evaluatorArgs`, an attrset merged over the composed
+  evaluator call verbatim, last: anything the evaluator accepts can
+  be set or replaced there, including what caisson composed
+  (`modules`, `specialArgs`, the package set). The name is the
+  contract: from there on the evaluator's semantics are the caller's
+  to know.
 - `moduleImports`: a selection function over the corresponding class
   registry (`lib.caisson-core.modules.<class>`), returning the list
   of modules to apply; the default, `builtins.attrValues`, applies
@@ -314,8 +331,8 @@ mkConfiguration :
   , moduleImports ? builtins.attrValues
                   : attrsOf module -> listOf module          # selection from the flake class registry
   , name          ? null : nullOr string                    # rev-independent module identity
+  , specialArgs   ? { }                                     # beside `lib`, the composed library
   , pkgSets       ? null                                    # the `pkgSets` special argument
-  , ...                                                     # forwarded to flake-parts mkFlake
   } -> flakeOutputs
 ```
 
@@ -347,16 +364,22 @@ mkConfiguration :
 - **Source:** `lib-overlays/nixos/default.nix`
 - `mkModule : freeformModule -> module`: class-bound `mkModule`.
 - `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?,
-  specialArgs?, ... } -> nixosSystem`: evaluates
+  specialArgs?, system? } -> nixosSystem`: evaluates
   `<ecosystemSrc>/nixos/lib/eval-config.nix` (a nixpkgs source tree)
   with the selected class modules, the config module, and a framework
   module pinning `nixpkgs.pkgs` to `pkgSets.pkgs`. Extra arguments
   pass through to `eval-config.nix`.
 - `mkConfigurationFull`: as `mkConfiguration`, additionally passing nixpkgs'
   `module-list.nix` as `baseModules`.
-- `mkConfigurationMinimal : { ecosystemSrc, prefix?, ... }`: bare
-  `evalModules` from `<ecosystemSrc>/nixos/lib`; no NixOS base
-  modules, so the config module declares any options it uses.
+- `mkConfigurationMinimal : { ecosystemSrc, pkgSets, configModule,
+  moduleImports?, specialArgs?, prefix? }`: bare `evalModules` from
+  `<ecosystemSrc>/nixos/lib`; no NixOS base modules, so the config
+  module declares any options it uses, and the package set arrives as
+  the `pkgs` module argument rather than through `nixpkgs.pkgs`.
+- `mkConfigurationUnsupervised`, `mkConfigurationMinimalUnsupervised`:
+  the twins with `evaluatorArgs` (see the conventions above);
+  eval-config's `baseModules` is one of the arguments reachable that
+  way.
 
 ### `caisson.home-manager` (module class `homeManager`)
 
@@ -364,7 +387,9 @@ mkConfiguration :
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
   moduleImports?, specialArgs?, osConfig?, check?, minimal?,
-  sourceMeta? } -> homeConfiguration`: runs home-manager's own
+  sourceMeta? } -> homeConfiguration`
+  (`mkConfigurationUnsupervised` is the twin with `evaluatorArgs`;
+  home-manager's `lib` argument is reachable that way): runs home-manager's own
   evaluator (`<ecosystemSrc>/modules`). Source metadata defaults
   derive from what actually composes: `homeManagerOutPath` from
   `ecosystemSrc` and `nixpkgsOutPath` from `pkgSets.pkgs.path`
@@ -406,27 +431,36 @@ mkConfiguration :
 - **Source:** `lib-overlays/colmena/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
-  specialArgs?, pkgSets?, ... } -> hive`: `ecosystemSrc.lib.makeHive` over the
-  passthrough arguments, with the selected class modules, the config
-  module and framework `specialArgs` merged into `meta` and `defaults`.
+  specialArgs?, pkgSets?, meta?, nodes? } -> hive`:
+  `ecosystemSrc.lib.makeHive` over a hive built from the arguments:
+  `nodes` are the hive's nodes, the selected class modules and the
+  config module are its `defaults`, and framework `specialArgs` merge
+  into `meta.specialArgs` (`meta` is passed through otherwise).
+- `mkConfigurationUnsupervised`: the twin with `evaluatorArgs`, merged
+  over the hive attrset itself.
 
 ### `caisson.terranix` (module class `terranix`)
 
 - **Source:** `lib-overlays/terranix/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
-  specialArgs?, pkgSets?, ... } -> derivation`:
-  `ecosystemSrc.lib.terranixConfiguration` with the selected class
-  modules and the config module; `specialArgs` becomes terranix's
-  `extraArgs`.
+- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?,
+  specialArgs? } -> derivation`:
+  `ecosystemSrc.lib.terranixConfiguration` against `pkgSets.pkgs`,
+  with the selected class modules and the config module;
+  `specialArgs` becomes terranix's `extraArgs`.
+- `mkConfigurationUnsupervised`: the twin with `evaluatorArgs`
+  (`system`, `pkgs`, `strip_nulls`, and the composed ones); `pkgSets`
+  is optional there.
 
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
-  specialArgs?, pkgSets?, ... } -> systemConfig`:
+  specialArgs?, pkgSets? } -> systemConfig`:
   `ecosystemSrc.lib.makeSystemConfig` with the selected class
   modules and the config module, plus a compatibility bridge for the current
   nixos-unstable restructuring of the NixOS nix module (each half
   self-retires; see the source comments).
+- `mkConfigurationUnsupervised`: the twin with `evaluatorArgs`
+  (`overlays`, `allowUnsupportedNixpkgs`, and the composed ones).

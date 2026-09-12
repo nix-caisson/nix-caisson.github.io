@@ -274,10 +274,9 @@ built without mkLib (no manifest) accepts only the explicit argument.
 Common conventions:
 
 - Every integration exports `mkConfiguration` (evaluate the target's
-  module system with the selected class modules), and every
-  integration with a module class of its own also exports `mkModule`
-  (the class-bound form of `caisson-core.mkModule`); colmena has
-  none, its nodes being NixOS configurations. Target-specific
+  module system with the selected class modules) and, where it has a
+  module class of its own, `mkModule`
+  (the class-bound form of `caisson-core.mkModule`). Target-specific
   variants and helpers sit beside them under the same namespace.
 - `configModule`: the configuration's own top-level module, always a
   single module (compose several with `imports`); the framework's
@@ -427,30 +426,36 @@ mkConfiguration :
   alongside package overlays; the name is ignored.
 - `types.nixpkgsOverlay`, `types.nixpkgs`: option types.
 
-### `caisson.colmena`
+### `caisson.colmena` (module class `colmena`)
 
 - **Source:** `lib-overlays/colmena/default.nix`
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, specialArgs?, meta?, nodes? } -> hive`:
-  `ecosystemSrc.lib.makeHive` over a hive whose nodes are NixOS
-  configurations composed exactly as `caisson.nixos.mkConfiguration`
-  composes them (one shared definition): the selected nixos-class
-  modules, the hive-wide `configModule` and the framework's
-  package-set module are the hive's `defaults`; each
-  `nodes.<name> = { configModule, deployment? }` adds the node's own
-  module and its `deployment` settings. Colmena is handed the package
-  set's identity (`path`, `lib`, `stdenv`) with empty `overlays` and
-  `config`, so the nodes take the instance through `nixpkgs.pkgs`
-  like every other caisson NixOS evaluation. A node's toplevel is the
-  derivation `caisson.nixos.mkConfiguration` builds from the same
-  modules. `meta` carries colmena's hive metadata (`name`,
-  `description`, `machinesFile`, `allowApplyAll`); its `nixpkgs`,
-  `specialArgs` and per-node forms are composed by the integration and
-  refused. There is no colmena module class: colmena modules are
-  nixos-class modules.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
-  merged over the hive attrset itself (`meta.nodeNixpkgs` and
-  `meta.nodeSpecialArgs` live there).
+- `mkNixosConfiguration : { ecosystemSrc, pkgSets, configModule,
+  moduleImports?, specialArgs?, system? } -> nixosSystem`: a hive
+  node. `caisson.nixos.mkConfiguration` over the host's module plus
+  colmena's public node modules (`deploymentOptions`,
+  `keyChownModule`, `keyServiceModule`, `assertionModule`) from the
+  colmena ecosystem source, so the result is an ordinary NixOS
+  configuration that also declares `deployment.*`; the same value can
+  be the host's `nixosConfigurations` entry, one evaluation for both
+  `nixos-rebuild` and `colmena apply`. `ecosystemSrc` is colmena's;
+  nixpkgs resolves as `caisson.nixos.mkConfiguration` resolves it
+  without an explicit source. Set `deployment.*` in the host's module.
+- `mkModule : freeformModule -> module`: class-bound `mkModule` for
+  hive modules.
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
+  specialArgs?, pkgSets? } -> hive`: evaluates the hive module
+  (`meta`: `name`, `description`, `machinesFile`, `allowApplyAll`, the
+  metadata colmena's binary reads; `nodes.<name>`: configurations from
+  `mkNixosConfiguration`) with the selected colmena-class modules and
+  projects it onto colmena's hive schema (`__schema`, `nodes`,
+  `toplevel`, `deploymentConfig`, `evalSelected`, ...). The schema
+  version is asserted against the ecosystem source's own `makeHive`,
+  so a colmena revision that moves it fails at evaluation. A node that
+  did not come from `mkNixosConfiguration` is refused. `pkgSets` only
+  serves `colmena eval` (`introspect`).
+- `mkNixosConfigurationWithEcosystemArgs`,
+  `mkConfigurationWithEcosystemArgs`: the twins with `ecosystemArgs`;
+  for the hive they merge over the schema attrset itself.
 
 ### `caisson.terranix` (module class `terranix`)
 

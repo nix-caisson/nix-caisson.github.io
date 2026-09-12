@@ -28,7 +28,7 @@ mkModule = class: freeformModule: ...
 You first choose a module class, then use the returned class-specific normalizer. For flake-parts modules:
 
 ```nix
-mkFlakeModule = mkModule "flake"
+caisson.flake-parts.mkModule = mkModule "flake"
 ```
 
 Everything passed to the class-specific normalizer takes the closure attrset as its first arg list, followed by an ordinary module:
@@ -80,7 +80,7 @@ Already-built overlays (for example another flake's exported `libOverlays.defaul
 | `mkLibOverlay` | Applies the closure to registered library overlays |
 | `importApply` | Applies static arguments to a module through the import chain |
 | `mkLib` | Bootstraps a composed library with closed overlays |
-| `mkFlake` | Creates flake outputs with closed modules |
+| `caisson.flake-parts.mkConfiguration` | Creates flake outputs with closed modules |
 
 ## Further Reading
 

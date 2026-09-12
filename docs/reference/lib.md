@@ -452,7 +452,12 @@ mkConfiguration :
   it fails at evaluation; a node that did not come from
   `mkNixosConfiguration` is refused. `pkgSets` on the hive only serves
   `colmena eval` (`introspect`). `mkNixosConfigurationWithEcosystemArgs`
-  is the node constructor's twin, also a module argument.
+  is the node constructor's twin, also a module argument. Every node
+  receives colmena's `name` and `nodes` special arguments (the latter
+  the whole hive, lazily, for cross-node references), so a module
+  written for colmena's own evaluator works unchanged. Node names are
+  free: `meta`, `defaults` and `network`, reserved in colmena's flat
+  hive, are ordinary names under `nodes`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the schema attrset itself.
 

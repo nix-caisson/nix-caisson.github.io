@@ -457,7 +457,10 @@ mkConfiguration :
   the whole hive, lazily, for cross-node references), so a module
   written for colmena's own evaluator works unchanged. Node names are
   free: `meta`, `defaults` and `network`, reserved in colmena's flat
-  hive, are ordinary names under `nodes`.
+  hive, are ordinary names under `nodes`. The only constraint is
+  colmena's `--on` filter grammar: a name containing a comma, starting
+  with `@`, or empty could never be selected, and is refused at hive
+  evaluation.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the schema attrset itself.
 

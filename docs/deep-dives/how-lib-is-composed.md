@@ -8,21 +8,34 @@ without `mkLib` when you want to.
 
 ## What goes in
 
-`mkLib` is given a base library and a set of declarations:
+`mkLib` is given a set of declarations, and nothing to compose over:
+the seed is the empty attribute set, and nixpkgs' library arrives as
+an entry like everything else.
 
-- `baseLib`: the library everything else extends, passed as a plain
-  value. Nothing is looked up by input name. When you call the
-  `caisson-core.mkLib` found inside a composed library, `baseLib`
-  defaults to that composition's own base, which is why a typical
-  flake passes only the arguments below.
+- `defaultEcosystemSrc`: the tree's default source per ecosystem, by
+  exact name (see [Ecosystem sources](../concepts/ecosystem-sources.md)).
+  `nixpkgs` supplies the `nixpkgs-lib` part of the stack unless
+  `nixpkgs-lib` names a source of its own, such as the
+  `nix-community/nixpkgs.lib` mirror for a flake that carries no
+  nixpkgs. The published `nixpkgs-lib` entry imports that source's
+  `lib` directory as upstream fixes it; an
+  overlay that needs upstream's functions imports the entry from its
+  closure (`{ entries, ... }: { imports = [ entries.nixpkgs-lib ]; ... }`),
+  and a flake that declares no source fails only where that entry is
+  composed, with a message naming the declaration.
 - `libOverlays`: the flake's own overlay registrations, built with
   the input-closed `mkLibOverlay` helper or registered directly when
   already built (another flake's export, for example).
 - `modules`: the flake's own class-keyed module registrations.
 - `projects`: whole upstream contributions, each carrying exported
   overlays and modules that register under `<project>/<name>`.
-- `ecosystems`: declared default ecosystem sources (see
-  [Ecosystem sources](../concepts/ecosystem-sources.md)).
+
+The registry also holds the two entries caisson-core publishes,
+`caisson-core` (the machinery) and `nixpkgs-lib`, under those names.
+Neither is selectable, and a registration under either name replaces
+the entry for every overlay that imports it, so a polyfill over
+upstream's library or a replacement of the core is an ordinary
+registration.
 
 Registration and application are separate steps: `libOverlayImports`
 selects which of the registered overlays apply to this flake's own
@@ -32,13 +45,14 @@ not apply to itself.
 
 ## The sequence
 
-The selected overlays are applied over the base in one pass, wrapped
-by overlays caisson adds itself:
+The selected overlays are applied in one pass, wrapped by entries
+caisson adds itself:
 
 ```
-baseLib
-  -> caisson-core namespace injection
-  -> selected overlays (flattened, imports first)
+{ }
+  -> caisson-core namespace injection (the `caisson-core` entry)
+  -> selected overlays (flattened, imports first; the `nixpkgs-lib`
+     entry wherever an overlay imports it)
   -> consumed projects' modules
   -> the flake's own module registrations
   -> the manifest

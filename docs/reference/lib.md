@@ -27,14 +27,15 @@ Type notation used below:
 ```
 mkLib :
   { inputs            : attrs                              # the defining flake's inputs
-  , baseLib           : lib                                # the base library, a plain argument
   , modules           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
   , libOverlays       ? (mkLibOverlay: { })
                       : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
   , libOverlayImports ? builtins.attrValues
                       : attrsOf libOverlay -> listOf libOverlay
-  , ecosystems        ? { } : attrs                        # declared ecosystem sources, by exact name
+  , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
+                                                           # nixpkgs supplies the nixpkgs-lib part unless nixpkgs-lib names its own
+  , systems           ? null : listOf str                  # the platforms the tree builds on
   , projects          ? { } : attrs                        # consumed upstream contributions, by project name
   } -> lib
 ```

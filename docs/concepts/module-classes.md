@@ -9,29 +9,34 @@ caisson models modules as class-keyed sets. A class is a string key used to grou
 
 This builds on flake-parts' generic `flake.modules` support while adding closed-inputs module normalization.
 
-## mkModule Factory
+## Registering a module
 
-`lib.caisson-core.mkModule` is class-parameterized:
+A tree registers a module with the `mkModule` of the integration that
+owns its class, applied to the module's directory:
+
+```nix
+modules = lib: {
+  flake.default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
+  nixos.my-service = lib.caisson.nixos.mkModule ./modules/nixos/my-service;
+  homeManager.shell = lib.caisson.home-manager.mkModule ./modules/home-manager/shell;
+};
+```
+
+Each integration's `mkModule` is `lib.caisson-core.mkModule` bound to
+that integration's class:
 
 ```nix
 mkModule = class: freeformModule: ...
 ```
 
-Example:
+The class-string form is written out only for a class no integration
+covers, for instance a class the tree defines itself:
 
 ```nix
-modules = {
-  flake = {
-    default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
-  };
-
-  generic = {
-    helper = lib.caisson-core.mkModule "generic" ./modules/generic/helper;
-  };
-};
+generic.helper = lib.caisson-core.mkModule "generic" ./modules/generic/helper;
 ```
 
-The returned class-specific normalizer applies the closure attrset
+The class-specific normalizer applies the closure attrset
 (`{ closure-inputs, closure-lib, mkModule, ... }`) as the module's first
 arg list. The `mkModule` closure member is bound to the same class, so
 nested use of `mkModule` stays in that class.

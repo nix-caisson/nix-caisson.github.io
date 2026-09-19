@@ -64,7 +64,7 @@ caisson imposes no transitive pins and two consumers of the same
 caisson revision can run different nixpkgs revisions. Version skew within your
 ecosystems lives in your own locks, where you can see and manage it. A
 flake that uses one version of an ecosystem everywhere can set a
-flake-level default at `mkLib` (`ecosystems.nixpkgs = inputs.nixpkgs`). But it's
+flake-level default at `mkLib` (`defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`). But it's
 also possible to explicitly pass it on each caisson call. The explicit
 argument wins, and an input named exactly like the ecosystem is the
 final fallback (handy for leaf nodes).

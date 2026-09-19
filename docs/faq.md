@@ -39,13 +39,14 @@ implement whatever merging logic they deem appropriate.
 
 ### Can I adopt this incrementally in an existing flake-parts flake?
 
-Yes. `mkFlake` wraps flake-parts' own `mkFlake`, and plain
+Yes. `lib.caisson.flake-parts.mkConfiguration` wraps flake-parts' own
+`mkFlake`, and plain
 flake-parts modules work unchanged. It is recommended to start by
 composing a library with `caisson-core.mkLib`. You can hand your
-existing top-level module to `mkFlake` and let the conventions
+existing top-level module to `mkConfiguration` and let the conventions
 spread file by file from there.
 
-### What does `mkFlakeModule` do to my module?
+### What does `lib.caisson.flake-parts.mkModule` do to my module?
 
 A few things:
 

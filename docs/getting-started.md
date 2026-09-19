@@ -28,9 +28,9 @@ Create a directory with this `flake.nix`:
         };
       };
     in
-    lib.caisson.mkFlake {
+    lib.caisson.flake-parts.mkConfiguration {
       name = "my-flake";
-      configModule = lib.caisson.mkFlakeModule ./configs/flake-parts/my-flake;
+      configModule = lib.caisson.flake-parts.mkModule ./configs/flake-parts/my-flake;
     };
 }
 ```
@@ -38,8 +38,9 @@ Create a directory with this `flake.nix`:
 `caisson-core.mkLib` composes a library: nixpkgs' lib, the machinery
 under `lib.caisson-core`, and the overlays you register. Consuming
 caisson as a project registers everything it exports, its
-integrations included, which contributes `lib.caisson` (`mkFlake`
-and friends); `mkFlake` then evaluates flake-parts with that library
+integrations included, which contributes `lib.caisson` (one namespace per integration
+target); `lib.caisson.flake-parts.mkConfiguration` then evaluates
+flake-parts with that library
 and your config module, using caisson's own flake-parts pin, so your
 flake declares none.
 
@@ -135,7 +136,7 @@ systems. Register a flake-class module:
           inherit caisson;
         };
         modules = lib: {
-          flake.default = lib.caisson.mkFlakeModule ./modules/flake-parts/default;
+          flake.default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
         };
         libOverlays = mkLibOverlay: {
           default = mkLibOverlay ./lib-overlays/default;
@@ -157,7 +158,7 @@ systems. Register a flake-class module:
 }
 ```
 
-`mkFlake` applies the selected flake-class modules alongside the
+`mkConfiguration` applies the selected flake-class modules alongside the
 config module (`moduleImports` returns the list to apply, like
 `libOverlayImports`; the default is all of them).
 [Module classes](concepts/module-classes.md) covers registration,
@@ -170,7 +171,7 @@ and take their ecosystem as an explicit `ecosystemSrc`. A NixOS system,
 in the config module's `perSystem` or at the top level:
 
 ```nix
-  flake.nixosConfigurations.example = lib.caisson.nixos.mkSystem {
+  flake.nixosConfigurations.example = lib.caisson.nixos.mkConfiguration {
     ecosystemSrc = inputs.nixpkgs;
     pkgSets.pkgs = import inputs.nixpkgs { system = "x86_64-linux"; };
     configModule =
@@ -230,9 +231,9 @@ A consumer registers your exported overlay the same way:
         };
       };
     in
-    lib.caisson.mkFlake {
+    lib.caisson.flake-parts.mkConfiguration {
       name = "consumer";
-      configModule = lib.caisson.mkFlakeModule ./configs/flake-parts/consumer;
+      configModule = lib.caisson.flake-parts.mkModule ./configs/flake-parts/consumer;
     };
 }
 ```

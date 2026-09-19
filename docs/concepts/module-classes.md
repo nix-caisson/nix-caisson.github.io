@@ -22,7 +22,7 @@ Example:
 ```nix
 modules = {
   flake = {
-    default = lib.caisson.mkFlakeModule ./modules/flake-parts/default;
+    default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
   };
 
   generic = {
@@ -43,7 +43,7 @@ in three ways:
 
 - **Local registration**, `mkLib`'s `modules` hook: a function
   `lib: { ... }` receiving the composed `lib` (whose helpers, like
-  `lib.caisson.mkFlakeModule`, build the entries) and returning the
+  `lib.caisson.flake-parts.mkModule`, build the entries) and returning the
   class-keyed registration. This is for the flake's own modules.
 - **Overlay contribution**, for modules contributed by a library
   overlay: the overlay closure contains `mkModule` and
@@ -86,7 +86,7 @@ registrations. And precedence is deterministic: the composing flake's
 local registrations apply last, so a local entry always wins over a
 same-named contribution.
 
-Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way; see the [library reference](../reference/lib.md).
+Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way (colmena's class is the hive; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
 
 ## Consuming Exported Modules
 

@@ -10,7 +10,7 @@ the `examples/literate-flake` example assume them.
 
 ## flake.nix
 
-Wiring only: `mkLib` and `mkFlake`. The substance lives in the
+Wiring only: `mkLib` and `lib.caisson.flake-parts.mkConfiguration`. The substance lives in the
 directories below.
 
 ## configs/

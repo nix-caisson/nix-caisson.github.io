@@ -219,7 +219,7 @@
       </div>
 <pre><code>modules = lib: {
   flake = {
-    default = lib.caisson.mkFlakeModule
+    default = lib.caisson.flake-parts.mkModule
       ./modules/flake-parts/default;
   };
 };
@@ -233,7 +233,7 @@
     <ol class="steps">
       <li><strong>Add the input.</strong> <code>inputs.caisson.url = "github:nix-caisson/caisson";</code></li>
       <li><strong>Compose your library.</strong> <code>caisson-core.mkLib</code> merges your overlays with caisson's into your flake's <code>lib</code>.</li>
-      <li><strong>Emit your outputs.</strong> <code>mkFlake</code> evaluates your config module and module selections into flake outputs.</li>
+      <li><strong>Emit your outputs.</strong> <code>caisson.flake-parts.mkConfiguration</code> evaluates your config module and module selections into flake outputs.</li>
     </ol>
 <pre><code><span class="c"># flake.nix</span>
 {
@@ -248,9 +248,9 @@
           default = mkLibOverlay ./lib-overlays/default;
         };
       };
-    in lib.caisson.mkFlake {
+    in lib.caisson.flake-parts.mkConfiguration {
       configModule =
-        lib.caisson.mkFlakeModule ./configs/flake-parts/my-flake;
+        lib.caisson.flake-parts.mkModule ./configs/flake-parts/my-flake;
     };
 }</code></pre>
     <p>
@@ -274,7 +274,7 @@
     </p>
     <table class="where">
       <tr><th>Integration</th><th>brings caisson's conventions to…</th></tr>
-      <tr><td><code>flake-parts</code></td><td>flake outputs: mkFlake, plus exporting modules and overlays</td></tr>
+      <tr><td><code>flake-parts</code></td><td>flake outputs, plus exporting modules and overlays</td></tr>
       <tr><td><code>nixpkgs</code></td><td>nixpkgs package sets and overlays</td></tr>
       <tr><td><code>nixos</code></td><td>NixOS configurations</td></tr>
       <tr><td><code>home-manager</code></td><td>Home Manager configurations</td></tr>

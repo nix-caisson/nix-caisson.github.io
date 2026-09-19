@@ -32,7 +32,7 @@ Function that selects which parts of the composed library to publish as the flak
 
 ### `caisson.manifest`
 
-- **Type:** `caisson.types.manifest` (read-only)
+- **Type:** `caisson.flake-parts.types.manifest` (read-only)
 - **Default:** the composed library's `caisson-core.manifest`
 - **Source:** `modules/flake-parts/core/caisson/manifest.nix`
 

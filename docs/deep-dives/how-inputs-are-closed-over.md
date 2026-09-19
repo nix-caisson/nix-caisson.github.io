@@ -39,7 +39,8 @@ lib = caisson.lib.caisson-core.mkLib {
 given, and hands them to the registration arguments: `libOverlays`
 receives the input-closed `mkLibOverlay`, and `modules` receives the
 composed `lib`, whose helpers (`lib.caisson.flake-parts.mkModule`,
-`lib.caisson-core.mkModule`) are closed the same way. There is no
+`lib.caisson.nixos.mkModule`, and the `caisson-core.mkModule` they
+are bound from) are closed the same way. There is no
 ambient lookup anywhere in this chain: the only `inputs` a
 registration can see is the attrset its own flake passed to `mkLib`.
 

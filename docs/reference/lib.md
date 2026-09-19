@@ -40,28 +40,33 @@ mkLib :
   } -> lib
 ```
 
-Builds a composed library by extending `baseLib` with the
-`caisson-core` namespace injection and the selected registered
-overlays, then two synthetic overlays: the local module registrations
-(so local names win over overlay-borne contributions) and the
-manifest. Nothing is looked up by input name: `baseLib` is a plain
-argument, and the `caisson-core.mkLib` found in a composed library
-defaults it to that composition's own base.
+Builds a composed library over the seed, the empty attribute set: the
+`caisson-core` entry (registered under that name, so a registration
+under the same name replaces it), the published `nixpkgs-lib` entry
+(nixpkgs' `lib`, sourced from `defaultEcosystemSrc`, imported by every
+integration overlay rather than composed on its own), the selected
+registered overlays, then two synthetic overlays: the local module
+registrations (so local names win over overlay-borne contributions)
+and the manifest. Nothing is looked up by input name.
 
 - `modules` receives the composed `lib` (usable through the fixpoint)
-  and returns the class-keyed registration, typically built with
-  helpers like `lib.caisson-core.mkModule` and
-  `lib.caisson.flake-parts.mkModule`.
+  and returns the class-keyed registration, built with the
+  integrations' `mkModule` helpers (`lib.caisson.nixos.mkModule`,
+  `lib.caisson.flake-parts.mkModule`, and so on).
+  `lib.caisson-core.mkModule "<class>"` is for a class no integration
+  covers.
 - `libOverlays` receives the input-closed `mkLibOverlay` helper and
   returns the registered overlays. Both arguments take exactly the
   function shape shown; passing anything else is an error.
 - `libOverlayImports` selects which registered overlays apply to this
   flake's own `lib`; registration also feeds export, so the two can
   differ.
-- `ecosystems` declares default ecosystem sources for this
-  composition (`{ nixpkgs = inputs.nixpkgs; ... }`), keyed by the
-  exact names the integrations resolve. mkLib only captures them into
-  the manifest; the integrations interpret them.
+- `defaultEcosystemSrc` declares the tree's default source per
+  ecosystem (`{ nixpkgs = inputs.nixpkgs; ... }`), keyed by the exact
+  names the integrations resolve. mkLib captures them into the
+  manifest and reads the `nixpkgs-lib` source from them (the
+  `nixpkgs-lib` name, else `nixpkgs`); the integrations interpret the
+  rest.
 - `projects` consumes whole upstream contributions
   (`{ my-dep = inputs.my-dep; }`): each value carries `libOverlays`
   and class-keyed `modules` dictionaries, which a caisson-built
@@ -140,14 +145,16 @@ selection.
 
 ```
 manifest : { inputs : attrs; modules : attrsOf (attrsOf module);
-             libOverlays : attrsOf libOverlay; ecosystems : attrs;
+             libOverlays : attrsOf libOverlay;
+             defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
              projects : attrs }
 ```
 
 The composition's self-description, injected as its final overlay.
-`inputs`, `ecosystems`, and `projects` are the `mkLib` arguments as
-given; `libOverlays` and `modules` are the registered dictionaries,
-so consumed projects' entries appear under `<project>/<name>` beside
+`inputs`, `defaultEcosystemSrc`, `systems` and `projects` are the
+`mkLib` arguments as given; `libOverlays` and `modules` are the
+registered dictionaries, so consumed projects' entries appear under
+`<project>/<name>` beside
 the local registrations, with a local winning a name collision. An
 mkLib composition self-describes: a consumer's composed library
 carries the consumer's own manifest. Checks live on the export side
@@ -276,9 +283,10 @@ Common conventions:
 
 - Every integration exports `mkConfiguration` (evaluate the target's
   module system with the selected class modules) and, where it has a
-  module class of its own, `mkModule`
-  (the class-bound form of `caisson-core.mkModule`). Target-specific
-  variants and helpers sit beside them under the same namespace.
+  module class of its own, `mkModule`, the form a tree registers that
+  class's modules with (`caisson-core.mkModule` bound to the class).
+  Target-specific variants and helpers sit beside them under the same
+  namespace.
 - `configModule`: the configuration's own top-level module, always a
   single module (compose several with `imports`); the framework's
   selected class modules are applied beside it.
@@ -321,9 +329,9 @@ Common conventions:
 ### `caisson.flake-parts` (module class `flake`)
 
 - **Source:** `lib-overlays/flake-parts/default.nix`
-- `mkModule : freeformModule -> module`: class-bound `mkModule`, the
-  convenience form of `caisson-core.mkModule "flake"` for flake-parts
-  modules.
+- `mkModule : freeformModule -> module`: the registration form for
+  flake-parts modules (`caisson-core.mkModule` bound to the `flake`
+  class).
 - `mkConfiguration`:
 
 ```

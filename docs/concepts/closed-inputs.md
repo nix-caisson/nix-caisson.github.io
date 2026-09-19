@@ -19,15 +19,14 @@ None of these compose well when modules are re-exported for downstream consumpti
 
 ### mkModule
 
-`mkModule` is a factory:
+A tree registers a module with the `mkModule` of the integration that
+owns its class (`lib.caisson.nixos.mkModule`,
+`lib.caisson.flake-parts.mkModule`, and so on). Each is
+`lib.caisson-core.mkModule`, a factory over the class, bound to that
+integration's class:
 
 ```nix
 mkModule = class: freeformModule: ...
-```
-
-You first choose a module class, then use the returned class-specific normalizer. For flake-parts modules:
-
-```nix
 caisson.flake-parts.mkModule = mkModule "flake"
 ```
 

@@ -337,7 +337,7 @@ mkConfiguration :
 ```
 
   Builds final flake outputs via `flake-parts` using the composed
-  `lib`: the flake's `inputs` come from `lib.caisson-core.manifest`
+  `lib`: the flake's `inputs` come from `lib.caisson-core.libManifest`
   (so `mkConfiguration` requires a manifest-carrying, mkLib-built
   composition), and `moduleImports` selects over the `flake` class
   of `lib.caisson-core.modules`, the same registry every adapter
@@ -354,8 +354,9 @@ mkConfiguration :
   Used by options that carry overlays, such as
   `caisson.libOverlays.exported`.
 - `types.manifest`: a structural option type for the caisson-core
-  manifest (`{ inputs, modules, libOverlays }`). The export-side
-  check: the core flake-parts module reads `lib.caisson-core.manifest`
+  lib manifest (`{ inputs, modules, libOverlays, ecosystems, projects,
+  systems }`). The export-side check: the core flake-parts module
+  reads `lib.caisson-core.libManifest`
   through an option of this type before projecting the
   `flake.libOverlays` and `flake.modules` outputs.
 

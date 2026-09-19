@@ -23,6 +23,7 @@ Create a directory with this `flake.nix`:
     let
       lib = caisson.lib.caisson-core.mkLib {
         inherit inputs;
+        systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
         };
@@ -36,7 +37,9 @@ Create a directory with this `flake.nix`:
 ```
 
 `caisson-core.mkLib` composes a library: nixpkgs' lib, the machinery
-under `lib.caisson-core`, and the overlays you register. Consuming
+under `lib.caisson-core`, and the overlays you register. `systems`,
+the platforms the flake builds for, is declared here once; flake-parts
+reads it from the composition. Consuming
 caisson as a project registers everything it exports, its
 integrations included, which contributes `lib.caisson` (one namespace per integration
 target); `lib.caisson.flake-parts.mkConfiguration` then evaluates
@@ -51,8 +54,6 @@ The config module is the flake's own top-level configuration. Create
 { ... }:
 { pkgs, ... }:
 {
-  systems = [ "x86_64-linux" ];
-
   caisson.configInfo.configName = "my-flake";
 
   perSystem =

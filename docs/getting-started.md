@@ -192,10 +192,11 @@ in the config module's `perSystem` or at the top level:
   };
 ```
 
-Instead of passing `ecosystemSrc` at every call, a flake can set a
-flake-level default at `mkLib` (`ecosystems.nixpkgs = inputs.nixpkgs`)
-and drop the argument; an explicit argument still wins, and an input
-named exactly `nixpkgs` is the last fallback.
+Instead of passing `ecosystemSrc` at every call, the `mkLib` call can
+declare a default (`defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`) and
+the argument can be dropped; an explicit argument still wins, and the
+entry named exactly `nixpkgs` in the `inputs` passed to `mkLib` is the
+last fallback.
 
 With caisson consumed as a project, its integration overlays are
 already registered and applied, so `caisson.nixos` is present. To

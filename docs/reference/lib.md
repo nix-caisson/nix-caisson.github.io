@@ -106,8 +106,8 @@ output (merge its result with any namespace contributions); it
 is passed through the closure rather than the composed library because
 an overlay's output attribute names must not depend on `final`.
 Qualify contributed names with your project prefix
-(`my-flake/my-service`); the composing flake's local registrations
-apply last and win over same-named contributions. See
+(`my-flake/my-service`); the registrations made in the `mkLib` call
+itself apply last and win over same-named contributions. See
 [Module classes](../concepts/module-classes.md) for the ways
 modules enter the registry.
 
@@ -269,10 +269,11 @@ flake-parts, whose pin is caisson's own hidden input.
 
 An adapter's ecosystem source resolves in layers: the explicit
 `ecosystemSrc` argument first, then the composition's declared
-`ecosystems.<name>` (an mkLib argument, carried by the
-manifest), then an input of the composing flake named exactly
-`<name>`. The names are `nixpkgs` (the nixos integration),
-`home-manager`, `colmena`, `terranix`, and `system-manager`. A full
+`defaultEcosystemSrc.<name>` (an mkLib argument, carried by the
+manifest), then the entry named exactly `<name>` in the `inputs`
+passed to mkLib. The names are `nixpkgs` (the nixos integration),
+`home-manager`, `colmena`, `terranix`, `system-manager`, and
+`flake-parts`. A full
 miss throws at the adapter, naming the three places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
 Common conventions:

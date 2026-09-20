@@ -86,9 +86,9 @@ The registry is a shared, class-keyed space per composition, so two
 rules keep multiple contributors coherent. Names within a class are a
 single flat space: qualify contributed names with your project prefix
 (`my-flake/my-service`), the same discipline as top-level library
-namespaces; short names are for the composing flake's own
-registrations. And precedence is deterministic: the composing flake's
-local registrations apply last, so a local entry always wins over a
+namespaces; short names are for the registrations made in the `mkLib`
+call itself. And precedence is deterministic: those local
+registrations apply last, so a local entry always wins over a
 same-named contribution.
 
 Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way (colmena's class is the hive; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).

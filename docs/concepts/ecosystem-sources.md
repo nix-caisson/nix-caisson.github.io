@@ -33,12 +33,12 @@ A source comes from one of three places, in priority order:
 
 1. **Explicit argument.** `ecosystemSrc = inputs.nixpkgs` at the
    call site always wins.
-2. **Flake-level default.** `ecosystems.nixpkgs = inputs.nixpkgs` at
-   `mkLib` declares the composition's default for that name.
-3. **Exact-name input.** As a final fallback, an input of the
-   composing flake named exactly like the ecosystem (`nixpkgs`,
-   `home-manager`, ...) is used. Handy for leaf flakes that declare
-   the input anyway.
+2. **Composition default.** `defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`
+   in the `mkLib` call declares the composition's default for that name.
+3. **Exact-name input.** As a final fallback, the entry named exactly
+   like the ecosystem (`nixpkgs`, `home-manager`, ...) in the `inputs`
+   passed to `mkLib` is used. For a flake that declares that input
+   anyway, this is the common case.
 
 If none of the three places can provide a needed ecosystem source,
 it triggers an evaluation error.

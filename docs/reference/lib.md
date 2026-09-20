@@ -262,10 +262,9 @@ Each integration is a library overlay exported by this flake
 `lib.composition.entriesFor`. Composing one contributes its
 `lib.caisson.<ecosystem>` namespace, documented below (the flake-parts
 integration also contributes the `lib.flake-parts` mirror of
-flake-parts' own library). Each entry
-point takes its ecosystem as an `ecosystemSrc` argument, and
-the integrations pin nothing themselves, with one exception:
-flake-parts, whose pin is caisson's own hidden input.
+the flake-parts library, instantiated over the composed lib). Each
+entry point takes its ecosystem as an `ecosystemSrc` argument, and
+the integrations pin nothing themselves, flake-parts included.
 
 An adapter's ecosystem source resolves in layers: the explicit
 `ecosystemSrc` argument first, then the composition's declared
@@ -333,8 +332,8 @@ Common conventions:
 The empty integration: it wraps no ecosystem, and its class carries
 nothing but caisson's core module, the manifest, the registry
 selectors and `caisson.exports`. A structural configuration is the top
-of a repository whose point is what it exports (caisson's own
-`default.nix` is one), and later the layer that gathers child
+of a repository whose point is what it exports (the `default.nix` of
+caisson is one), and later the layer that gathers child
 configurations.
 
 - `mkModule : freeformModule -> module`: the registration form for
@@ -386,9 +385,10 @@ mkConfiguration :
   composition), and `moduleImports` selects over the `flake` class
   of `lib.caisson-core.modules`, the same registry every adapter
   selects from, so modules arriving by local registration, overlay
-  contribution, or consumed project are all selectable. The
-  flake-parts pin is caisson's own, closed over at the integration's
-  definition; consumers declare no flake-parts input. `name` sets
+  contribution, or consumed project are all selectable. flake-parts
+  itself resolves like every ecosystem, from `ecosystemSrc`,
+  `defaultEcosystemSrc.flake-parts` or the input named `flake-parts`,
+  and is instantiated over the composed library. `name` sets
   flake-parts' `moduleLocation` (so exported modules deduplicate
   across revs) and defaults `caisson.configInfo.configName`.
 - `types.libOverlay`: a module-system option type for built library

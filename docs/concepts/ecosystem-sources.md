@@ -31,10 +31,10 @@ documents the shape it takes; in practice:
 
 ## Which integration uses which ecosystem
 
-One ecosystem may be wrapped by several integrations, each with its
-own evaluator over the same source. The name in the second column is
-what the integration resolves its source by, in the three places
-listed below.
+One ecosystem may be wrapped by several integrations, each with a
+different evaluator over the same source. The name in the second column is
+what the integration resolves its source by, in the places listed
+below.
 
 | Integration | Ecosystem name | Source shape |
 | --- | --- | --- |

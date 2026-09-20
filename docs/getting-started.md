@@ -40,13 +40,13 @@ Create a directory with this `flake.nix`:
 
 `caisson-core.mkLib` composes a library: nixpkgs' lib, the machinery
 under `lib.caisson-core`, and the overlays you register. `systems`,
-the platforms the flake builds for, is declared here once; flake-parts
+the platforms the flake builds for, is declared here; flake-parts
 reads it from the composition. Consuming
 caisson as a project registers everything it exports, its
 integrations included, which contributes `lib.caisson` (one namespace per integration
 target); `lib.caisson.flake-parts.mkConfiguration` then evaluates
 flake-parts with that library and your config module. flake-parts
-comes from the flake's own `flake-parts` input, like every ecosystem
+comes from the `flake-parts` input of the flake, like every ecosystem
 caisson wraps: the integration calls that source with the composed
 library, so the evaluation runs on the same nixpkgs lib the rest of
 the composition does.

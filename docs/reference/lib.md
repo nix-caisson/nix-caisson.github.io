@@ -326,6 +326,41 @@ Common conventions:
 - Framework-provided special arguments compose first; the caller's
   win on conflict.
 
+### `caisson.structural` (module class `structural`)
+
+- **Source:** `lib-overlays/structural/default.nix`
+
+The empty integration: it wraps no ecosystem, and its class carries
+nothing but caisson's core module, the manifest, the registry
+selectors and `caisson.exports`. A structural configuration is the top
+of a repository whose point is what it exports (caisson's own
+`default.nix` is one), and later the layer that gathers child
+configurations.
+
+- `mkModule : freeformModule -> module`: the registration form for
+  structural modules.
+- `mkConfiguration`:
+
+```
+mkConfiguration :
+  { configModule  : module                                  # structural class
+  , moduleImports ? builtins.attrValues
+                  : attrsOf module -> listOf module          # selection from the structural class registry
+  , name          ? null : nullOr string                    # default for caisson.configInfo.configName
+  , specialArgs   ? { }
+  , pkgSets       ? null : attrs                            # the pkgSets special argument
+  } -> { value : config; outputs : { exports : attrs } }
+```
+
+Evaluates the core module, the selected structural modules and the
+config module with `evalModules` over the composed library. `value` is
+the evaluated configuration; `outputs.exports` is `caisson.exports`,
+the `lib`, `libOverlays` and `modules` the selectors chose.
+
+- `mkTopConfiguration`: the same arguments; returns `outputs.exports`
+  with `caisson.manifest` beside it, which is what `default.nix`
+  returns for a reader that indexes attributes of the file's value.
+
 ### `caisson.flake-parts` (module class `flake`)
 
 - **Source:** `lib-overlays/flake-parts/default.nix`

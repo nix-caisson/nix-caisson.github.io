@@ -16,6 +16,8 @@ Create a directory with this `flake.nix`:
   inputs = {
     caisson.url = "github:nix-caisson/caisson";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
   };
 
   outputs =
@@ -43,9 +45,11 @@ reads it from the composition. Consuming
 caisson as a project registers everything it exports, its
 integrations included, which contributes `lib.caisson` (one namespace per integration
 target); `lib.caisson.flake-parts.mkConfiguration` then evaluates
-flake-parts with that library
-and your config module, using caisson's own flake-parts pin, so your
-flake declares none.
+flake-parts with that library and your config module. flake-parts
+comes from the flake's own `flake-parts` input, like every ecosystem
+caisson wraps: the integration calls that source with the composed
+library, so the evaluation runs on the same nixpkgs lib the rest of
+the composition does.
 
 The config module is the flake's own top-level configuration. Create
 `configs/flake-parts/my-flake/default.nix`:

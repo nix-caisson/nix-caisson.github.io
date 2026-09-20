@@ -192,10 +192,13 @@ shared `call-flake` kernel (also used by the eval-weight harness).
 Nothing is fetched: locks are not read, and `sourceInfo` attrs appear
 only if supplied. See [Testing](../testing.md).
 
-### `compose`, `resolve`, `partitionExtraInputs`
+### `compose`, `resolve`, `callFlake`, `partitionExtraInputs`
 
 Keyed composition (`compose`), the layered ecosystem-source
-resolver (`resolve`), and the read-only-eval-safe partition
+resolver (`resolve`), the flake caller (`callFlake { src, inputs }`:
+a flake's outputs function applied to inputs given as values,
+fetching nothing; the flake-parts integration instantiates
+flake-parts through it) and the read-only-eval-safe partition
 extra-inputs loader, re-exposed from caisson-core. See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
 caisson-core's own documentation.
@@ -207,13 +210,6 @@ caisson-core's own documentation.
 [Integration namespaces](#integration-namespaces)), plus the
 pkgs-dependent tooling documented at the end of this section.
 caisson's registered flake modules are listed here too.
-
-### `modules.flake."caisson/partitions"`
-
-flake-parts' partitions module, registered and exported in caisson's
-flake class so a consumer selects it from the registry
-(`moduleImports = modules: [ modules."caisson/partitions" ... ]`)
-rather than declaring a flake-parts input for it.
 
 ### `modules.flake."caisson/nixpkgs"`, `modules.flake."caisson/nixpkgs-interface"`
 

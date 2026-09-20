@@ -26,6 +26,29 @@ documents the shape it takes; in practice:
   `caisson.system-manager` take their project's flake (they call
   `lib.makeHive`, `lib.terranixConfiguration`, and
   `lib.makeSystemConfig` on it).
+- `caisson.flake-parts` takes a flake-parts source tree and calls its
+  `flake.nix` with the composed library as `nixpkgs-lib`.
+
+## Which integration uses which ecosystem
+
+One ecosystem may be wrapped by several integrations, each with its
+own evaluator over the same source. The name in the second column is
+what the integration resolves its source by, in the three places
+listed below.
+
+| Integration | Ecosystem name | Source shape |
+| --- | --- | --- |
+| `caisson.flake-parts` | `flake-parts` | flake-parts source tree |
+| `caisson.nixpkgs` | `nixpkgs` | nixpkgs source tree (per package set, as `pkgFunction`) |
+| `caisson.nixos` | `nixpkgs` | nixpkgs source tree |
+| `caisson.home-manager` | `home-manager` | home-manager source tree |
+| `caisson.colmena` | `colmena` | colmena flake |
+| `caisson.terranix` | `terranix` | terranix flake |
+| `caisson.system-manager` | `system-manager` | system-manager flake |
+
+The nixpkgs library that every composed lib is built over is resolved
+separately by caisson-core, under the name `nixpkgs-lib`, falling back
+to `nixpkgs`.
 
 ## How does caisson get access to ecosystem sources?
 

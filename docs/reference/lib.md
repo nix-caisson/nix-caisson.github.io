@@ -271,9 +271,12 @@ An adapter's ecosystem source resolves in layers: the explicit
 `ecosystemSrc` argument first, then the composition's declared
 `defaultEcosystemSrc.<name>` (an mkLib argument, carried by the
 manifest), then the entry named exactly `<name>` in the `inputs`
-passed to mkLib. The names are `nixpkgs` (the nixos integration),
-`home-manager`, `colmena`, `terranix`, `system-manager`, and
-`flake-parts`. A full
+passed to mkLib. The name is the integration's ecosystem, and one
+ecosystem may serve several integrations: `nixpkgs` for both the
+nixos and the nixpkgs integrations, then `home-manager`, `colmena`,
+`terranix`, `system-manager` and `flake-parts` for the integration of
+the same name (the table in
+[Ecosystem sources](../concepts/ecosystem-sources.md)). A full
 miss throws at the adapter, naming the three places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
 Common conventions:

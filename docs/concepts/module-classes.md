@@ -91,7 +91,7 @@ call itself. And precedence is deterministic: those local
 registrations apply last, so a local entry always wins over a
 same-named contribution.
 
-Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way (colmena's class is the hive; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
+Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way (colmena's class is `colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
 
 ## Consuming Exported Modules
 

@@ -29,6 +29,8 @@ mkLib :
   { inputs            : attrs                              # the defining flake's inputs
   , modules           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
+  , configs           ? (lib: { })
+                      : lib -> attrsOf (attrsOf module)    # class -> name -> configuration
   , libOverlays       ? (mkLibOverlay: { })
                       : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
   , libOverlayImports ? builtins.attrValues
@@ -55,6 +57,12 @@ and the manifest. Nothing is looked up by input name.
   `lib.caisson.flake-parts.mkModule`, and so on).
   `lib.caisson-core.mkModule "<class>"` is for a class no integration
   covers.
+- `configs` receives the composed `lib` the same way and returns the
+  configurations of the tree, keyed by module class then name, the
+  layout `configs/<class>/<name>` on disk (colmena's class is
+  `colmena`). They come back as `lib.caisson-core.configs.<class>.<name>`,
+  so a top and a configuration that evaluates another beneath itself
+  reach them by name rather than by a path out of their directory.
 - `libOverlays` receives the input-closed `mkLibOverlay` helper and
   returns the registered overlays. Both arguments take exactly the
   function shape shown; passing anything else is an error.
@@ -145,14 +153,15 @@ selection.
 
 ```
 manifest : { inputs : attrs; modules : attrsOf (attrsOf module);
+             configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
              defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
              projects : attrs }
 ```
 
 The composition's self-description, injected as its final overlay.
-`inputs`, `defaultEcosystemSrc`, `systems` and `projects` are the
-`mkLib` arguments as given; `libOverlays` and `modules` are the
+`inputs`, `defaultEcosystemSrc`, `systems`, `projects` and `configs`
+are the `mkLib` arguments as given; `libOverlays` and `modules` are the
 registered dictionaries, so consumed projects' entries appear under
 `<project>/<name>` beside
 the local registrations, with a local winning a name collision. An

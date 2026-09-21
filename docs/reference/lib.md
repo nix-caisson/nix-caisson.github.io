@@ -55,7 +55,10 @@ under the same name replaces it), the published `nixpkgs-lib` entry
 integration overlay rather than composed on its own), the selected
 registered overlays, then two synthetic overlays: the local module
 registrations (so local names win over overlay-borne contributions)
-and the manifest. Nothing is looked up by input name.
+and the manifest. Every source arrives as an argument or a
+declaration; the exact-name input fallback applies to ecosystem
+resolution only (see
+[Ecosystem sources](../concepts/ecosystem-sources.md)).
 
 - `modules` receives the composed `lib` (usable through the fixpoint)
   and returns the class-keyed registration, built with the
@@ -93,8 +96,7 @@ and the manifest. Nothing is looked up by input name.
   choice: `libOverlayImports` decides which overlays apply, the
   registry selection at each use site decides which modules load, and
   a local registration beats a same-named project entry. Registering
-  a single overlay by hand stays the way to cherry-pick or rename
-  one.
+  a single overlay by hand is the way to cherry-pick or rename one.
 
 ### `mkModules`, `mkLibOverlays`
 
@@ -365,13 +367,13 @@ Builds memoized derivation-content readers; see the source header.
 ## Integration namespaces
 
 Each integration is a library overlay exported by this flake
-(`libOverlays.<ecosystem>`) and available as a keyed entry via
-`lib.composition.entriesFor`. Composing one contributes its
+(`libOverlays.<ecosystem>`). Composing one contributes its
 `lib.caisson.<ecosystem>` namespace, documented below (the flake-parts
 integration also contributes the `lib.flake-parts` mirror of
 the flake-parts library, instantiated over the composed lib). Each
 entry point takes its ecosystem as an `ecosystemSrc` argument, and
-the integrations pin nothing themselves, flake-parts included.
+every ecosystem, flake-parts included, is resolved from the
+composition of the consumer.
 
 An adapter's ecosystem source resolves in layers: the explicit
 `ecosystemSrc` argument first, then the composition's declared
@@ -441,8 +443,7 @@ The empty integration: it wraps no ecosystem, and its class carries
 nothing but caisson's core module, the manifest, the registry
 selectors and `caisson.exports`. A structural configuration is the top
 of a repository whose point is what it exports (the `default.nix` of
-caisson is one), and later the layer that gathers child
-configurations.
+caisson is one).
 
 - `mkModule : freeformModule -> module`: the registration form for
   structural modules.

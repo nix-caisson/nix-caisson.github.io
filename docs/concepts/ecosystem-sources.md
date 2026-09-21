@@ -1,9 +1,8 @@
 # Ecosystem sources
 
-Integrations do not pin their ecosystems: `caisson.nixos` has no
-nixpkgs pin, and `caisson.home-manager` has no home-manager pin. You
-pass the ecosystem in, as an argument called the ecosystem source, and
-the integration calls the evaluator inside that source. A single
+Each integration takes its ecosystem as an argument, the ecosystem
+source, and calls the evaluator inside that source; it pins nothing
+itself. A single
 caisson revision therefore works with any nixpkgs, home-manager, or
 colmena revision with a compatible evaluation contract, and two
 consumers of that same caisson revision can pin different revisions

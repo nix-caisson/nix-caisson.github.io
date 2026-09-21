@@ -222,8 +222,8 @@ per item over the combined dictionary:
 ```
 
 Registering a single overlay by hand
-(`nixos = caisson.libOverlays.nixos`) remains the way to cherry-pick
-or rename one. The [library reference](reference/lib.md) documents
+(`nixos = caisson.libOverlays.nixos`) is the way to cherry-pick or
+rename one. The [library reference](reference/lib.md) documents
 the integration namespaces.
 
 ## 5. Consume your flake from another flake
@@ -266,8 +266,8 @@ contribute modules via `contributeModules` (see
 way. A consumer who wants only part of your project selects with
 `libOverlayImports`, or registers single overlays from
 `my-flake.libOverlays.<name>` by hand; the
-`my-flake.modules.<class>.<name>` flake outputs remain for consumers
-who import modules without composing anything.
+`my-flake.modules.<class>.<name>` flake outputs serve consumers who
+import modules without composing anything.
 
 ## Where next
 

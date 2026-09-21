@@ -124,7 +124,7 @@ in three ways:
   contributed module closes over the definer's inputs and library, not
   the consumer's. A consumer who registers the exported overlay gets
   its library namespace and its modules together, transitively through
-  the overlay's `imports` chain; no re-registration is involved.
+  the overlay's `imports` chain.
 - **Project consumption**, `mkLib`'s `projects` hook: registering a
   whole upstream contribution (`projects.my-dep = inputs.my-dep`)
   places its exported modules in the registry under

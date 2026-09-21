@@ -123,10 +123,9 @@ arguments.
 
 The same split governs version skew. An exported module built against
 `closure-inputs.nixpkgs` uses the definer's nixpkgs pin even when the
-consumer runs a different one. That skew is a designed property, not
-an accident: each flake's files run against the pins that flake
-tested with, the pins are visible in each flake's lock, and
-nothing forces the fleet to upgrade in lockstep. Where a consumer
+consumer runs a different one. Each flake's files run against the
+pins that flake tested with, the pins are visible in each flake's
+lock, and nothing forces every repository to upgrade in lockstep. Where a consumer
 does want to override a definer's pin, flake-level `follows` on the
 definer's input still works, because `closure-inputs` is the
 definer's `inputs` attrset and `follows` rewrites what that attrset

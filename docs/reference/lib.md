@@ -319,6 +319,28 @@ the `caisson.nixpkgs.*` options:
   `legacyPackages`, and the flake's own package scope
   (`pkgs.<configName>`) as `packages`.
 
+### `integrations`
+
+- **Source:** `lib-overlays/integrations/default.nix`
+
+What an integration is written from, the functions every integration
+overlay shares; each integration imports this overlay by key, so
+composing any integration composes it, and reads the functions
+through `final`. When `mkIntegration` generates integrations from
+declarations, these are its parts.
+
+- `checkArgs : { context, accepted, hints?, open? } -> args -> args`:
+  the closed signature of an entry point; refuses an argument outside
+  `accepted` with a message naming the caisson argument to use (from
+  `hints`) or the `WithEcosystemArgs` twin (`open`).
+- `resolveEcosystemSrc : { name, context } -> { explicit?, manifest? } -> src`:
+  the layered ecosystem-source resolution with the miss interpreted
+  (see [Ecosystem sources](../concepts/ecosystem-sources.md)).
+- `coreModules : registry -> listOf module`,
+  `defaultModuleImports : registry -> listOf module`: every entry of a
+  class registry named `core` (the framework module of the class) and
+  every entry named `default` (the default default).
+
 ### `eval-weight`
 
 - **Source:** `lib-overlays/tooling/eval-weight/`

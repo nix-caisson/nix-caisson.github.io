@@ -42,7 +42,7 @@ composed `lib`, whose helpers (`lib.caisson.flake-parts.mkModule`,
 `lib.caisson.nixos.mkModule`, and the `caisson-core.mkModule` they
 are bound from) are closed the same way. There is no
 ambient lookup anywhere in this chain: the only `inputs` a
-registration can see is the attrset its own flake passed to `mkLib`.
+registration can see is the attrset the registering flake passed to `mkLib`.
 
 ## When the closure is applied
 
@@ -111,13 +111,13 @@ scope, and they answer different questions:
 | `inputs` module arg | The flake being evaluated |
 | `lib` module arg | The flake being evaluated |
 
-While a flake consumes its own registrations the distinction is
+While a flake consumes its registrations the distinction is
 invisible, because both worlds are the same flake. It starts to
 matter the moment a module is exported: a consumer evaluates the
-module inside their own composition, so the ordinary `lib` argument
+module inside the consuming composition, so the ordinary `lib` argument
 is the consumer's composed library, while `closure-lib` remains the
-definer's. A module that formats a string with a helper from its own
-flake's namespace wants `closure-lib`; a module that inspects the
+definer's. A module that formats a string with a helper from the
+namespace of the flake that registered it wants `closure-lib`; a module that inspects the
 configuration it is being evaluated into wants the ordinary
 arguments.
 

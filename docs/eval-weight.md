@@ -3,12 +3,12 @@
 `lib.caisson.eval-weight` measures what an evaluation costs and can
 gate that cost in `checks`, so a framework regression is caught by CI
 rather than noticed as slowness later. This repository uses it to gate
-its own overhead; the numbers quoted in these docs come from it.
+its overhead; the numbers quoted in these docs come from it.
 
 ## How it measures
 
 A scenario runs a pinned Nix evaluator inside a derivation sandbox
-against explicitly wired inputs and captures the evaluator's own
+against explicitly wired inputs and captures the evaluator's
 statistics. The deterministic counters (thunks, values, environments,
 function and primop calls, total allocations) are reproducible for a
 fixed lock set and Nix version, so they can be gated. CPU and

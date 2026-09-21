@@ -49,7 +49,7 @@ modules/<class>/<module>/<flake-name>/*.nix
 
 Reusable modules, keyed first by module class (directory names are the
 class names: `flake`, `nixos`, `homeManager`, and `generic` for a
-module any class may import), then by the module's own name. Two
+module any class may import), then by the module's name. Two
 names carry meaning in every class: `core`, forced into every
 evaluation of the class, and `default`, the default default (see
 [Module classes](concepts/module-classes.md)); the conventional

@@ -73,7 +73,7 @@ caisson-core, so evaluation cost grows with the number of
 overlays and the depth of the dependency graph. One contract worth
 knowing: the base library is contributed as an opaque attribute set,
 so overriding one of its attributes changes what readers of the
-composed library see, without re-tying the base's own internal
+composed library see, without re-tying the base's internal
 references.
 
 For most flakes the overhead is negligible, but it's worth being aware of, especially if you're composing a large number of upstream library overlays. The eval-weight harness (see the guides) is the tool for holding it to a measured ceiling.

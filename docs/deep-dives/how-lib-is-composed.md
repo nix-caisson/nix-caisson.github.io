@@ -23,10 +23,10 @@ an entry like everything else.
   closure (`{ entries, ... }: { imports = [ entries.nixpkgs-lib ]; ... }`),
   and a flake that declares no source fails only where that entry is
   composed, with a message naming the declaration.
-- `libOverlays`: the flake's own overlay registrations, built with
+- `libOverlays`: the flake's overlay registrations, built with
   the input-closed `mkLibOverlay` helper or registered directly when
   already built (another flake's export, for example).
-- `modules`: the flake's own class-keyed module registrations.
+- `modules`: the flake's class-keyed module registrations.
 - `projects`: whole upstream contributions, each carrying exported
   overlays and modules that register under `<project>/<name>`.
 
@@ -38,7 +38,7 @@ upstream's library or a replacement of the core is an ordinary
 registration.
 
 Registration and application are separate steps: `libOverlayImports`
-selects which of the registered overlays apply to this flake's own
+selects which of the registered overlays apply to this flake's
 `lib` (default: all of them), and registration also feeds export, so
 a flake can register overlays for downstream consumers that it does
 not apply to itself.
@@ -54,7 +54,7 @@ caisson adds itself:
   -> selected overlays (flattened, imports first; the `nixpkgs-lib`
      entry wherever an overlay imports it)
   -> consumed projects' modules
-  -> the flake's own module registrations
+  -> the flake's module registrations
   -> the manifest
 ```
 
@@ -92,7 +92,7 @@ Two consequences of the fixpoint are worth knowing:
   fixpoint whose shape depends on itself diverges.
 - The base library is contributed as an opaque value. Overriding one
   of its attributes changes what readers of the composed library see,
-  and does not change what the base's own internals call; a function
+  and does not change what the base's internals call; a function
   patched for everything downstream of the base has to be patched in
   the base source you pass in.
 
@@ -118,7 +118,7 @@ cannot be imported, applies after the whole keyed world in list
 order, and can never be replaced by another entry, because
 replacement addresses keys and it has none; keyless entries are a
 consumer's private patch layer. Import cycles terminate (a key
-already on the walk's own path is skipped) and grant the cycle's
+already on the walk's path is skipped) and grant the cycle's
 members no ordering relative to each other.
 
 Identity is what makes patching a dependency reliable. A polyfill
@@ -144,7 +144,7 @@ specified in
 [caisson-core](https://github.com/nix-caisson/caisson-core), where
 the code lives.
 
-caisson exports its own contributions in entry form through
+caisson exports its contributions in entry form through
 `lib.composition.entriesFor`:
 
 ```nix
@@ -170,10 +170,10 @@ integrations and tooling, each importing `caisson-lib`.
 `specialArgs.lib`, so modules receive it as their ordinary `lib`
 argument. `flake.lib` publishes a selection of it when
 `caisson.lib.export.enabled` is set; the default selection is the
-flake's own namespace only, and that is the convention: exporting
+flake's namespace only, and that is the convention: exporting
 the full composed library would make all of nixpkgs-lib, at your
-pin, part of your public contract. Consumers build their own
-composed library against their own inputs instead.
+pin, part of your public contract. Consumers build their
+composed library against their inputs instead.
 
 ## Inspecting the result
 

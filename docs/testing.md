@@ -1,7 +1,7 @@
 # Testing
 
-The conventions and tools for testing a caisson flake, as used by this
-repository's own test suite (`tests/` here is a worked example of all
+The conventions and tools for testing a caisson flake, as used by the
+test suite of this repository (`tests/` here is a worked example of all
 of it).
 
 ## Unit tests

@@ -19,8 +19,14 @@ Type notation used below:
 
 ## The caisson-core namespace
 
-- **Source:** caisson-core's `lib/` (`lifecycle.nix` for the
-  machinery, `default.nix` for keyed composition and the resolver)
+- **Source:** caisson-core's `lib/default.nix` (the `compose`
+  primitive, and the composition of the entries below) and
+  `lib-overlays/<name>/default.nix` (`compose`, `resolve`, `kernel`,
+  `lifecycle`, `readers`): caisson-core is its own composition, and
+  `mkLib` composes those same entries, keyed `caisson-core/<name>`,
+  into every library it builds, so this namespace is one definition
+  wherever it appears and each part is a registered entry a same-key
+  entry replaces.
 
 ### `mkLib`
 

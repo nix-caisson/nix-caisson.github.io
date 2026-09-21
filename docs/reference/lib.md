@@ -103,14 +103,36 @@ tree with the conventional layout registers by naming the directory
 (`modules = core.mkModules ./modules; configs = core.mkModules
 ./configs; libOverlays = core.mkLibOverlays ./lib-overlays;`).
 `mkModules` reads the first directory level as the class, whatever
-its name, and applies `caisson-core.mkModule <class>` to each entry
-directory; `mkLibOverlays` applies `mkLibOverlay`. An entry is a
-directory holding a `default.nix`, a symlink to one included;
+its name, and registers each entry directory through the class index
+of the composed library, `caisson-core.classes.<class>.mkModule`, the
+`mkModule` of the integration that declares the class; a directory
+for a class no composed integration declares is an error naming the
+declared classes. `mkLibOverlays` applies `mkLibOverlay`. An entry is
+a directory holding a `default.nix`, a symlink to one included;
 anything else in a directory being read is an error, so a stray file
 cannot silently vanish from a registry. A tree with another layout
 writes the registration by hand. Both are also available before any
 composition exists, on `caisson-core` itself
 (`caisson.lib.caisson-core.mkModules`).
+
+### `classes`, `contributeClasses`
+
+```
+classes : attrsOf { integration : string; mkModule : freeformModule -> module }
+contributeClasses : attrs -> attrsOf { integration; mkModule } -> attrs
+```
+
+The class index of a composition: per class, the integration that
+owns it and the `mkModule` the class registers through. An
+integration declares the class it owns from its overlay body, the way
+`contributeModules` contributes modules
+(`overlay = final: prev: contributeClasses prev { nixos = { integration = "nixos"; mkModule = final.caisson-core.mkModule "nixos"; }; } // { ... }`),
+and a declaration composed later replaces it: an integration that
+wraps another declares the same class with its own `mkModule` and
+every reader of the class, `mkModules` first, registers through the
+wrapper. `caisson-core` declares the class-free `generic` class
+itself. An integration that evaluates a class another integration
+owns (`caisson.nixos-minimal`) declares nothing here.
 
 ### `mkLibOverlay`
 
@@ -124,6 +146,7 @@ closure = { closure-inputs     : attrs
           ; mkLibOverlay       : freeformOverlay -> libOverlay
           ; mkModule           : string -> freeformModule -> module
           ; contributeModules  : attrs -> attrsOf (attrsOf module) -> attrs
+          ; contributeClasses  : attrs -> attrsOf { integration; mkModule } -> attrs
           }
 ```
 

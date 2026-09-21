@@ -13,23 +13,30 @@ This builds on flake-parts' `flake.modules` output, which publishes modules unde
 
 A tree laid out as `modules/<class>/<name>/default.nix` registers its
 modules by naming the directory: `caisson-core.mkModules` reads it
-into the class-keyed registration, applying
-`lib.caisson-core.mkModule <class>` to each entry, and the same
-reader serves `configs/<class>/<name>`:
+into the class-keyed registration, and the same reader serves
+`configs/<class>/<name>`:
 
 ```nix
 modules = core.mkModules ./modules;
 configs = core.mkModules ./configs;
 ```
 
-The first directory level is the class, whatever its name, so a class
-no integration covers (`hardware`, the way ch-hardware defines one for
-its capture modules) and the class-free `generic` group (a module any
-class may import; the name comes from flake-parts, whose export
-leaves those modules unstamped) read the same way. An entry is a
-directory holding a `default.nix`, a symlink to one included;
-anything else in a directory being read is an error, so a stray file
-cannot silently vanish from a registry.
+The first directory level is the class, whatever its name, and each
+entry registers through the class index of the composed library
+(`lib.caisson-core.classes.<class>`): the `mkModule` of the
+integration that declares the class. Every integration that owns a
+class declares it from its overlay, so composing the nixos integration
+is what makes `modules/nixos` register, and an integration that wraps
+another declares the same class again with its own `mkModule`, which
+every reader then registers through. A class no integration covers
+(`hardware`, the way ch-hardware defines one for its capture modules)
+is declared by the overlay that defines it, and the class-free
+`generic` group (a module any class may import; the name comes from
+flake-parts, whose export leaves those modules unstamped) is declared
+by caisson-core. A directory for a class nothing composed declares is
+an error. An entry is a directory holding a `default.nix`, a symlink
+to one included; anything else in a directory being read is an error,
+so a stray file cannot silently vanish from a registry.
 
 A tree with another layout writes the registration by hand, with the
 `mkModule` of the integration that owns the class applied to the

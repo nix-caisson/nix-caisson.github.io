@@ -30,10 +30,11 @@ mkModule = class: freeformModule: ...
 ```
 
 The class-string form is written out only for a class no integration
-covers, for instance a class the tree defines itself:
+covers, for instance a class the tree defines itself, the way
+ch-hardware defines a `hardware` class for its capture modules:
 
 ```nix
-generic.helper = lib.caisson-core.mkModule "generic" ./modules/generic/helper;
+hardware.tpmFacts = lib.caisson-core.mkModule "hardware" ./modules/hardware/tpmFacts;
 ```
 
 The class-specific normalizer applies the closure attrset

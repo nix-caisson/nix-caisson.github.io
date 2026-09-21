@@ -16,6 +16,8 @@ Create a directory with this `flake.nix`:
   inputs = {
     caisson.url = "github:nix-caisson/caisson";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
   };
 
   outputs =
@@ -38,14 +40,16 @@ Create a directory with this `flake.nix`:
 
 `caisson-core.mkLib` composes a library: nixpkgs' lib, the machinery
 under `lib.caisson-core`, and the overlays you register. `systems`,
-the platforms the flake builds for, is declared here once; flake-parts
+the platforms the flake builds for, is declared here; flake-parts
 reads it from the composition. Consuming
 caisson as a project registers everything it exports, its
 integrations included, which contributes `lib.caisson` (one namespace per integration
 target); `lib.caisson.flake-parts.mkConfiguration` then evaluates
-flake-parts with that library
-and your config module, using caisson's own flake-parts pin, so your
-flake declares none.
+flake-parts with that library and your config module. flake-parts
+comes from the `flake-parts` input of the flake, like every ecosystem
+caisson wraps: the integration calls that source with the composed
+library, so the evaluation runs on the same nixpkgs lib the rest of
+the composition does.
 
 The config module is the flake's own top-level configuration. Create
 `configs/flake-parts/my-flake/default.nix`:
@@ -188,10 +192,11 @@ in the config module's `perSystem` or at the top level:
   };
 ```
 
-Instead of passing `ecosystemSrc` at every call, a flake can set a
-flake-level default at `mkLib` (`ecosystems.nixpkgs = inputs.nixpkgs`)
-and drop the argument; an explicit argument still wins, and an input
-named exactly `nixpkgs` is the last fallback.
+Instead of passing `ecosystemSrc` at every call, the `mkLib` call can
+declare a default (`defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`) and
+the argument can be dropped; an explicit argument still wins, and the
+entry named exactly `nixpkgs` in the `inputs` passed to `mkLib` is the
+last fallback.
 
 With caisson consumed as a project, its integration overlays are
 already registered and applied, so `caisson.nixos` is present. To

@@ -7,7 +7,7 @@ caisson models modules as class-keyed sets. A class is a string key used to grou
 - Registered modules live under `modules.<class>.<name>`
 - Exported modules are published under `flake.modules.<class>.<name>`
 
-This builds on flake-parts' generic `flake.modules` support while adding closed-inputs module normalization.
+This builds on flake-parts' `flake.modules` output, which publishes modules under any class name, and adds closed-inputs module normalization.
 
 ## Registering a module
 
@@ -30,10 +30,11 @@ mkModule = class: freeformModule: ...
 ```
 
 The class-string form is written out only for a class no integration
-covers, for instance a class the tree defines itself:
+covers, for instance a class the tree defines itself, the way
+ch-hardware defines a `hardware` class for its capture modules:
 
 ```nix
-generic.helper = lib.caisson-core.mkModule "generic" ./modules/generic/helper;
+hardware.tpmFacts = lib.caisson-core.mkModule "hardware" ./modules/hardware/tpmFacts;
 ```
 
 The class-specific normalizer applies the closure attrset
@@ -86,12 +87,12 @@ The registry is a shared, class-keyed space per composition, so two
 rules keep multiple contributors coherent. Names within a class are a
 single flat space: qualify contributed names with your project prefix
 (`my-flake/my-service`), the same discipline as top-level library
-namespaces; short names are for the composing flake's own
-registrations. And precedence is deterministic: the composing flake's
-local registrations apply last, so a local entry always wins over a
+namespaces; short names are for the registrations made in the `mkLib`
+call itself. And precedence is deterministic: those local
+registrations apply last, so a local entry always wins over a
 same-named contribution.
 
-Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way (colmena's class is the hive; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
+Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way (colmena's class is `colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
 
 ## Consuming Exported Modules
 

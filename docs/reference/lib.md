@@ -29,6 +29,8 @@ mkLib :
   { inputs            : attrs                              # the defining flake's inputs
   , modules           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
+  , configs           ? (lib: { })
+                      : lib -> attrsOf (attrsOf module)    # class -> name -> configuration
   , libOverlays       ? (mkLibOverlay: { })
                       : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
   , libOverlayImports ? builtins.attrValues
@@ -55,6 +57,12 @@ and the manifest. Nothing is looked up by input name.
   `lib.caisson.flake-parts.mkModule`, and so on).
   `lib.caisson-core.mkModule "<class>"` is for a class no integration
   covers.
+- `configs` receives the composed `lib` the same way and returns the
+  configurations of the tree, keyed by module class then name, the
+  layout `configs/<class>/<name>` on disk (colmena's class is
+  `colmena`). They come back as `lib.caisson-core.configs.<class>.<name>`,
+  so a top and a configuration that evaluates another beneath itself
+  reach them by name rather than by a path out of their directory.
 - `libOverlays` receives the input-closed `mkLibOverlay` helper and
   returns the registered overlays. Both arguments take exactly the
   function shape shown; passing anything else is an error.
@@ -106,8 +114,8 @@ output (merge its result with any namespace contributions); it
 is passed through the closure rather than the composed library because
 an overlay's output attribute names must not depend on `final`.
 Qualify contributed names with your project prefix
-(`my-flake/my-service`); the composing flake's local registrations
-apply last and win over same-named contributions. See
+(`my-flake/my-service`); the registrations made in the `mkLib` call
+itself apply last and win over same-named contributions. See
 [Module classes](../concepts/module-classes.md) for the ways
 modules enter the registry.
 
@@ -145,14 +153,15 @@ selection.
 
 ```
 manifest : { inputs : attrs; modules : attrsOf (attrsOf module);
+             configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
              defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
              projects : attrs }
 ```
 
 The composition's self-description, injected as its final overlay.
-`inputs`, `defaultEcosystemSrc`, `systems` and `projects` are the
-`mkLib` arguments as given; `libOverlays` and `modules` are the
+`inputs`, `defaultEcosystemSrc`, `systems`, `projects` and `configs`
+are the `mkLib` arguments as given; `libOverlays` and `modules` are the
 registered dictionaries, so consumed projects' entries appear under
 `<project>/<name>` beside
 the local registrations, with a local winning a name collision. An
@@ -192,10 +201,13 @@ shared `call-flake` kernel (also used by the eval-weight harness).
 Nothing is fetched: locks are not read, and `sourceInfo` attrs appear
 only if supplied. See [Testing](../testing.md).
 
-### `compose`, `resolve`, `partitionExtraInputs`
+### `compose`, `resolve`, `callFlake`, `partitionExtraInputs`
 
 Keyed composition (`compose`), the layered ecosystem-source
-resolver (`resolve`), and the read-only-eval-safe partition
+resolver (`resolve`), the flake caller (`callFlake { src, inputs }`:
+a flake's outputs function applied to inputs given as values,
+fetching nothing; the flake-parts integration instantiates
+flake-parts through it) and the read-only-eval-safe partition
 extra-inputs loader, re-exposed from caisson-core. See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
 caisson-core's own documentation.
@@ -207,13 +219,6 @@ caisson-core's own documentation.
 [Integration namespaces](#integration-namespaces)), plus the
 pkgs-dependent tooling documented at the end of this section.
 caisson's registered flake modules are listed here too.
-
-### `modules.flake."caisson/partitions"`
-
-flake-parts' partitions module, registered and exported in caisson's
-flake class so a consumer selects it from the registry
-(`moduleImports = modules: [ modules."caisson/partitions" ... ]`)
-rather than declaring a flake-parts input for it.
 
 ### `modules.flake."caisson/nixpkgs"`, `modules.flake."caisson/nixpkgs-interface"`
 
@@ -266,17 +271,20 @@ Each integration is a library overlay exported by this flake
 `lib.composition.entriesFor`. Composing one contributes its
 `lib.caisson.<ecosystem>` namespace, documented below (the flake-parts
 integration also contributes the `lib.flake-parts` mirror of
-flake-parts' own library). Each entry
-point takes its ecosystem as an `ecosystemSrc` argument, and
-the integrations pin nothing themselves, with one exception:
-flake-parts, whose pin is caisson's own hidden input.
+the flake-parts library, instantiated over the composed lib). Each
+entry point takes its ecosystem as an `ecosystemSrc` argument, and
+the integrations pin nothing themselves, flake-parts included.
 
 An adapter's ecosystem source resolves in layers: the explicit
 `ecosystemSrc` argument first, then the composition's declared
-`ecosystems.<name>` (an mkLib argument, carried by the
-manifest), then an input of the composing flake named exactly
-`<name>`. The names are `nixpkgs` (the nixos integration),
-`home-manager`, `colmena`, `terranix`, and `system-manager`. A full
+`defaultEcosystemSrc.<name>` (an mkLib argument, carried by the
+manifest), then the entry named exactly `<name>` in the `inputs`
+passed to mkLib. The name is the integration's ecosystem, and one
+ecosystem may serve several integrations: `nixpkgs` for both the
+nixos and the nixpkgs integrations, then `home-manager`, `colmena`,
+`terranix`, `system-manager` and `flake-parts` for the integration of
+the same name (the table in
+[Ecosystem sources](../concepts/ecosystem-sources.md)). A full
 miss throws at the adapter, naming the three places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
 Common conventions:
@@ -326,6 +334,41 @@ Common conventions:
 - Framework-provided special arguments compose first; the caller's
   win on conflict.
 
+### `caisson.structural` (module class `structural`)
+
+- **Source:** `lib-overlays/structural/default.nix`
+
+The empty integration: it wraps no ecosystem, and its class carries
+nothing but caisson's core module, the manifest, the registry
+selectors and `caisson.exports`. A structural configuration is the top
+of a repository whose point is what it exports (the `default.nix` of
+caisson is one), and later the layer that gathers child
+configurations.
+
+- `mkModule : freeformModule -> module`: the registration form for
+  structural modules.
+- `mkConfiguration`:
+
+```
+mkConfiguration :
+  { configModule  : module                                  # structural class
+  , moduleImports ? builtins.attrValues
+                  : attrsOf module -> listOf module          # selection from the structural class registry
+  , name          ? null : nullOr string                    # default for caisson.configInfo.configName
+  , specialArgs   ? { }
+  , pkgSets       ? null : attrs                            # the pkgSets special argument
+  } -> { value : config; outputs : { exports : attrs } }
+```
+
+Evaluates the core module, the selected structural modules and the
+config module with `evalModules` over the composed library. `value` is
+the evaluated configuration; `outputs.exports` is `caisson.exports`,
+the `lib`, `libOverlays` and `modules` the selectors chose.
+
+- `mkTopConfiguration`: the same arguments; returns `outputs.exports`
+  with `caisson.manifest` beside it, which is what `default.nix`
+  returns for a reader that indexes attributes of the file's value.
+
 ### `caisson.flake-parts` (module class `flake`)
 
 - **Source:** `lib-overlays/flake-parts/default.nix`
@@ -351,9 +394,10 @@ mkConfiguration :
   composition), and `moduleImports` selects over the `flake` class
   of `lib.caisson-core.modules`, the same registry every adapter
   selects from, so modules arriving by local registration, overlay
-  contribution, or consumed project are all selectable. The
-  flake-parts pin is caisson's own, closed over at the integration's
-  definition; consumers declare no flake-parts input. `name` sets
+  contribution, or consumed project are all selectable. flake-parts
+  itself resolves like every ecosystem, from `ecosystemSrc`,
+  `defaultEcosystemSrc.flake-parts` or the input named `flake-parts`,
+  and is instantiated over the composed library. `name` sets
   flake-parts' `moduleLocation` (so exported modules deduplicate
   across revs) and defaults `caisson.configInfo.configName`.
 - `types.libOverlay`: a module-system option type for built library

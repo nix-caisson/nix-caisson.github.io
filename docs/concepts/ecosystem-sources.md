@@ -26,6 +26,30 @@ documents the shape it takes; in practice:
   `caisson.system-manager` take their project's flake (they call
   `lib.makeHive`, `lib.terranixConfiguration`, and
   `lib.makeSystemConfig` on it).
+- `caisson.flake-parts` takes a flake-parts source tree and calls its
+  `flake.nix` with the composed library as `nixpkgs-lib`.
+
+## Which integration uses which ecosystem
+
+One ecosystem may be wrapped by several integrations, each with a
+different evaluator over the same source. The name in the second column is
+what the integration resolves its source by, in the places listed
+below.
+
+| Integration | Ecosystem name | Source shape |
+| --- | --- | --- |
+| `caisson.flake-parts` | `flake-parts` | flake-parts source tree |
+| `caisson.nixpkgs` | `nixpkgs` | nixpkgs source tree (per package set, as `pkgFunction`) |
+| `caisson.nixos` | `nixpkgs` | nixpkgs source tree |
+| `caisson.home-manager` | `home-manager` | home-manager source tree |
+| `caisson.colmena` | `colmena` | colmena flake |
+| `caisson.terranix` | `terranix` | terranix flake |
+| `caisson.system-manager` | `system-manager` | system-manager flake |
+| `caisson.structural` | none | no source: the empty integration evaluates caisson's core module alone |
+
+The nixpkgs library that every composed lib is built over is resolved
+separately by caisson-core, under the name `nixpkgs-lib`, falling back
+to `nixpkgs`.
 
 ## How does caisson get access to ecosystem sources?
 
@@ -33,12 +57,12 @@ A source comes from one of three places, in priority order:
 
 1. **Explicit argument.** `ecosystemSrc = inputs.nixpkgs` at the
    call site always wins.
-2. **Flake-level default.** `ecosystems.nixpkgs = inputs.nixpkgs` at
-   `mkLib` declares the composition's default for that name.
-3. **Exact-name input.** As a final fallback, an input of the
-   composing flake named exactly like the ecosystem (`nixpkgs`,
-   `home-manager`, ...) is used. Handy for leaf flakes that declare
-   the input anyway.
+2. **Composition default.** `defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`
+   in the `mkLib` call declares the composition's default for that name.
+3. **Exact-name input.** As a final fallback, the entry named exactly
+   like the ecosystem (`nixpkgs`, `home-manager`, ...) in the `inputs`
+   passed to `mkLib` is used. For a flake that declares that input
+   anyway, this is the common case.
 
 If none of the three places can provide a needed ecosystem source,
 it triggers an evaluation error.

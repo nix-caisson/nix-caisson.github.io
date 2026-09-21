@@ -467,9 +467,12 @@ the two evaluators cannot produce different configurations from the
 same arguments; `caisson.nixos-minimal` composes through
 `caisson.nixos.compose`.
 
-`caisson.nixos` and `caisson.nixos-minimal` are declared with these two
-constructors. The other integrations are written by hand in the same
-shape.
+Every integration caisson ships is declared with these two
+constructors: `mkIntegration` for the owners of a class (nixos,
+flake-parts, structural, home-manager, colmena, terranix,
+system-manager) and `mkAltIntegration` for `caisson.nixos-minimal`.
+Each overlay file holds the composition, the evaluator step and the
+extras of its integration, and nothing else.
 
 ### `eval-weight`
 
@@ -521,7 +524,7 @@ Common conventions:
   single module (compose several with `imports`); the framework's
   selected class modules are applied beside it.
 - `specialArgs`: extra module arguments; the one name on every entry
-  point, translated to the evaluator's own spelling where it differs
+  point, translated to the evaluator's spelling where it differs
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
 - `pkgSets`: an attrset of package sets, accepted by every entry
   point and passed through as the `pkgSets` special argument. Where
@@ -538,7 +541,7 @@ Common conventions:
   (`modules`), silently dropped (anything the minimal evaluator does
   not take), or surfacing as a conflict inside the evaluator
   (`pkgs` beside the framework's `nixpkgs.pkgs`).
-- The evaluator's own surface is reachable, deliberately, through
+- The full surface of the evaluator is reachable, deliberately, through
   the `mkConfigurationWithEcosystemArgs` twin of each entry point. It takes the same
   arguments plus `ecosystemArgs`, an attrset merged over the composed
   evaluator call verbatim, last: anything the evaluator accepts can
@@ -587,8 +590,13 @@ caisson read through the integration's closure), the selected
 structural modules and the config module with `evalModules` over the
 composed library. `value` is
 the evaluated configuration; `outputs.exports` is `caisson.exports`,
-the `lib`, `libOverlays` and `modules` the selectors chose.
+the `lib`, `libOverlays` and `modules` the selectors chose. The
+signature admits `ecosystemSrc` like every entry point, and this
+integration refuses it, since it wraps no ecosystem.
 
+- `mkConfigurationWithEcosystemArgs`: the twin; `ecosystemArgs` is
+  merged over the `evalModules` call (`class`, `modules`,
+  `specialArgs`).
 - `mkTopConfiguration`: the same arguments; returns `outputs.exports`
   with `caisson.manifest` beside it, which is what `default.nix`
   returns for a reader that indexes attributes of the file's value.

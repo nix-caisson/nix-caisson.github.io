@@ -331,47 +331,145 @@ the `caisson.nixpkgs.*` options:
 
 - **Source:** `lib-overlays/integrations/default.nix`
 
-What an integration is written from, the functions every integration
-overlay shares; each integration imports this overlay by key, so
-composing any integration composes it, and reads the functions
-through `final`. When `mkIntegration` generates integrations from
-declarations, these are its parts.
+This namespace holds the functions that every integration is written
+from. Each integration overlay imports this overlay by key, so
+composing any integration composes this one as well, and the
+integration reads these functions through `final`.
 
-- `checkArgs : { context, accepted, hints?, open? } -> args -> args`:
-  the closed signature of an entry point; refuses an argument outside
-  `accepted` with a message naming the caisson argument to use (from
-  `hints`) or the `WithEcosystemArgs` twin (`open`).
-- `resolveEcosystemSrc : { name, context } -> { explicit?, manifest? } -> src`:
-  the layered ecosystem-source resolution with the miss interpreted
-  (see [Ecosystem sources](../concepts/ecosystem-sources.md)).
-- `coreModules : registry -> listOf module`,
-  `defaultModuleImports : registry -> listOf module`: every entry of a
-  class registry named `core` (the framework module of the class) and
-  every entry named `default` (the default default).
-- `mkIntegration : { name, class, accepted?, hints?, compose,
-  evaluate, extra? } -> { namespace, classes }`: an integration that
-  owns a module class, declared. `namespace` is the value of
-  `lib.caisson.<name>`: `mkConfiguration` and
-  `mkConfigurationWithEcosystemArgs` generated from `compose` (the
-  checked arguments to an attrset holding `ecosystemArgs`, the
-  evaluator's call) and `evaluate` (that attrset and the call to
-  make), `mkModule` bound to the class, and `extra` beside them;
-  `classes` is the declaration of the class for the index, so
-  `mkModules` registers the class through this integration. The
-  overlay file writes both under their keys, since the output
-  attribute names of an overlay must not depend on `final`:
-  `contributeClasses prev integration.classes // { caisson = (prev.caisson or { }) // { nixos = integration.namespace; }; }`.
-  `accepted` lists the arguments beyond the caisson-shaped five;
-  `hints` the pointers for refused ones.
-- `mkAltIntegration : { name, over, accepted?, hints?, compose,
-  evaluate, extra? } -> namespace`: an integration that evaluates a
-  class another integration owns, declared. `over` is the owning
-  integration reached through the lib (`final.caisson.nixos`); the
-  result is the value of `lib.caisson.<name>`, the two entry points
-  and `extra`, with no `mkModule` and no class declaration, and its
-  `compose` builds on the composition the owner publishes.
-  `caisson.nixos` and `caisson.nixos-minimal` are declared this way;
-  the other integrations are written by hand in the same shape.
+#### `checkArgs`
+
+```
+checkArgs : { context, accepted, hints ? { }, open ? null } -> args -> args
+```
+
+`checkArgs` enforces the closed signature of an entry point. It
+returns the arguments unchanged when every name is in `accepted`. When
+a name is not, it throws a message that starts with `context` (the
+entry point, such as `lib.caisson.nixos.mkConfiguration`). If `hints`
+has an entry for that name, the message quotes it; a hint names the
+caisson argument to use in place of an evaluator argument. Otherwise,
+if `open` names the `WithEcosystemArgs` twin, the message says that the
+evaluator's own arguments are reachable through the twin.
+
+#### `resolveEcosystemSrc`
+
+```
+resolveEcosystemSrc : { name, context } -> { explicit ? null, manifest ? libManifest } -> src
+```
+
+`resolveEcosystemSrc` finds the source of an ecosystem in the layered
+order that [Ecosystem sources](../concepts/ecosystem-sources.md)
+describes: the explicit argument first, then `defaultEcosystemSrc.<name>`
+as declared in the composition, then the input named exactly `<name>`.
+The first call names the ecosystem and the caller; the second supplies
+the explicit argument and the manifest to read the declarations from.
+When nothing provides a source, it throws a message that names the
+caller and the three places.
+
+#### `coreModules`, `defaultModuleImports`
+
+```
+coreModules          : attrsOf module -> listOf module
+defaultModuleImports : attrsOf module -> listOf module
+```
+
+Both take a class registry (`lib.caisson-core.modules.<class>`) and
+select entries by name. `coreModules` returns every entry named `core`,
+which includes the `<project>/core` entries of consumed projects;
+these form the framework module of the class, and every integration
+applies them to every evaluation. `defaultModuleImports` returns every
+entry named `default`, in the same way; this list is the default
+default, the selection an evaluation gets when it passes no
+`moduleImports`.
+
+#### `mkIntegration`
+
+```
+mkIntegration :
+  { name       : string            # the namespace, lib.caisson.<name>
+  , class      : string            # the module class this integration owns
+  , accepted   ? [ ] : listOf string   # arguments beyond the five every entry point takes
+  , hints      ? { } : attrsOf string  # pointers for refused arguments, by name
+  , compose    : args -> composed  # composed holds ecosystemArgs, the evaluator's call
+  , evaluate   : composed -> callArgs -> result
+  , extra      ? { } : attrs       # further members of the namespace
+  } -> { namespace : attrs; classes : attrsOf { integration; mkModule } }
+```
+
+`mkIntegration` builds an integration that owns a module class from a
+declaration. The result has two parts.
+
+`namespace` is the value to publish as `lib.caisson.<name>`. It holds
+`mkConfiguration`, `mkConfigurationWithEcosystemArgs`, `mkModule`, and
+everything in `extra`. `mkConfiguration` checks its arguments with
+`checkArgs` against the five arguments every entry point takes
+(`ecosystemSrc`, `pkgSets`, `configModule`, `moduleImports`,
+`specialArgs`) plus `accepted`, passes them to `compose`, and calls
+`evaluate` with the composed value and its `ecosystemArgs`.
+`mkConfigurationWithEcosystemArgs` does the same, then merges the
+caller's `ecosystemArgs` over the composed ones before evaluating, so
+the caller can set or replace anything the evaluator takes. `mkModule`
+is `lib.caisson-core.mkModule` bound to `class`. `extra` is for the
+members a declaration cannot generate, such as a variant entry point,
+an adapter, or the composition an alt over this class builds on.
+
+`classes` is the declaration of `class` for the class index: the
+integration's name and its `mkModule`. Once it is in the index,
+`mkModules` registers every `modules/<class>` directory through this
+integration.
+
+The declaration's `compose` receives the checked arguments and returns
+an attribute set. That set must hold `ecosystemArgs`, the arguments
+of the evaluator's call as the integration composed them; it may hold
+anything else `evaluate` needs, such as the resolved source. `evaluate`
+receives that set and the call arguments to use, and returns the
+evaluation.
+
+The constructor returns values rather than an overlay output, because
+the attribute names an overlay produces must not depend on `final`.
+The overlay file writes the two keys itself:
+
+```nix
+overlay = final: prev:
+  let
+    integration = final.caisson.integrations.mkIntegration { ... };
+  in
+  contributeClasses prev integration.classes
+  // {
+    caisson = (prev.caisson or { }) // {
+      nixos = integration.namespace;
+    };
+  };
+```
+
+#### `mkAltIntegration`
+
+```
+mkAltIntegration :
+  { name     : string
+  , over     : attrs               # the integration that owns the class, e.g. final.caisson.nixos
+  , accepted ? [ ] : listOf string
+  , hints    ? { } : attrsOf string
+  , compose  : args -> composed
+  , evaluate : composed -> callArgs -> result
+  , extra    ? { } : attrs
+  } -> attrs                       # the value of lib.caisson.<name>
+```
+
+`mkAltIntegration` builds an integration that evaluates a class
+another integration owns. `over` is that owning integration, reached
+through the lib. The result is the value to publish as
+`lib.caisson.<name>`: the same two entry points as an owner gets, and
+`extra`. It has no `mkModule`, because modules of the class are
+registered through the owner, and it declares no class. Its `compose`
+is expected to build on the composition the owner publishes, so that
+the two evaluators cannot produce different configurations from the
+same arguments; `caisson.nixos-minimal` composes through
+`caisson.nixos.compose`.
+
+`caisson.nixos` and `caisson.nixos-minimal` are declared with these two
+constructors. The other integrations are written by hand in the same
+shape.
 
 ### `eval-weight`
 

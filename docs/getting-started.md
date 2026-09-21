@@ -53,7 +53,7 @@ caisson wraps: the integration calls that source with the composed
 library, so the evaluation runs on the same nixpkgs lib the rest of
 the composition does.
 
-The config module is the flake's own top-level configuration, and it
+The config module is the flake's top-level configuration, and it
 is registered rather than named by path: `core.mkModules ./configs`
 reads `configs/<class>/<name>/default.nix` into the `configs`
 registration, so the configuration comes back as

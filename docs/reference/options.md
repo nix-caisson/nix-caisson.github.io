@@ -28,7 +28,7 @@ Whether to enable lib export. When enabled, publishes the selection made by `cai
 - **Default:** `composedLib: composedLib.${configName}` (requires `configInfo.configName`)
 - **Source:** `modules/generic/core/caisson/lib.nix`
 
-Function that selects which parts of the composed library to publish as the flake's `lib` output. The default exports the flake's own namespace; caisson itself sets `composedLib: { inherit (composedLib) caisson caisson-core; }` so flake-level and composed-level addresses match.
+Function that selects which parts of the composed library to publish as the flake's `lib` output. The default exports the flake's namespace; caisson itself sets `composedLib: { inherit (composedLib) caisson caisson-core; }` so flake-level and composed-level addresses match.
 
 ### `caisson.manifest`
 

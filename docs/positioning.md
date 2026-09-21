@@ -1,8 +1,8 @@
 # Choosing a flake framework
 
 Where caisson sits relative to plain flake-parts, flakelight,
-snowfall-lib, and the dendritic pattern, characterized from those
-projects' own documentation. The honest summary first: all five
+snowfall-lib, and the dendritic pattern, characterized from the
+documentation of those projects. The honest summary first: all five
 produce working flakes, and the differences are about which
 conventions you want enforced by machinery rather than by
 discipline.

@@ -58,7 +58,7 @@ Passing a non-function (attrset, path to a plain module, `null`) is an error: pl
 
 ### mkLibOverlay
 
-`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-inputs, closure-lib, mkLibOverlay, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`. `closure-lib` is the composed library of the composition that registered the overlay, bound lazily (read it inside the `overlay` function, never while the overlay is being registered); an integration reaches the registry of its own composition through it:
+`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-inputs, closure-lib, mkLibOverlay, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`. `closure-lib` is the composed library of the composition that registered the overlay, bound lazily (read it inside the `overlay` function, never while the overlay is being registered); an integration reaches the registry of the composition that registered it through it:
 
 ```nix
 { closure-inputs, ... }:

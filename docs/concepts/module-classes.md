@@ -27,7 +27,7 @@ entry registers through the class index of the composed library
 integration that declares the class. Every integration that owns a
 class declares it from its overlay, so composing the nixos integration
 is what makes `modules/nixos` register, and an integration that wraps
-another declares the same class again with its own `mkModule`, which
+another declares the same class again with the wrapper's `mkModule`, which
 every reader then registers through. A class no integration covers
 (`hardware`, the way ch-hardware defines one for its capture modules)
 is declared by the overlay that defines it, and the class-free
@@ -76,14 +76,14 @@ composition lists (caisson among them, no differently):
 - `default`: the default default. When an evaluation passes no
   `moduleImports`, every entry named `default` (`default`,
   `<project>/default`) applies; an evaluation that selects by name
-  replaces that default with its own list. The `default` of caisson
+  replaces that default with the list it names. The `default` of caisson
   for the `flake` class carries the nixpkgs integration's module
   layer.
 
 The core module of caisson lives once, as the `generic` entry `core`;
 `modules/structural/core` is a symlink to it and `modules/flake/core`
 imports it and adds the flake mechanics, so each class that forces it
-registers it under its own name.
+registers it as `core` in that class.
 
 The class-specific normalizer applies the closure attrset
 (`{ closure-inputs, closure-lib, mkModule, ... }`) as the module's first
@@ -99,7 +99,7 @@ in three ways:
   `lib: { ... }` receiving the composed `lib` (whose helpers, like
   `lib.caisson.flake-parts.mkModule`, build the entries) and returning the
   class-keyed registration, which `caisson-core.mkModules` derives
-  from the conventional layout. This is for the flake's own modules.
+  from the conventional layout. This is for the flake's modules.
 - **Overlay contribution**, for modules contributed by a library
   overlay: the overlay closure contains `mkModule` and
   `contributeModules`, and the overlay merges its entries into the
@@ -141,7 +141,7 @@ call itself. And precedence is deterministic: those local
 registrations apply last, so a local entry always wins over a
 same-named contribution.
 
-Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their own class this way (colmena's class is `colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
+Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their class this way (colmena's class is `colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
 
 ## Consuming Exported Modules
 

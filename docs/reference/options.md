@@ -10,7 +10,7 @@ For `lib.caisson` functions, see [Library Reference](./lib.md).
 
 - **Type:** `nullOr str`
 - **Default:** `null`
-- **Source:** `modules/flake-parts/default/caisson/configInfo.nix`
+- **Source:** `modules/generic/core/caisson/configInfo.nix`
 
 The canonical name of this flake. Used in doc/version strings and as a default namespace name for exports. Some export options (e.g. `caisson.lib.export.enabled`) require this to be set.
 
@@ -18,7 +18,7 @@ The canonical name of this flake. Used in doc/version strings and as a default n
 
 - **Type:** `bool`
 - **Default:** `false`
-- **Source:** `modules/flake-parts/default/caisson/lib.nix`
+- **Source:** `modules/generic/core/caisson/lib.nix`
 
 Whether to enable lib export. When enabled, publishes the selection made by `caisson.lib.exported` as `flake.lib`.
 
@@ -26,7 +26,7 @@ Whether to enable lib export. When enabled, publishes the selection made by `cai
 
 - **Type:** `function -> lazyAttrsOf raw`
 - **Default:** `composedLib: composedLib.${configName}` (requires `configInfo.configName`)
-- **Source:** `modules/flake-parts/default/caisson/lib.nix`
+- **Source:** `modules/generic/core/caisson/lib.nix`
 
 Function that selects which parts of the composed library to publish as the flake's `lib` output. The default exports the flake's own namespace; caisson itself sets `composedLib: { inherit (composedLib) caisson caisson-core; }` so flake-level and composed-level addresses match.
 
@@ -34,15 +34,15 @@ Function that selects which parts of the composed library to publish as the flak
 
 - **Type:** `caisson.flake-parts.types.manifest` (read-only)
 - **Default:** the composed library's `caisson-core.libManifest`
-- **Source:** `modules/flake-parts/core/caisson/manifest.nix`
+- **Source:** `modules/generic/core/caisson/manifest.nix`
 
-The composition's manifest: `inputs`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared one (`modules/flake-parts/core/caisson/systems.nix`).
+The composition's manifest: `inputs`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared one (`modules/flake/core/caisson/systems.nix`).
 
 ### `caisson.modules`
 
 - **Type:** `attrsOf (submodule { export.enabled; exported; })`
 - **Default:** `{}`
-- **Source:** `modules/flake-parts/core/caisson/modules.nix`
+- **Source:** `modules/generic/core/caisson/modules.nix`
 
 Export settings for each registered module class. Each class key defines:
 
@@ -56,7 +56,7 @@ class specifically, the same modules are also mirrored to `flake.flakeModules`.
 
 - **Type:** `bool`
 - **Default:** `true`
-- **Source:** `modules/flake-parts/core/caisson/modules.nix`
+- **Source:** `modules/generic/core/caisson/modules.nix`
 
 Whether to export modules for a given class.
 
@@ -64,7 +64,7 @@ Whether to export modules for a given class.
 
 - **Type:** `function -> attrsOf deferredModule`
 - **Default:** `modules: { }`
-- **Source:** `modules/flake-parts/core/caisson/modules.nix`
+- **Source:** `modules/generic/core/caisson/modules.nix`
 
 Function that selects which modules in a class to publish under `flake.modules.<class>`.
 
@@ -72,7 +72,7 @@ Function that selects which modules in a class to publish under `flake.modules.<
 
 - **Type:** `bool`
 - **Default:** `true`
-- **Source:** `modules/flake-parts/core/caisson/libOverlays.nix`
+- **Source:** `modules/generic/core/caisson/libOverlays.nix`
 
 Whether to enable lib overlay export. When enabled, publishes the overlays selected by `caisson.libOverlays.exported` under `flake.libOverlays`.
 
@@ -80,6 +80,6 @@ Whether to enable lib overlay export. When enabled, publishes the overlays selec
 
 - **Type:** `function -> attrsOf libOverlay`
 - **Default:** `overlays: { }`
-- **Source:** `modules/flake-parts/core/caisson/libOverlays.nix`
+- **Source:** `modules/generic/core/caisson/libOverlays.nix`
 
 Function that selects which registered library overlays to export as flake outputs. Receives the set of overlays registered via `mkLib` and returns the subset to publish under `flake.libOverlays`.

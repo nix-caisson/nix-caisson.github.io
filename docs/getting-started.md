@@ -23,17 +23,19 @@ Create a directory with this `flake.nix`:
   outputs =
     inputs@{ caisson, ... }:
     let
-      lib = caisson.lib.caisson-core.mkLib {
+      core = caisson.lib.caisson-core;
+      lib = core.mkLib {
         inherit inputs;
         systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
         };
+        configs = core.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
       name = "my-flake";
-      configModule = lib.caisson.flake-parts.mkModule ./configs/flake-parts/my-flake;
+      configModule = lib.caisson-core.configs.flake.my-flake;
     };
 }
 ```
@@ -51,8 +53,12 @@ caisson wraps: the integration calls that source with the composed
 library, so the evaluation runs on the same nixpkgs lib the rest of
 the composition does.
 
-The config module is the flake's own top-level configuration. Create
-`configs/flake-parts/my-flake/default.nix`:
+The config module is the flake's own top-level configuration, and it
+is registered rather than named by path: `core.mkModules ./configs`
+reads `configs/<class>/<name>/default.nix` into the `configs`
+registration, so the configuration comes back as
+`lib.caisson-core.configs.flake.my-flake`. Create
+`configs/flake/my-flake/default.nix`:
 
 ```nix
 { ... }:
@@ -98,17 +104,17 @@ An overlay contributes a namespace to the composed library. Create
 ```
 
 Register it in `flake.nix` and export it, and turn on the lib export
-in the config module:
+in the config module. `core.mkLibOverlays ./lib-overlays` reads
+`lib-overlays/<name>/default.nix` into the `libOverlays` registration:
 
 ```nix
-      lib = caisson.lib.caisson-core.mkLib {
+      lib = core.mkLib {
         inherit inputs;
         projects = {
           inherit caisson;
         };
-        libOverlays = mkLibOverlay: {
-          default = mkLibOverlay ./lib-overlays/default;
-        };
+        configs = core.mkModules ./configs;
+        libOverlays = core.mkLibOverlays ./lib-overlays;
       };
 ```
 
@@ -132,24 +138,24 @@ export enabled) to consumers as `flake.lib`. Use it in `perSystem`:
 
 Modules are class-keyed: `flake` modules feed flake-parts, and
 integration classes (`nixos`, `homeManager`, ...) feed their module
-systems. Register a flake-class module:
+systems. `core.mkModules ./modules` reads
+`modules/<class>/<name>/default.nix` into the registration, the
+first directory level being the class; register a flake-class module
+by creating its directory:
 
 ```nix
-      lib = caisson.lib.caisson-core.mkLib {
+      lib = core.mkLib {
         inherit inputs;
         projects = {
           inherit caisson;
         };
-        modules = lib: {
-          flake.default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
-        };
-        libOverlays = mkLibOverlay: {
-          default = mkLibOverlay ./lib-overlays/default;
-        };
+        modules = core.mkModules ./modules;
+        configs = core.mkModules ./configs;
+        libOverlays = core.mkLibOverlays ./lib-overlays;
       };
 ```
 
-`modules/flake-parts/default/default.nix`:
+`modules/flake/default/default.nix`:
 
 ```nix
 { ... }:
@@ -164,8 +170,12 @@ systems. Register a flake-class module:
 ```
 
 `mkConfiguration` applies the selected flake-class modules alongside the
-config module (`moduleImports` returns the list to apply, like
-`libOverlayImports`; the default is all of them).
+config module: `moduleImports` returns the list to apply, like
+`libOverlayImports`, and when it is omitted every registered entry
+named `default` applies, here this flake's `default` and
+`caisson/default` (the default module of caisson, which carries the
+nixpkgs integration's module layer). The entries named `core` apply
+to every evaluation of the class regardless.
 [Module classes](concepts/module-classes.md) covers registration,
 selection, and export.
 
@@ -230,16 +240,18 @@ A consumer registers your exported overlay the same way:
   outputs =
     inputs@{ caisson, my-flake, ... }:
     let
-      lib = caisson.lib.caisson-core.mkLib {
+      core = caisson.lib.caisson-core;
+      lib = core.mkLib {
         inherit inputs;
         projects = {
           inherit caisson my-flake;
         };
+        configs = core.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
       name = "consumer";
-      configModule = lib.caisson.flake-parts.mkModule ./configs/flake-parts/consumer;
+      configModule = lib.caisson-core.configs.flake.consumer;
     };
 }
 ```

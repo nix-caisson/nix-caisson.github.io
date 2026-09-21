@@ -63,30 +63,35 @@ module references my-flake's inputs without the consumer declaring,
 The contents differ by registration kind, because the two kinds are
 evaluated at different times.
 
-A library overlay's closure contains registration helpers and inputs:
+A library overlay's closure contains registration helpers, inputs and
+the library of the defining composition:
 
-- `closure-inputs`: the defining flake's `inputs`.
+- `closure-inputs`: the `inputs` of the defining flake.
+- `closure-lib`: the composed library of the defining flake, bound
+  lazily. Inside the `overlay` function, `final` and `prev` are the
+  composition being built, which may belong to a consumer;
+  `closure-lib` is the composition of the definer, so an integration
+  reaches the registry of the composition that registered it (its
+  `core` module, for one) wherever it is composed. It is read inside
+  the overlay function or a function the overlay defines, never while
+  the overlay is being registered.
 - `mkLibOverlay`: the same helper, for building nested overlays.
 - `mkModule`: the module normalizer bound to the defining
   composition, so modules contributed by the overlay close over the
-  definer's inputs and library.
+  inputs and library of the definer.
 - `contributeModules`: merges class-keyed module contributions into
   the registry from inside an overlay. It is threaded through the
-  closure rather than read from `final` because an overlay's output
-  attribute names must not depend on `final` (see
+  closure rather than read from `final` because the output attribute
+  names of an overlay must not depend on `final` (see
   [How `lib` is composed](how-lib-is-composed.md)).
-
-The composed `lib` is deliberately absent: an overlay runs inside the
-composition that builds `lib`, so it reads the library through its
-`final` and `prev` arguments instead.
 
 A module's closure contains the definer's finished world:
 
-- `closure-inputs`: the defining flake's `inputs`.
-- `closure-lib`: the defining flake's composed library. This is not
-  the `lib` module argument; see the next section.
-- `closure-self-modules`: the defining flake's registrations in the
-  same class, for modules that import their siblings.
+- `closure-inputs`: the `inputs` of the defining flake.
+- `closure-lib`: the composed library of the defining flake. This is
+  not the `lib` module argument; see the next section. Its registry,
+  `closure-lib.caisson-core.modules.<class>`, is how a module imports
+  a sibling by name.
 - `mkModule`: a normalizer bound to the same class, so nested module
   composition stays in that class.
 

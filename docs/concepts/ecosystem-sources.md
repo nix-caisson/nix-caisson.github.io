@@ -20,7 +20,8 @@ flake, in whatever shape its evaluator expects. Each integration
 documents the shape it takes; in practice:
 
 - `caisson.nixos` takes a nixpkgs source tree (it evaluates
-  `nixos/lib/eval-config.nix` from it).
+  `nixos/lib/eval-config.nix` from it); `caisson.nixos-minimal` takes
+  the same tree and evaluates `nixos/lib`'s `evalModules` from it.
 - `caisson.home-manager` takes a home-manager source tree.
 - `caisson.colmena`, `caisson.terranix`, and
   `caisson.system-manager` take their project's flake (they call
@@ -41,6 +42,7 @@ below.
 | `caisson.flake-parts` | `flake-parts` | flake-parts source tree |
 | `caisson.nixpkgs` | `nixpkgs` | nixpkgs source tree (per package set, as `pkgFunction`) |
 | `caisson.nixos` | `nixpkgs` | nixpkgs source tree |
+| `caisson.nixos-minimal` | `nixpkgs` | nixpkgs source tree (the `nixos` class under the minimal evaluator) |
 | `caisson.home-manager` | `home-manager` | home-manager source tree |
 | `caisson.colmena` | `colmena` | colmena flake |
 | `caisson.terranix` | `terranix` | terranix flake |

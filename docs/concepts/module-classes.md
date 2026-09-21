@@ -11,14 +11,43 @@ This builds on flake-parts' `flake.modules` output, which publishes modules unde
 
 ## Registering a module
 
-A tree registers a module with the `mkModule` of the integration that
-owns its class, applied to the module's directory:
+A tree laid out as `modules/<class>/<name>/default.nix` registers its
+modules by naming the directory: `caisson-core.mkModules` reads it
+into the class-keyed registration, and the same reader serves
+`configs/<class>/<name>`:
+
+```nix
+modules = core.mkModules ./modules;
+configs = core.mkModules ./configs;
+```
+
+The first directory level is the class, whatever its name, and each
+entry registers through the class index of the composed library
+(`lib.caisson-core.classes.<class>`): the `mkModule` of the
+integration that declares the class. Every integration that owns a
+class declares it from its overlay, so composing the nixos integration
+is what makes `modules/nixos` register, and an integration that wraps
+another declares the same class again with its own `mkModule`, which
+every reader then registers through. A class no integration covers
+(`hardware`, the way ch-hardware defines one for its capture modules)
+is declared by the overlay that defines it, and the class-free
+`generic` group (a module any class may import; the name comes from
+flake-parts, whose export leaves those modules unstamped) is declared
+by caisson-core. A directory for a class nothing composed declares is
+an error. An entry is a directory holding a `default.nix`, a symlink
+to one included; anything else in a directory being read is an error,
+so a stray file cannot silently vanish from a registry.
+
+A tree with another layout writes the registration by hand, with the
+`mkModule` of the integration that owns the class applied to the
+module's path:
 
 ```nix
 modules = lib: {
-  flake.default = lib.caisson.flake-parts.mkModule ./modules/flake-parts/default;
+  flake.default = lib.caisson.flake-parts.mkModule ./modules/flake/default;
   nixos.my-service = lib.caisson.nixos.mkModule ./modules/nixos/my-service;
   homeManager.shell = lib.caisson.home-manager.mkModule ./modules/home-manager/shell;
+  hardware.tpmFacts = lib.caisson-core.mkModule "hardware" ./modules/hardware/tpmFacts;
 };
 ```
 
@@ -29,13 +58,32 @@ that integration's class:
 mkModule = class: freeformModule: ...
 ```
 
-The class-string form is written out only for a class no integration
-covers, for instance a class the tree defines itself, the way
-ch-hardware defines a `hardware` class for its capture modules:
+The class-string form is written out for a class no integration
+covers.
 
-```nix
-hardware.tpmFacts = lib.caisson-core.mkModule "hardware" ./modules/hardware/tpmFacts;
-```
+## Core and default
+
+Two entry names carry meaning in every class, for every project a
+composition lists (caisson among them, no differently):
+
+- `core`: the framework module of the class. An integration forces
+  every entry named `core` (`core`, `<project>/core`) into every
+  evaluation of its class, before anything the evaluation selects.
+  Registering one is the big hammer, for a module the class cannot
+  function without; the core module of caisson declares the
+  `caisson.*` options every evaluation carries (the manifest, the
+  registry selectors, `caisson.exports`).
+- `default`: the default default. When an evaluation passes no
+  `moduleImports`, every entry named `default` (`default`,
+  `<project>/default`) applies; an evaluation that selects by name
+  replaces that default with its own list. The `default` of caisson
+  for the `flake` class carries the nixpkgs integration's module
+  layer.
+
+The core module of caisson lives once, as the `generic` entry `core`;
+`modules/structural/core` is a symlink to it and `modules/flake/core`
+imports it and adds the flake mechanics, so each class that forces it
+registers it under its own name.
 
 The class-specific normalizer applies the closure attrset
 (`{ closure-inputs, closure-lib, mkModule, ... }`) as the module's first
@@ -50,7 +98,8 @@ in three ways:
 - **Local registration**, `mkLib`'s `modules` hook: a function
   `lib: { ... }` receiving the composed `lib` (whose helpers, like
   `lib.caisson.flake-parts.mkModule`, build the entries) and returning the
-  class-keyed registration. This is for the flake's own modules.
+  class-keyed registration, which `caisson-core.mkModules` derives
+  from the conventional layout. This is for the flake's own modules.
 - **Overlay contribution**, for modules contributed by a library
   overlay: the overlay closure contains `mkModule` and
   `contributeModules`, and the overlay merges its entries into the

@@ -1,12 +1,15 @@
 # Repository Layout
 
-caisson mandates nothing about layout beyond the repository being a
-flake: registration takes paths, and any arrangement evaluates. We
-recommend the conventions below because they have proven to work for
-us, they resolve ambiguity about where a thing belongs, and they make
-it easier for someone new to a repository to come up to speed. This
-repository and its integrations use them, and the documentation and
-the `examples/literate-flake` example assume them.
+caisson mandates nothing about layout: registration takes paths, and
+any arrangement evaluates. We recommend the conventions below because
+they have proven to work for us, they resolve ambiguity about where a
+thing belongs, and they make it easier for someone new to a repository
+to come up to speed. A repository that keeps them registers by naming
+the directories (`caisson-core.mkModules ./modules`, `mkModules
+./configs`, `mkLibOverlays ./lib-overlays`); one with another layout
+writes its registrations by hand. This repository and its
+integrations use them, and the documentation and the
+`examples/literate-flake` example assume them.
 
 ## flake.nix
 
@@ -22,7 +25,7 @@ configs/<class>/<config>/
 Configurations, grouped by module class and named for **what they
 configure**. A flake-parts config configures the flake itself, so there
 is typically exactly one, named after the flake (this repository uses
-`configs/flake-parts/caisson/`) or `default`. In other classes,
+`configs/flake/caisson/`) or `default`. In other classes,
 a config is named for the thing it describes: a machine, a home, a
 deployment.
 
@@ -44,14 +47,18 @@ modules/<class>/<module>/default.nix
 modules/<class>/<module>/<flake-name>/*.nix
 ```
 
-Reusable modules, keyed first by module class (directory names use the
-ecosystem's name: `flake-parts`, `nixos`, `home-manager`), then by the
-module's own name; the conventional exported module is
-`modules/<class>/default/`. `default.nix` is the module's entry point,
-and its implementation files sit under a directory named for the
-defining flake, grouped by the option namespace they declare, in this
-repository, `modules/flake-parts/default/caisson/lib.nix` declares the
-`caisson.lib.*` options.
+Reusable modules, keyed first by module class (directory names are the
+class names: `flake`, `nixos`, `homeManager`, and `generic` for a
+module any class may import), then by the module's own name. Two
+names carry meaning in every class: `core`, forced into every
+evaluation of the class, and `default`, the default default (see
+[Module classes](concepts/module-classes.md)); the conventional
+exported module is `modules/<class>/default/`. `default.nix` is the
+module's entry point, and its implementation files sit under a
+directory named for the defining flake, grouped by the option
+namespace they declare, in this repository,
+`modules/generic/core/caisson/lib.nix` declares the `caisson.lib.*`
+options.
 
 ## pkgs/
 

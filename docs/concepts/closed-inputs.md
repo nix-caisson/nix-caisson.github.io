@@ -49,8 +49,7 @@ The closure attrset contains:
 | Key | Value |
 |---|---|
 | `closure-inputs` | The defining flake's `inputs` (distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake) |
-| `closure-lib` | The defining flake's composed `lib` (distinct from the `lib` module arg) |
-| `closure-self-modules` | The defining flake's registered modules in the same class |
+| `closure-lib` | The defining flake's composed `lib` (distinct from the `lib` module arg); its registry, `closure-lib.caisson-core.modules.<class>`, is how a module imports a sibling by name |
 | `mkModule` | A normalizer bound to the same class, for nested composition |
 
 Path modules are wrapped with `_file` for error locations and `key = toString path`, so a file passed through `mkModule` at two sites deduplicates exactly like importing the same path twice.
@@ -59,7 +58,7 @@ Passing a non-function (attrset, path to a plain module, `null`) is an error: pl
 
 ### mkLibOverlay
 
-`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-inputs, mkLibOverlay, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`:
+`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-inputs, closure-lib, mkLibOverlay, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`. `closure-lib` is the composed library of the composition that registered the overlay, bound lazily (read it inside the `overlay` function, never while the overlay is being registered); an integration reaches the registry of its own composition through it:
 
 ```nix
 { closure-inputs, ... }:
@@ -77,6 +76,7 @@ Already-built overlays (for example another flake's exported `libOverlays.defaul
 |---|---|
 | `mkModule` | Creates class-specific module normalizers with closed inputs |
 | `mkLibOverlay` | Applies the closure to registered library overlays |
+| `mkModules`, `mkLibOverlays` | Derive the registrations from `modules/<class>/<name>` (also `configs/`) and `lib-overlays/<name>`, applying the two above |
 | `importApply` | Applies static arguments to a module through the import chain |
 | `mkLib` | Bootstraps a composed library with closed overlays |
 | `caisson.flake-parts.mkConfiguration` | Creates flake outputs with closed modules |

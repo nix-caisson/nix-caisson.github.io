@@ -155,7 +155,7 @@ caisson.lib.composition.entriesFor {
 }
 # => { base, caisson-lib,
 #      flake-parts, tooling,
-#      nixpkgs, nixos, home-manager,
+#      nixpkgs, nixos, nixos-minimal, home-manager,
 #      colmena, terranix, system-manager }
 ```
 

@@ -327,8 +327,8 @@ An adapter's ecosystem source resolves in layers: the explicit
 `defaultEcosystemSrc.<name>` (an mkLib argument, carried by the
 manifest), then the entry named exactly `<name>` in the `inputs`
 passed to mkLib. The name is the integration's ecosystem, and one
-ecosystem may serve several integrations: `nixpkgs` for both the
-nixos and the nixpkgs integrations, then `home-manager`, `colmena`,
+ecosystem may serve several integrations: `nixpkgs` for the nixos,
+nixos-minimal and nixpkgs integrations, then `home-manager`, `colmena`,
 `terranix`, `system-manager` and `flake-parts` for the integration of
 the same name (the table in
 [Ecosystem sources](../concepts/ecosystem-sources.md)). A full
@@ -364,8 +364,7 @@ Common conventions:
   not take), or surfacing as a conflict inside the evaluator
   (`pkgs` beside the framework's `nixpkgs.pkgs`).
 - The evaluator's own surface is reachable, deliberately, through
-  the `mkConfigurationWithEcosystemArgs` twin of each entry point (nixos
-  also has `mkConfigurationMinimalWithEcosystemArgs`). It takes the same
+  the `mkConfigurationWithEcosystemArgs` twin of each entry point. It takes the same
   arguments plus `ecosystemArgs`, an attrset merged over the composed
   evaluator call verbatim, last: anything the evaluator accepts can
   be set or replaced there, including what caisson composed
@@ -476,15 +475,38 @@ mkConfiguration :
   pass through to `eval-config.nix`.
 - `mkConfigurationFull`: as `mkConfiguration`, additionally passing nixpkgs'
   `module-list.nix` as `baseModules`.
-- `mkConfigurationMinimal : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, specialArgs?, prefix? }`: bare `evalModules` from
-  `<ecosystemSrc>/nixos/lib`; no NixOS base modules, so the config
-  module declares any options it uses, and the package set arrives as
-  the `pkgs` module argument rather than through `nixpkgs.pkgs`.
-- `mkConfigurationWithEcosystemArgs`, `mkConfigurationMinimalWithEcosystemArgs`:
-  the twins with `ecosystemArgs` (see the conventions above);
-  eval-config's `baseModules` is one of the arguments reachable that
-  way.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
+  (see the conventions above); eval-config's `baseModules` is one of
+  the arguments reachable that way.
+- `compose : { context?, nixpkgsModule? } -> args -> { modules,
+  specialArgs, checkedPkgSets, src }`: the composition of the class
+  from the caisson arguments (the framework and selected modules, the
+  config module, the package-set module, the resolved nixpkgs
+  source), which every entry point here builds on and which an
+  integration evaluating the `nixos` class with another evaluator
+  reads, so two evaluators cannot express different machines from the
+  same arguments. `nixpkgsModule = false` delivers the package set as
+  the `pkgs` module argument for an evaluation without NixOS'
+  nixpkgs module.
+
+### `caisson.nixos-minimal` (module class `nixos`, owned by `caisson.nixos`)
+
+- **Source:** `lib-overlays/nixos-minimal/default.nix`
+
+A second integration over the `nixos` class: the minimal evaluator,
+`evalModules` from `<ecosystemSrc>/nixos/lib`, with no NixOS base
+modules, so the config module declares any options it uses and the
+package set arrives as the `pkgs` module argument rather than through
+`nixpkgs.pkgs`. It carries constructors only. The class, its
+registration form (`caisson.nixos.mkModule`), its framework module and
+its default default belong to the nixos integration, and the module
+list comes from `caisson.nixos.compose`; composing it needs the nixos
+integration composed beside it.
+
+- `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
+  moduleImports?, specialArgs?, prefix? } -> evaluation`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
+  (`prefix`, `modules`, `specialArgs`).
 
 ### `caisson.home-manager` (module class `homeManager`)
 
@@ -499,8 +521,6 @@ mkConfiguration :
   derive from what actually composes: `homeManagerOutPath` from
   `ecosystemSrc` and `nixpkgsOutPath` from `pkgSets.pkgs.path`
   (`schemaVersion` 3).
-- `mkConfigurationMinimal`: `mkConfiguration` with
-  `minimal = true`.
 - `mkStandaloneAdapter : { moduleImports?, ... } -> { homeModules,
   buildHome }`: the selected class modules as a list plus a
   `buildHome` closure over the same arguments.

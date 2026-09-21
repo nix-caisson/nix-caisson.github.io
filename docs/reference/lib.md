@@ -348,6 +348,30 @@ declarations, these are its parts.
   `defaultModuleImports : registry -> listOf module`: every entry of a
   class registry named `core` (the framework module of the class) and
   every entry named `default` (the default default).
+- `mkIntegration : { name, class, accepted?, hints?, compose,
+  evaluate, extra? } -> { namespace, classes }`: an integration that
+  owns a module class, declared. `namespace` is the value of
+  `lib.caisson.<name>`: `mkConfiguration` and
+  `mkConfigurationWithEcosystemArgs` generated from `compose` (the
+  checked arguments to an attrset holding `ecosystemArgs`, the
+  evaluator's call) and `evaluate` (that attrset and the call to
+  make), `mkModule` bound to the class, and `extra` beside them;
+  `classes` is the declaration of the class for the index, so
+  `mkModules` registers the class through this integration. The
+  overlay file writes both under their keys, since the output
+  attribute names of an overlay must not depend on `final`:
+  `contributeClasses prev integration.classes // { caisson = (prev.caisson or { }) // { nixos = integration.namespace; }; }`.
+  `accepted` lists the arguments beyond the caisson-shaped five;
+  `hints` the pointers for refused ones.
+- `mkAltIntegration : { name, over, accepted?, hints?, compose,
+  evaluate, extra? } -> namespace`: an integration that evaluates a
+  class another integration owns, declared. `over` is the owning
+  integration reached through the lib (`final.caisson.nixos`); the
+  result is the value of `lib.caisson.<name>`, the two entry points
+  and `extra`, with no `mkModule` and no class declaration, and its
+  `compose` builds on the composition the owner publishes.
+  `caisson.nixos` and `caisson.nixos-minimal` are declared this way;
+  the other integrations are written by hand in the same shape.
 
 ### `eval-weight`
 

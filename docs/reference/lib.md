@@ -22,8 +22,8 @@ Type notation used below:
 - **Source:** caisson-core's `lib/default.nix` (the `compose`
   primitive, and the composition of the entries below) and
   `lib-overlays/<name>/default.nix` (`compose`, `resolve`, `kernel`,
-  `lifecycle`, `readers`): caisson-core is its own composition, and
-  `mkLib` composes those same entries, keyed `caisson-core/<name>`,
+  `lifecycle`, `readers`): caisson-core is a composition of those
+  entries, and `mkLib` composes the same entries, keyed `caisson-core/<name>`,
   into every library it builds, so this namespace is one definition
   wherever it appears and each part is a registered entry a same-key
   entry replaces.
@@ -78,8 +78,8 @@ resolution only (see
   returns the registered overlays; `mkLibOverlays ./lib-overlays`
   derives it from the layout. All three arguments take exactly the
   function shape shown; passing anything else is an error.
-- `libOverlayImports` selects which registered overlays apply to this
-  flake's own `lib`; registration also feeds export, so the two can
+- `libOverlayImports` selects which registered overlays apply to the
+  `lib` of this flake; registration also feeds export, so the two can
   differ.
 - `defaultEcosystemSrc` declares the tree's default source per
   ecosystem (`{ nixpkgs = inputs.nixpkgs; ... }`), keyed by the exact
@@ -136,7 +136,7 @@ integration declares the class it owns from its overlay body, the way
 `contributeModules` contributes modules
 (`overlay = final: prev: contributeClasses prev { nixos = { integration = "nixos"; mkModule = final.caisson-core.mkModule "nixos"; }; } // { ... }`),
 and a declaration composed later replaces it: an integration that
-wraps another declares the same class with its own `mkModule` and
+wraps another declares the same class with the `mkModule` it defines, and
 every reader of the class, `mkModules` first, registers through the
 wrapper. `caisson-core` declares the class-free `generic` class
 itself. An integration that evaluates a class another integration
@@ -203,8 +203,8 @@ The `mkModule` closure member is bound to the same class, so nested module compo
 modules : attrsOf (attrsOf module)    # class -> name -> module
 ```
 
-The class-keyed module registry of this composition: the flake's own
-registrations merged with every overlay-borne contribution and every
+The class-keyed module registry of this composition: the registrations
+of the flake merged with every overlay-borne contribution and every
 consumed project's entries (`<project>/<name>`), locals winning on
 name conflicts. Integration adapters read their class from here
 (`caisson-core.modules.<class>`): every entry named `core` (`core`,
@@ -228,13 +228,13 @@ are the `mkLib` arguments as given; `libOverlays` and `modules` are the
 registered dictionaries, so consumed projects' entries appear under
 `<project>/<name>` beside
 the local registrations, with a local winning a name collision. An
-mkLib composition self-describes: a consumer's composed library
-carries the consumer's own manifest. Checks live on the export side
+mkLib composition self-describes: the composed library of a consumer
+carries the manifest of that consumer. Checks live on the export side
 only (the flake-parts integration type-checks it and projects the
 `flake.libOverlays` and `flake.modules` outputs from it, so an
 `exported` selection can re-export a project-borne entry the same
-way as a hand-registered one); producers validate their own
-manifests in their own CI.
+way as a hand-registered one); a producer validates the manifest it
+publishes in its CI.
 
 ### `importApply`
 
@@ -273,7 +273,7 @@ fetching nothing; the flake-parts integration instantiates
 flake-parts through it) and the read-only-eval-safe partition
 extra-inputs loader, re-exposed from caisson-core. See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
-caisson-core's own documentation.
+the documentation of caisson-core.
 
 ## The caisson namespace
 
@@ -324,7 +324,7 @@ the `caisson.nixpkgs.*` options:
 - `overlays.exported` and `overlays.export.enabled`: the selection
   from the registry published as the flake's `overlays` output.
 - `pkgs.export.enabled`, `packages.export.enabled`: whether to export
-  `legacyPackages`, and the flake's own package scope
+  `legacyPackages`, and the package scope of the flake
   (`pkgs.<configName>`) as `packages`.
 
 ### `integrations`
@@ -349,7 +349,7 @@ entry point, such as `lib.caisson.nixos.mkConfiguration`). If `hints`
 has an entry for that name, the message quotes it; a hint names the
 caisson argument to use in place of an evaluator argument. Otherwise,
 if `open` names the `WithEcosystemArgs` twin, the message says that the
-evaluator's own arguments are reachable through the twin.
+arguments of the evaluator are reachable through the twin.
 
 #### `resolveEcosystemSrc`
 
@@ -517,7 +517,7 @@ Common conventions:
   class's modules with (`caisson-core.mkModule` bound to the class).
   Target-specific variants and helpers sit beside them under the same
   namespace.
-- `configModule`: the configuration's own top-level module, always a
+- `configModule`: the top-level module of the configuration, always a
   single module (compose several with `imports`); the framework's
   selected class modules are applied beside it.
 - `specialArgs`: extra module arguments; the one name on every entry

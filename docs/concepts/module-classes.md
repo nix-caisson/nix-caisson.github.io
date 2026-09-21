@@ -7,7 +7,7 @@ caisson models modules as class-keyed sets. A class is a string key used to grou
 - Registered modules live under `modules.<class>.<name>`
 - Exported modules are published under `flake.modules.<class>.<name>`
 
-This builds on flake-parts' generic `flake.modules` support while adding closed-inputs module normalization.
+This builds on flake-parts' `flake.modules` output, which publishes modules under any class name, and adds closed-inputs module normalization.
 
 ## Registering a module
 

@@ -140,7 +140,8 @@ wraps another declares the same class with the `mkModule` it defines, and
 every reader of the class, `mkModules` first, registers through the
 wrapper. `caisson-core` declares the class-free `generic` class
 itself. An integration that evaluates a class another integration
-owns (`caisson.nixos-minimal`) declares nothing here.
+owns (`caisson.nixos-minimal`, `caisson.home-manager-minimal`) declares
+nothing here.
 
 ### `mkLibOverlay`
 
@@ -336,20 +337,30 @@ from. Each integration overlay imports this overlay by key, so
 composing any integration composes this one as well, and the
 integration reads these functions through `final`.
 
-#### `checkArgs`
+#### `mkEvaluation`
 
 ```
-checkArgs : { context, accepted, hints ? { }, open ? null } -> args -> args
+mkEvaluation : { compose, evaluate } -> args -> result
 ```
 
-`checkArgs` enforces the closed signature of an entry point. It
-returns the arguments unchanged when every name is in `accepted`. When
-a name is not, it throws a message that starts with `context` (the
-entry point, such as `lib.caisson.nixos.mkConfiguration`). If `hints`
-has an entry for that name, the message quotes it; a hint names the
-caisson argument to use in place of an evaluator argument. Otherwise,
-if `open` names the `WithEcosystemArgs` twin, the message says that the
-arguments of the evaluator are reachable through the twin.
+`mkEvaluation` is the body of both entry points of an integration. It
+passes the arguments the entry point's pattern admitted to `compose`,
+which returns an attribute set holding `ecosystemArgs`, the arguments
+of the evaluator's call as the integration composed them, beside
+anything `evaluate` needs, such as the resolved source. It then calls
+`evaluate` with that set and the call to make. When the arguments
+carry `ecosystemArgs`, which only the pattern of the
+`WithEcosystemArgs` twin admits, they are merged over the composed
+call verbatim, last.
+
+The pattern is the whole check. Every entry point is a function of an
+attribute set pattern with no `...`,
+so Nix matches the call against the pattern before the body runs: a
+missing or unexpected argument is Nix's error, named after the entry
+point and raised at the call site, with no frame of caisson above it.
+Required arguments are bare in the pattern and optional ones default
+to `null`; the composition supplies the value of an omitted argument.
+`builtins.functionArgs` reads a signature back as data.
 
 #### `resolveEcosystemSrc`
 
@@ -388,10 +399,8 @@ default, the selection an evaluation gets when it passes no
 mkIntegration :
   { name       : string            # the namespace, lib.caisson.<name>
   , class      : string            # the module class this integration owns
-  , accepted   ? [ ] : listOf string   # arguments beyond the five every entry point takes
-  , hints      ? { } : attrsOf string  # pointers for refused arguments, by name
-  , compose    : args -> composed  # composed holds ecosystemArgs, the evaluator's call
-  , evaluate   : composed -> callArgs -> result
+  , mkConfiguration                  : pattern -> result  # the entry point, a pattern function
+  , mkConfigurationWithEcosystemArgs : pattern -> result  # the same pattern plus ecosystemArgs
   , extra      ? { } : attrs       # further members of the namespace
   } -> { namespace : attrs; classes : attrsOf { integration; mkModule } }
 ```
@@ -401,29 +410,33 @@ declaration. The result has two parts.
 
 `namespace` is the value to publish as `lib.caisson.<name>`. It holds
 `mkConfiguration`, `mkConfigurationWithEcosystemArgs`, `mkModule`, and
-everything in `extra`. `mkConfiguration` checks its arguments with
-`checkArgs` against the five arguments every entry point takes
-(`ecosystemSrc`, `pkgSets`, `configModule`, `moduleImports`,
-`specialArgs`) plus `accepted`, passes them to `compose`, and calls
-`evaluate` with the composed value and its `ecosystemArgs`.
-`mkConfigurationWithEcosystemArgs` does the same, then merges the
-caller's `ecosystemArgs` over the composed ones before evaluating, so
-the caller can set or replace anything the evaluator takes. `mkModule`
-is `lib.caisson-core.mkModule` bound to `class`. `extra` is for the
-members a declaration cannot generate, such as a variant entry point,
-an adapter, or the composition an alt over this class builds on.
+everything in `extra`. The two entry points are the declaration's,
+written as pattern functions whose body is
+`mkEvaluation { compose, evaluate }` applied to the admitted
+arguments. The pattern of `mkConfiguration` names the five arguments
+every entry point takes (`ecosystemSrc`, `pkgSets`, `configModule`,
+`moduleImports`, `specialArgs`) and the few of its one target, with
+the required ones bare and the rest defaulting to `null`; a comment
+beside each argument says what it is, and the `at` line of Nix's
+argument error points at that block. The twin's pattern repeats the
+entry point's plus `ecosystemArgs`, merged over the composed call
+before evaluating, so the caller can set or replace anything the
+evaluator takes. `mkModule` is `lib.caisson-core.mkModule` bound to
+`class`. `extra` is for the members a declaration cannot generate,
+such as a variant entry point, an adapter, or the composition an alt
+over this class builds on.
 
 `classes` is the declaration of `class` for the class index: the
 integration's name and its `mkModule`. Once it is in the index,
 `mkModules` registers every `modules/<class>` directory through this
 integration.
 
-The declaration's `compose` receives the checked arguments and returns
-an attribute set. That set must hold `ecosystemArgs`, the arguments
-of the evaluator's call as the integration composed them; it may hold
-anything else `evaluate` needs, such as the resolved source. `evaluate`
-receives that set and the call arguments to use, and returns the
-evaluation.
+The integration's `compose` receives the admitted arguments and
+returns an attribute set. That set must hold `ecosystemArgs`, the
+arguments of the evaluator's call as the integration composed them; it
+may hold anything else `evaluate` needs, such as the resolved source.
+`evaluate` receives that set and the call arguments to use, and
+returns the evaluation.
 
 The constructor returns values rather than an overlay output, because
 the attribute names an overlay produces must not depend on `final`.
@@ -446,12 +459,9 @@ overlay = final: prev:
 
 ```
 mkAltIntegration :
-  { name     : string
-  , over     : attrs               # the integration that owns the class, e.g. final.caisson.nixos
-  , accepted ? [ ] : listOf string
-  , hints    ? { } : attrsOf string
-  , compose  : args -> composed
-  , evaluate : composed -> callArgs -> result
+  { over     : attrs               # the integration that owns the class, e.g. final.caisson.nixos
+  , mkConfiguration                  : pattern -> result
+  , mkConfigurationWithEcosystemArgs : pattern -> result
   , extra    ? { } : attrs
   } -> attrs                       # the value of lib.caisson.<name>
 ```
@@ -459,20 +469,22 @@ mkAltIntegration :
 `mkAltIntegration` builds an integration that evaluates a class
 another integration owns. `over` is that owning integration, reached
 through the lib. The result is the value to publish as
-`lib.caisson.<name>`: the same two entry points as an owner gets, and
-`extra`. It has no `mkModule`, because modules of the class are
-registered through the owner, and it declares no class. Its `compose`
-is expected to build on the composition the owner publishes, so that
-the two evaluators cannot produce different configurations from the
-same arguments; `caisson.nixos-minimal` composes through
-`caisson.nixos.compose`.
+`lib.caisson.<name>`: the two entry points of the declaration, pattern
+functions as for an owner, and `extra`. It has no `mkModule`, because
+modules of the class are registered through the owner, and it declares
+no class. The composition its entry points evaluate over is expected
+to build on the one the owner publishes, so that the two evaluators
+cannot produce different configurations from the same arguments;
+`caisson.nixos-minimal` composes through `caisson.nixos.compose` and
+`caisson.home-manager-minimal` through `caisson.home-manager.compose`.
 
 Every integration caisson ships is declared with these two
 constructors: `mkIntegration` for the owners of a class (nixos,
 flake-parts, structural, home-manager, colmena, terranix,
-system-manager) and `mkAltIntegration` for `caisson.nixos-minimal`.
-Each overlay file holds the composition, the evaluator step and the
-extras of its integration, and nothing else.
+system-manager) and `mkAltIntegration` for `caisson.nixos-minimal`
+and `caisson.home-manager-minimal`. Each overlay file holds the
+composition, the evaluator step, the two patterns and the extras of
+its integration, and nothing else.
 
 ### `eval-weight`
 
@@ -535,8 +547,10 @@ Common conventions:
   `nixpkgs.hostPlatform`. flake-parts only forwards it.
 - The signature is the whole surface. An entry point takes exactly
   the arguments listed for it and composes the evaluator's call from
-  them; nothing else is forwarded, and an unknown argument is an
-  error naming the caisson argument to use where one exists. That
+  them; nothing else is forwarded, and an unknown or missing argument
+  is Nix's function-argument error, raised at the call site and
+  pointing at the entry point's pattern, whose comments name the
+  caisson argument to use where one exists. That
   keeps an evaluator argument from being silently overwritten
   (`modules`), silently dropped (anything the minimal evaluator does
   not take), or surfacing as a conflict inside the evaluator
@@ -695,7 +709,7 @@ integration composed beside it.
 - **Source:** `lib-overlays/home-manager/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, specialArgs?, osConfig?, check?, minimal?,
+  moduleImports?, specialArgs?, osConfig?, check?,
   sourceMeta? } -> homeConfiguration`
   (`mkConfigurationWithEcosystemArgs` is the twin with `ecosystemArgs`;
   home-manager's `lib` argument is reachable that way): runs home-manager's own
@@ -718,6 +732,24 @@ integration composed beside it.
   for the drift check.
 - `mkSourceMeta`, `assertSourceCoherence`: source-provenance records
   and the fingerprint comparison used by the drift machinery.
+
+### `caisson.home-manager-minimal` (module class `homeManager`, owned by `caisson.home-manager`)
+
+- **Source:** `lib-overlays/home-manager-minimal/default.nix`
+
+A second integration over the `homeManager` class: home-manager's
+minimal evaluation, the module list that omits what a standalone
+activation needs, which home-manager selects with its `minimal` flag.
+It carries constructors only. The class, its registration form
+(`caisson.home-manager.mkModule`), its framework module and its
+default default belong to the home-manager integration, and the
+module list comes from `caisson.home-manager.compose`; composing it
+needs the home-manager integration composed beside it.
+
+- `mkConfiguration : { ecosystemSrc?, pkgSets, configModule,
+  moduleImports?, specialArgs?, osConfig?, check?, sourceMeta? }
+  -> homeConfiguration`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
 ### `caisson.nixpkgs`
 

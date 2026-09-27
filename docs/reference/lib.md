@@ -300,7 +300,14 @@ when the directory lies in the root's tree (`pin.dir` is kept
 otherwise); `libOverlays`, `modules` and `pkgOverlays` are the
 registered dictionaries, so consumed projects' entries appear under
 `<project>/<name>` beside
-the local registrations, with a local winning a name collision. An
+the local registrations, with a local winning a name collision. Each
+records where an entry came from: a lib overlay or package overlay
+entry carries `project` (null for a local registration, the project's
+name for a contributed one, `caisson-core` for the lib overlay entries
+caisson-core publishes into every composition), and
+`moduleProjects.<class>.<name>` holds the same for modules, beside the
+module dictionary. The export selectors default to the entries whose
+origin is null. An
 mkLib composition self-describes: the composed library of a consumer
 carries the manifest of that consumer. Checks live on the export side
 only (the flake-parts integration type-checks it and projects the
@@ -435,6 +442,18 @@ carries (the manifest, the registry selectors, `caisson.exports`),
 registered as `core` in the class-free `generic` class and in every
 class whose integration forces it (`flake`, `structural`), and
 exported so a consumer's composition carries `caisson/core` there.
+
+The registry selectors, `caisson.libOverlays.exported`,
+`caisson.modules.<class>.exported`, `caisson.pkgOverlays.exported`
+and `caisson.nixpkgs.overlays.exported`, each choose what of a
+registry leaves the project, and each defaults to the entries the
+project registers itself. An entry a consumed project contributed
+(`<project>/<name>`), or one caisson-core publishes into every
+composition, leaves only when a selector names it: a project
+republishes an upstream's entries only on purpose, and a consumer
+takes them from that upstream through its own `projects`. The flake
+outputs are `libOverlays`, `modules` (and `flakeModules`),
+`pkgOverlays` when the selection holds any, and `overlays`.
 `caisson/default` for the `flake` class is caisson's contribution to
 the default default: it imports `caisson/nixpkgs` below.
 
@@ -455,14 +474,27 @@ make an overlay available and leaves selection to the consumer.
 the `caisson.nixpkgs.*` options:
 
 - `pkgSets.<name>`: a package-set definition: `pkgFunction` (a
-  nixpkgs-style entry point, e.g. `import inputs.nixpkgs`) and
-  `overlayImports` (a selection function from the registry to the
-  overlays to apply, default all). Each set is reified per system and
-  handed to `perSystem` modules as the `pkgSets` argument;
+  nixpkgs-style entry point, e.g. `import inputs.nixpkgs`),
+  `pkgOverlayImports` (a selection function from the mkLib
+  `pkgOverlays` registry to the entries to apply; default every entry
+  named `default` or `<project>/default`), and `overlayImports` (a
+  selection function from `overlays.all` to the overlays to apply,
+  default all). A set applies the registry entries first, each after
+  the entries it imports and each key once (`pkgOverlaysFor`), then
+  the `overlays.all` overlays, so a flake's own entries there can
+  still adjust what a project's entry provides. Each set is reified per
+  system and handed to `perSystem` modules as the `pkgSets` argument;
   `pkgSets.pkgs` also becomes the default `perSystem` `pkgs`.
 - `config`: the nixpkgs config applied to every generated package set.
 - `overlays.exported` and `overlays.export.enabled`: the selection
-  from the registry published as the flake's `overlays` output.
+  from `overlays.all` published in the flake's `overlays` output. The
+  default selection is the entries the flake defines in files of its
+  own tree (under its `root`); an entry a consumed project's flake
+  module pushed into the registry leaves only when the selector names
+  it. The `overlays` output also carries the entries of
+  `caisson.pkgOverlays.exported` as plain overlays, each with the
+  entries it imports composed in, so a consumer that is not caisson
+  gets a working overlay.
 - `pkgs.export.enabled`, `packages.export.enabled`: whether to export
   `legacyPackages`, and the package scope of the flake
   (`pkgs.<configName>`) as `packages`.

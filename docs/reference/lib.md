@@ -22,7 +22,7 @@ Type notation used below:
 - **Source:** caisson-core's `lib/default.nix` (the `compose`
   primitive, and the composition of the entries below) and
   `lib-overlays/<name>/default.nix` (`compose`, `resolve`, `kernel`,
-  `lifecycle`, `readers`): caisson-core is a composition of those
+  `lifecycle`, `readers`, `pins`): caisson-core is a composition of those
   entries, and `mkLib` composes the same entries, keyed `caisson-core/<name>`,
   into every library it builds, so this namespace is one definition
   wherever it appears and each part is a registered entry a same-key
@@ -275,6 +275,65 @@ flake-parts through it) and the read-only-eval-safe partition
 extra-inputs loader, re-exposed from caisson-core. See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
 the documentation of caisson-core.
+
+### `pins`
+
+```
+pins.flake        : inputs -> { sources; root; }
+pins.flake-compat : path -> { sources; }
+pins.npins        : path -> { sources; }
+pins.gitRoot      : path -> root
+```
+
+The pin readers, a reader per pin system. Each reads the pin system's
+files into `sources`: every pinned tree, as the pin system hands it
+over (a flake input keeps its outputs), plus `pin`, the record of how
+it is pinned.
+
+- `pin.system`: `"flake"` from either flake reader, `"npins"` from
+  `pins.npins`; the writer that moves the source follows from it.
+- `pin.files`: `{ refs; revisions; }`, the file that holds the ref and
+  the file that holds the revision, relative to `pin.dir` when present
+  and to the tree's root otherwise.
+- `pin.dir`: the directory holding the pin files, for a reader given a
+  directory.
+- `pin.url`: the ref as the pin files write it.
+- `pin.rev`, `pin.narHash`, `pin.lastModified`: the identity of the
+  tree, where the pin system records it.
+- `pin.follows`: for a flake input declared as a `follows`, the path of
+  input names it follows; its tree is that of the input it lands on.
+- `pin.overridden`: `pins.flake` only, true when an `--override-input`
+  replaced the input, so `pin.url` describes the lock rather than the
+  tree.
+
+`pins.flake inputs` reads the inputs Nix's flake evaluator resolved for
+the flake being evaluated, the `inputs` its `outputs` receives, and
+returns the `root` from `self`. `pins.flake-compat ./dir` resolves the
+`flake.lock` beside a `flake.nix` in that directory the way
+flake-compat does, stopping before the flake's `outputs`; Nix's flake
+evaluator never sees the pair, so no `--override-input` reaches it and
+it has no root. It stays valid under read-only evaluation (`nix flake
+check --no-build`). `pins.npins ./npins` reads `sources.json` format
+8 and fetches each pin as npins' generated `default.nix` does; it
+refuses Container pins, which need nixpkgs.
+
+A root is `{ outPath; dirty; rev?; dirtyRev?; lastModified?; narHash?; }`,
+the identity of the tree being built. A flakeless top in a git working
+tree reads it with `pins.gitRoot ./.` under an impure evaluation: the
+revision of a clean tree, or `dirty = true` with `dirtyRev` for a
+dirty one.
+
+```nix
+# flake.nix outputs
+inherit (caisson-core.pins.flake inputs) sources root;
+
+# test-only pins beside the tree's own
+inherit (caisson-core.pins.flake-compat ./tests/dependencies) sources;
+
+# a flakeless top pinned with npins
+inherit (caisson-core.pins.npins ./npins) sources;
+root = caisson-core.pins.gitRoot ./.;
+```
 
 ## The caisson namespace
 

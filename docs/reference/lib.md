@@ -43,6 +43,8 @@ mkLib :
                       : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
   , libOverlayImports ? builtins.attrValues
                       : attrsOf libOverlay -> listOf libOverlay
+  , pkgOverlays       ? (mkPkgOverlay: { })
+                      : (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
   , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
                                                            # nixpkgs supplies the nixpkgs-lib part unless nixpkgs-lib names its own
   , systems           ? null : listOf str                  # the platforms the tree builds on
@@ -87,8 +89,12 @@ naming `mkLib` and pointing at the pattern.
   name rather than by a path out of their directory.
 - `libOverlays` receives the input-closed `mkLibOverlay` helper and
   returns the registered overlays; `mkLibOverlays ./lib-overlays`
-  derives it from the layout. All three arguments take exactly the
-  function shape shown; passing anything else is an error.
+  derives it from the layout.
+- `pkgOverlays` receives the input-closed `mkPkgOverlay` helper and
+  returns the registered package overlays; `mkPkgOverlays
+  ./pkg-overlays` derives it from the layout (see `pkgOverlays` below).
+  These four arguments take exactly the function shape shown; passing
+  anything else is an error.
 - `libOverlayImports` selects which registered overlays apply to the
   `lib` of this flake; registration also feeds export, so the two can
   differ.
@@ -99,21 +105,23 @@ naming `mkLib` and pointing at the pattern.
   `nixpkgs-lib` name, else `nixpkgs`); the integrations interpret the
   rest.
 - `projects` consumes whole upstream contributions
-  (`{ my-dep = inputs.my-dep; }`): each value carries `libOverlays`
-  and class-keyed `modules` dictionaries, which a caisson-built
-  flake's outputs already do. A project's overlays join the
-  registered dictionary and its modules join the class registry under
+  (`{ my-dep = inputs.my-dep; }`): each value carries `libOverlays`,
+  class-keyed `modules` and `pkgOverlays` dictionaries, the outputs of
+  a caisson-built flake. A project's overlays and package overlays join
+  their registries and its modules join the class registry under
   `<project>/<name>`, so the existing selections keep per-item
   choice: `libOverlayImports` decides which overlays apply, the
   registry selection at each use site decides which modules load, and
   a local registration beats a same-named project entry. Registering
   a single overlay by hand is the way to cherry-pick or rename one.
 
-### `mkModules`, `mkLibOverlays`
+### `mkModules`, `mkLibOverlays`, `mkPkgOverlays`
 
 ```
 mkModules     : path -> lib -> attrsOf (attrsOf module)   # <dir>/<class>/<name>/default.nix
 mkLibOverlays : path -> (freeformOverlay -> libOverlay) -> attrsOf libOverlay
+                                                          # <dir>/<name>/default.nix
+mkPkgOverlays : path -> (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
                                                           # <dir>/<name>/default.nix
 ```
 
@@ -126,7 +134,8 @@ its name, and registers each entry directory through the class index
 of the composed library, `caisson-core.classes.<class>.mkModule`, the
 `mkModule` of the integration that declares the class; a directory
 for a class no composed integration declares is an error naming the
-declared classes. `mkLibOverlays` applies `mkLibOverlay`. An entry is
+declared classes. `mkLibOverlays` applies `mkLibOverlay`, and
+`mkPkgOverlays` applies `mkPkgOverlay`. An entry is
 a directory holding a `default.nix`, a symlink to one included;
 anything else in a directory being read is an error, so a stray file
 cannot silently vanish from a registry. A tree with another layout
@@ -153,6 +162,53 @@ wrapper. `caisson-core` declares the class-free `generic` class
 itself. An integration that evaluates a class another integration
 owns (`caisson.nixos-minimal`, `caisson.home-manager-minimal`) declares
 nothing here.
+
+### `pkgOverlays`, `mkPkgOverlay`, `pkgOverlaysFor`
+
+```
+mkPkgOverlay   : freeformOverlay -> pkgOverlay
+pkgOverlay     : { key; imports : listOf pkgOverlay; overlay : final -> prev -> attrs; origin; project; }
+pkgOverlaysFor : listOf pkgOverlay -> listOf (final -> prev -> attrs)
+```
+
+The package overlay registry, recorded as
+`caisson-core.libManifest.pkgOverlays`. An entry has the lib overlay
+entry's shape with a nixpkgs overlay under `overlay`: a file handed to
+`mkPkgOverlay` takes the closure
+`{ closure-inputs, closure-lib, mkPkgOverlay, ... }` and returns
+`{ imports ? [ ], overlay }`. An entry imports a sibling from the
+registry of the composition that registered it,
+`closure-lib.caisson-core.libManifest.pkgOverlays.<name>`:
+
+```nix
+# pkg-overlays/default/default.nix
+{ closure-lib, ... }:
+{
+  imports = [ closure-lib.caisson-core.libManifest.pkgOverlays.extra ];
+  overlay = final: prev: { my-project = prev.callPackage ./my-package.nix { }; };
+}
+```
+
+Every registered entry carries its registry name as `key`, the file
+it was read from as `origin` (null for an entry built from a
+function), and `project`: null for a local registration, the
+contributing project's name for an entry from `projects`, so the
+local entries alone are a filter on that field. A project's entries
+join under `<project>/<name>`; a key of the project's own (one
+without a `/`) becomes `<project>/<key>` in its imports too, so an
+import still meets its sibling, and a key naming another project's
+entry (one with a `/`) is kept, so two projects importing the same
+entry import one entry.
+
+`pkgOverlaysFor` turns a selection, a list of registry entries, into
+the list of nixpkgs overlays a package set applies: each entry after
+the entries it imports, each key once where it first occurs. One key
+reached through two paths is one entry when both carry the same
+origin; two entries with different origins under one key are refused.
+By convention the entries named `default` (`default`,
+`<project>/default`) are the default selection, as for modules; the
+layer that builds package sets applies it. caisson-core applies
+nothing itself.
 
 ### `mkLibOverlay`
 
@@ -231,6 +287,7 @@ manifest : { sources : attrs; root : nullOr root;
              modules : attrsOf (attrsOf module);
              configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
+             pkgOverlays : attrsOf pkgOverlay;
              defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
              namespace : nullOr str; projects : attrs }
 ```
@@ -240,7 +297,7 @@ The composition's self-description, injected as its final overlay.
 `projects` and `configs` are the `mkLib` arguments as given, except
 that a directory reader's pin files are stated relative to the root
 when the directory lies in the root's tree (`pin.dir` is kept
-otherwise); `libOverlays` and `modules` are the
+otherwise); `libOverlays`, `modules` and `pkgOverlays` are the
 registered dictionaries, so consumed projects' entries appear under
 `<project>/<name>` beside
 the local registrations, with a local winning a name collision. An

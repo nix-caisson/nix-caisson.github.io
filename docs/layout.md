@@ -95,7 +95,7 @@ outside, the way a consumer would experience it. `tests/dependencies/`
 is a lock-bearing flake that pins inputs used only by the test and
 formatter machinery, so the main `flake.lock` stays free of
 test-only pins (it feeds the checks partition via
-`partitionExtraInputs`). The [Testing](./testing.md) page covers how the
+`pins.flake-compat`). The [Testing](./testing.md) page covers how the
 nested flakes are evaluated.
 
 ## Other directories

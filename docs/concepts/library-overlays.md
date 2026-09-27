@@ -100,8 +100,8 @@ The most common case: adding namespaced functions to `lib`.
 ```
 
 The closure arg list always comes first: `closure-inputs` here is the
-*defining* flake's inputs, so `some-flake` resolves against the inputs
-this overlay was written with, no matter which downstream flake
+*defining* flake's pinned sources, so `some-flake` resolves against the
+pins this overlay was written with, no matter which downstream flake
 eventually composes it. An overlay that needs nothing from the closure
 still takes the arg list, as `{ ... }:`.
 

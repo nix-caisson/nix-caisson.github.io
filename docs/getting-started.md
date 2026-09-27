@@ -25,7 +25,7 @@ Create a directory with this `flake.nix`:
     let
       core = caisson.lib.caisson-core;
       lib = core.mkLib {
-        inherit inputs;
+        inherit (core.pins.flake inputs) sources root;
         systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
@@ -109,7 +109,7 @@ in the config module. `core.mkLibOverlays ./lib-overlays` reads
 
 ```nix
       lib = core.mkLib {
-        inherit inputs;
+        inherit (core.pins.flake inputs) sources root;
         projects = {
           inherit caisson;
         };
@@ -145,7 +145,7 @@ by creating its directory:
 
 ```nix
       lib = core.mkLib {
-        inherit inputs;
+        inherit (core.pins.flake inputs) sources root;
         projects = {
           inherit caisson;
         };
@@ -205,8 +205,8 @@ in the config module's `perSystem` or at the top level:
 Instead of passing `ecosystemSrc` at every call, the `mkLib` call can
 declare a default (`defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`) and
 the argument can be dropped; an explicit argument still wins, and the
-entry named exactly `nixpkgs` in the `inputs` passed to `mkLib` is the
-last fallback.
+source named exactly `nixpkgs` in the `sources` passed to `mkLib` is
+the last fallback.
 
 With caisson consumed as a project, its integration overlays are
 already registered and applied, so `caisson.nixos` is present. To
@@ -242,7 +242,7 @@ A consumer registers your exported overlay the same way:
     let
       core = caisson.lib.caisson-core;
       lib = core.mkLib {
-        inherit inputs;
+        inherit (core.pins.flake inputs) sources root;
         projects = {
           inherit caisson my-flake;
         };

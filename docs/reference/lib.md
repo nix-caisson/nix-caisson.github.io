@@ -32,7 +32,9 @@ Type notation used below:
 
 ```
 mkLib :
-  { inputs            : attrs                              # the defining flake's inputs
+  { sources           : attrs                              # the tree's pinned sources, as a pin reader returns them
+  , root              ? null : root                        # the tree's identity; null for a composition that is not a top
+  , namespace         ? null : str                         # the namespace this composition contributes
   , modules           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
   , configs           ? (lib: { })
@@ -56,9 +58,18 @@ integration overlay rather than composed on its own), the selected
 registered overlays, then two synthetic overlays: the local module
 registrations (so local names win over overlay-borne contributions)
 and the manifest. Every source arrives as an argument or a
-declaration; the exact-name input fallback applies to ecosystem
-resolution only (see
+declaration; the exact-name fallback over `sources` applies to
+ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
+
+`sources` and `root` come from a pin reader (see `pins` below); at a
+flake top, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
+sources root;`. The registered overlays and modules close over
+`sources` as `closure-inputs`, so the closure holds the pinned trees
+under their input names and no `self`. The signature is the pattern
+of `mkLib`, with no `...`: a missing or unexpected argument, a
+leftover `inputs` included, is Nix's own error at the call site,
+naming `mkLib` and pointing at the pattern.
 
 - `modules` receives the composed `lib` (usable through the fixpoint)
   and returns the class-keyed registration, built with the
@@ -150,7 +161,7 @@ mkLibOverlay : freeformOverlay -> libOverlay
 
 freeformOverlay = path | (closure -> { imports ? listOf libOverlay
                                      ; overlay : overlayFn })
-closure = { closure-inputs     : attrs
+closure = { closure-inputs     : attrs    # the defining composition's pinned sources
           ; closure-lib        : lib      # the defining composition's lib, lazily bound
           ; mkLibOverlay       : freeformOverlay -> libOverlay
           ; mkModule           : string -> freeformModule -> module
@@ -188,7 +199,7 @@ modules enter the registry.
 mkModule : string -> freeformModule -> module
 
 freeformModule = path | (closure -> module)
-closure = { closure-inputs        : attrs    # the defining flake's inputs
+closure = { closure-inputs        : attrs    # the defining flake's pinned sources
           ; closure-lib           : lib      # the defining flake's composed lib
           ; mkModule              : freeformModule -> module   # bound to the class
           }
@@ -216,16 +227,20 @@ default, what an evaluation gets when it passes no `moduleImports`.
 ### `manifest`
 
 ```
-manifest : { inputs : attrs; modules : attrsOf (attrsOf module);
+manifest : { sources : attrs; root : nullOr root;
+             modules : attrsOf (attrsOf module);
              configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
              defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
-             projects : attrs }
+             namespace : nullOr str; projects : attrs }
 ```
 
 The composition's self-description, injected as its final overlay.
-`inputs`, `defaultEcosystemSrc`, `systems`, `projects` and `configs`
-are the `mkLib` arguments as given; `libOverlays` and `modules` are the
+`sources`, `root`, `defaultEcosystemSrc`, `systems`, `namespace`,
+`projects` and `configs` are the `mkLib` arguments as given, except
+that a directory reader's pin files are stated relative to the root
+when the directory lies in the root's tree (`pin.dir` is kept
+otherwise); `libOverlays` and `modules` are the
 registered dictionaries, so consumed projects' entries appear under
 `<project>/<name>` beside
 the local registrations, with a local winning a name collision. An
@@ -265,14 +280,16 @@ shared `call-flake` kernel (also used by the eval-weight harness).
 Nothing is fetched: locks are not read, and `sourceInfo` attrs appear
 only if supplied. See [Testing](../testing.md).
 
-### `compose`, `resolve`, `callFlake`, `partitionExtraInputs`
+### `compose`, `resolve`, `callFlake`
 
 Keyed composition (`compose`), the layered ecosystem-source
-resolver (`resolve`), the flake caller (`callFlake { src, inputs }`:
-a flake's outputs function applied to inputs given as values,
-fetching nothing; the flake-parts integration instantiates
-flake-parts through it) and the read-only-eval-safe partition
-extra-inputs loader, re-exposed from caisson-core. See
+resolver (`resolve`, over `explicit`, `defaults` and `sources`) and
+the flake caller (`callFlake { src, inputs }`: a flake's outputs
+function applied to inputs given as values, fetching nothing; the
+flake-parts integration instantiates flake-parts through it),
+re-exposed from caisson-core. A flake-parts partition takes the
+inputs of its lockfile'd subflake from `pins.flake-compat` (below).
+See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
 the documentation of caisson-core.
 
@@ -317,8 +334,14 @@ check --no-build`). `pins.npins ./npins` reads `sources.json` format
 8 and fetches each pin as npins' generated `default.nix` does; it
 refuses Container pins, which need nixpkgs.
 
-A root is `{ outPath; dirty; rev?; dirtyRev?; lastModified?; narHash?; }`,
-the identity of the tree being built. A flakeless top in a git working
+A root is `{ outPath; dirty; rev; shortRev; dirtyRev; dirtyShortRev;
+lastModified; lastModifiedDate; narHash; }`, the identity of the tree
+being built: the source-info fields a flake's `self` carries, each
+null where the reader has none. The names are fixed and the values
+lazy, since inside a flake's `outputs` asking which attributes `self`
+has forces the outputs being computed; the names of a flake input's
+`pin` are fixed for the same reason, `pin.url` and `pin.follows` being
+null where they do not apply. A flakeless top in a git working
 tree reads it with `pins.gitRoot ./.` under an impure evaluation: the
 revision of a clean tree, or `dirty = true` with `dirtyRev` for a
 dirty one.
@@ -430,7 +453,7 @@ resolveEcosystemSrc : { name, context } -> { explicit ? null, manifest ? libMani
 `resolveEcosystemSrc` finds the source of an ecosystem in the layered
 order that [Ecosystem sources](../concepts/ecosystem-sources.md)
 describes: the explicit argument first, then `defaultEcosystemSrc.<name>`
-as declared in the composition, then the input named exactly `<name>`.
+as declared in the composition, then the pinned source named exactly `<name>`.
 The first call names the ecosystem and the caller; the second supplies
 the explicit argument and the manifest to read the declarations from.
 When nothing provides a source, it throws a message that names the
@@ -574,7 +597,7 @@ composition of the consumer.
 An adapter's ecosystem source resolves in layers: the explicit
 `ecosystemSrc` argument first, then the composition's declared
 `defaultEcosystemSrc.<name>` (an mkLib argument, carried by the
-manifest), then the entry named exactly `<name>` in the `inputs`
+manifest), then the source named exactly `<name>` in the `sources`
 passed to mkLib. The name is the integration's ecosystem, and one
 ecosystem may serve several integrations: `nixpkgs` for the nixos,
 nixos-minimal and nixpkgs integrations, then `home-manager`, `colmena`,
@@ -685,26 +708,30 @@ integration refuses it, since it wraps no ecosystem.
 ```
 mkConfiguration :
   { configModule  : module                                  # flake class
+  , pkgSets       ? null                                    # the `pkgSets` special argument
+  , ecosystemSrc  ? null                                    # the flake-parts source
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the flake class registry
-  , name          ? null : nullOr string                    # rev-independent module identity
   , specialArgs   ? { }                                     # beside `lib`, the composed library
-  , pkgSets       ? null                                    # the `pkgSets` special argument
   } -> flakeOutputs
 ```
 
   Builds final flake outputs via `flake-parts` using the composed
-  `lib`: the flake's `inputs` come from `lib.caisson-core.libManifest`
-  (so `mkConfiguration` requires a manifest-carrying, mkLib-built
-  composition), and `moduleImports` selects over the `flake` class
-  of `lib.caisson-core.modules`, the same registry every adapter
-  selects from, so modules arriving by local registration, overlay
-  contribution, or consumed project are all selectable. flake-parts
-  itself resolves like every ecosystem, from `ecosystemSrc`,
-  `defaultEcosystemSrc.flake-parts` or the input named `flake-parts`,
-  and is instantiated over the composed library. `name` sets
-  flake-parts' `moduleLocation` (so exported modules deduplicate
-  across revs) and defaults `caisson.configInfo.configName`.
+  `lib`, so it requires a manifest-carrying, mkLib-built composition.
+  flake-parts' `inputs` are the manifest's pinned `sources`, and the
+  integration ties `self` the way Nix does for a flake: the
+  evaluation's outputs with the root's source info (out path,
+  revision, last-modified) beside them and `self.inputs` the sources,
+  so flake-parts modules receive `self`, `self'` and `inputs` as they
+  would under Nix's own flake evaluation. `moduleImports` selects over
+  the `flake` class of `lib.caisson-core.modules`, the same registry
+  every adapter selects from, so modules arriving by local
+  registration, overlay contribution, or consumed project are all
+  selectable. flake-parts itself resolves like every ecosystem, from
+  `ecosystemSrc`, `defaultEcosystemSrc.flake-parts` or the pinned
+  source named `flake-parts`, and is instantiated over the composed
+  library. The composition's `namespace` sets flake-parts'
+  `moduleLocation`, so exported modules deduplicate across revisions.
 - `types.libOverlay`: a module-system option type for built library
   overlays. Its `check` verifies the structure recursively: an
   attrset with an `overlay` function and a (possibly absent)
@@ -791,6 +818,9 @@ integration composed beside it.
   for the drift check.
 - `mkSourceMeta`, `assertSourceCoherence`: source-provenance records
   and the fingerprint comparison used by the drift machinery.
+  `mkSourceMeta` takes the building tree as `root`
+  (`lib.caisson-core.libManifest.root`) and records its out path as
+  `selfOutPath`.
 
 ### `caisson.home-manager-minimal` (module class `homeManager`, owned by `caisson.home-manager`)
 

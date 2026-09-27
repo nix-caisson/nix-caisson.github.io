@@ -17,13 +17,15 @@ fight over one flat namespace.
 
 ### What is `closure-inputs`, and who sets it?
 
-`closure-inputs` is the `inputs` attrset your flake passes to
-`mkLib`, threaded in by the caisson framework: `mkLibOverlay` and
-`mkModule` apply it to each registered file as the file's first
-argument list. A file always receives the inputs of the flake that
-registered it: an overlay or module consumed from another flake sees
-the inputs of the flake it came from, not the inputs of the flake
-consuming it.
+`closure-inputs` is the `sources` your flake passes to `mkLib`: its
+pinned inputs, under their input names, as the flake pin reader
+returns them (`inherit (caisson-core.pins.flake inputs) sources
+root;`), with no `self`. The caisson framework threads it in:
+`mkLibOverlay` and `mkModule` apply it to each registered file as the
+file's first argument list. A file always receives the sources of the
+flake that registered it: an overlay or module consumed from another
+flake sees the sources of the flake it came from, not those of the
+flake consuming it.
 [Closed inputs](concepts/closed-inputs.md) is the full convention.
 
 ### What happens when two overlays define the same thing?
@@ -66,8 +68,8 @@ ecosystems lives in your own locks, where you can see and manage it. A
 flake that uses one version of an ecosystem everywhere can set a
 flake-level default at `mkLib` (`defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`). But it's
 also possible to explicitly pass it on each caisson call. The explicit
-argument wins, and an input named exactly like the ecosystem is the
-final fallback (handy for leaf nodes).
+argument wins, and a pinned source named exactly like the ecosystem
+is the final fallback (handy for leaf nodes).
 
 
 ### What does this cost at evaluation time?

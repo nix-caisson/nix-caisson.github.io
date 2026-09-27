@@ -353,8 +353,8 @@ carry `ecosystemArgs`, which only the pattern of the
 `WithEcosystemArgs` twin admits, they are merged over the composed
 call verbatim, last.
 
-An entry point does not check its arguments; its pattern does. Every
-entry point is a function of an attribute set pattern with no `...`,
+The pattern is the whole check. Every entry point is a function of an
+attribute set pattern with no `...`,
 so Nix matches the call against the pattern before the body runs: a
 missing or unexpected argument is Nix's error, named after the entry
 point and raised at the call site, with no frame of caisson above it.

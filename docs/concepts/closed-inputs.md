@@ -48,7 +48,7 @@ The closure attrset contains:
 
 | Key | Value |
 |---|---|
-| `closure-inputs` | The defining flake's `inputs` (distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake) |
+| `closure-inputs` | The defining flake's pinned sources, the `sources` it passed to `mkLib`: its inputs under their names, with no `self` (distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake) |
 | `closure-lib` | The defining flake's composed `lib` (distinct from the `lib` module arg); its registry, `closure-lib.caisson-core.modules.<class>`, is how a module imports a sibling by name |
 | `mkModule` | A normalizer bound to the same class, for nested composition |
 

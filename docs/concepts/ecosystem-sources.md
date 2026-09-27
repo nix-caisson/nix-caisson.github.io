@@ -60,8 +60,8 @@ A source comes from one of three places, in priority order:
    call site always wins.
 2. **Composition default.** `defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`
    in the `mkLib` call declares the composition's default for that name.
-3. **Exact-name input.** As a final fallback, the entry named exactly
-   like the ecosystem (`nixpkgs`, `home-manager`, ...) in the `inputs`
+3. **Exact-name source.** As a final fallback, the source named exactly
+   like the ecosystem (`nixpkgs`, `home-manager`, ...) in the `sources`
    passed to `mkLib` is used. For a flake that declares that input
    anyway, this is the common case.
 

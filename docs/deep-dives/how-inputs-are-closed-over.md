@@ -29,20 +29,24 @@ The flake defines the closure by calling `mkLib`:
 
 ```nix
 lib = caisson.lib.caisson-core.mkLib {
-  inherit inputs;
+  inherit (caisson.lib.caisson-core.pins.flake inputs) sources root;
   libOverlays = mkLibOverlay: { ... };
   modules = lib: { ... };
 };
 ```
 
-`mkLib` builds registration helpers closed over the `inputs` it was
-given, and hands them to the registration arguments: `libOverlays`
-receives the input-closed `mkLibOverlay`, and `modules` receives the
-composed `lib`, whose helpers (`lib.caisson.flake-parts.mkModule`,
+`mkLib` builds registration helpers closed over the `sources` it was
+given, the flake's pinned inputs as the flake pin reader returns them,
+and hands them to the registration arguments: `libOverlays` receives
+the closed `mkLibOverlay`, and `modules` receives the composed `lib`,
+whose helpers (`lib.caisson.flake-parts.mkModule`,
 `lib.caisson.nixos.mkModule`, and the `caisson-core.mkModule` they
-are bound from) are closed the same way. There is no
-ambient lookup anywhere in this chain: the only `inputs` a
-registration can see is the attrset the registering flake passed to `mkLib`.
+are bound from) are closed the same way. There is no ambient lookup
+anywhere in this chain: the only sources a registration can see are
+the ones the registering flake passed to `mkLib`. They carry no
+`self`: a registration reads its flake's identity from
+`closure-lib.caisson-core.libManifest.root` and a sibling module from
+`closure-lib.caisson-core.modules`.
 
 ## When the closure is applied
 
@@ -63,10 +67,10 @@ module references my-flake's inputs without the consumer declaring,
 The contents differ by registration kind, because the two kinds are
 evaluated at different times.
 
-A library overlay's closure contains registration helpers, inputs and
+A library overlay's closure contains registration helpers, sources and
 the library of the defining composition:
 
-- `closure-inputs`: the `inputs` of the defining flake.
+- `closure-inputs`: the pinned sources of the defining flake.
 - `closure-lib`: the composed library of the defining flake, bound
   lazily. Inside the `overlay` function, `final` and `prev` are the
   composition being built, which may belong to a consumer;
@@ -87,7 +91,7 @@ the library of the defining composition:
 
 A module's closure contains the definer's finished world:
 
-- `closure-inputs`: the `inputs` of the defining flake.
+- `closure-inputs`: the pinned sources of the defining flake.
 - `closure-lib`: the composed library of the defining flake. This is
   not the `lib` module argument; see the next section. Its registry,
   `closure-lib.caisson-core.modules.<class>`, is how a module imports
@@ -127,9 +131,9 @@ consumer runs a different one. Each flake's files run against the
 pins that flake tested with, the pins are visible in each flake's
 lock, and nothing forces every repository to upgrade in lockstep. Where a consumer
 does want to override a definer's pin, flake-level `follows` on the
-definer's input still works, because `closure-inputs` is the
-definer's `inputs` attrset and `follows` rewrites what that attrset
-contains.
+definer's input still works, because `closure-inputs` holds the
+definer's inputs as its flake resolved them and `follows` rewrites
+what that resolution contains.
 
 ## importApply
 

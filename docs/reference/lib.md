@@ -283,7 +283,8 @@ default, what an evaluation gets when it passes no `moduleImports`.
 ### `manifest`
 
 ```
-manifest : { sources : attrs; root : nullOr root;
+manifest : { _type : "caisson-manifest";
+             sources : attrs; root : nullOr root;
              modules : attrsOf (attrsOf module);
              configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
@@ -315,6 +316,34 @@ only (the flake-parts integration type-checks it and projects the
 `exported` selection can re-export a project-borne entry the same
 way as a hand-registered one); a producer validates the manifest it
 publishes in its CI.
+
+`_type = "caisson-manifest"` marks the attrset as a manifest, which
+is how `manifestOf` recognizes one.
+
+### `manifestOf`
+
+```
+manifestOf : any -> nullOr manifest
+```
+
+Finds the manifest in whatever a file returns, so that a tool reading
+a flakeless top needs only its `default.nix`. The value may be:
+
+- a manifest, returned as it is;
+- an attrset carrying one at `caisson.manifest`;
+- an evaluated configuration carrying one at `config.caisson.manifest`;
+- a composed library carrying the phase slots (`libManifest`,
+  `pkgsManifest`, `evalManifest` under `caisson-core`), or a package
+  set carrying them in `pkgs.lib`. The last filled slot is the
+  manifest: `evalManifest` if set, else `pkgsManifest`, else
+  `libManifest`.
+
+A value carrying none of these returns null.
+
+```nix
+manifestOf (import ./.)   # the manifest of a flakeless top
+manifestOf lib            # lib.caisson-core.libManifest
+```
 
 ### `importApply`
 

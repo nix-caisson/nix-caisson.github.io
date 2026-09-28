@@ -292,7 +292,7 @@ manifest : { _type : "caisson-manifest"; type : "lib";
              libOverlays : attrsOf libOverlay;
              pkgOverlays : attrsOf pkgOverlay;
              defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
-             namespace : nullOr str; projects : attrs;
+             projects : attrs;
              childless : bool; inputs : list; parent : nullOr manifest;
              ancestors : listOf manifest; nearest : attrsOf manifest;
              children : attrs }
@@ -300,8 +300,7 @@ manifest : { _type : "caisson-manifest"; type : "lib";
 
 The composition's self-description, injected as its final overlay.
 `name` is the `namespace` argument, and is absent when the
-composition declares none; `namespace` holds the same value, null
-when undeclared, and is being retired in favour of `name`. `entries` lists the lib overlay selection
+composition declares none. `entries` lists the lib overlay selection
 in composition order, caisson-core's forced entries first. An entry
 is `opaque` when its key names no registry entry, as with an overlay
 imported by value; a keyless entry gets a synthesized `keyless/<n>`

@@ -34,7 +34,7 @@ Type notation used below:
 mkLib :
   { sources           : attrs                              # the tree's pinned sources, as a pin reader returns them
   , root              ? null : root                        # the tree's identity; null for a composition that is not a top
-  , namespace         ? null : str                         # the namespace this composition contributes
+  , name              ? null : str                         # the project's name, also the namespace it contributes
   , modules           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
   , configs           ? (lib: { })
@@ -299,7 +299,7 @@ manifest : { _type : "caisson-manifest"; type : "lib";
 ```
 
 The composition's self-description, injected as its final overlay.
-`name` is the `namespace` argument, and is absent when the
+`name` is the `name` argument, and is absent when the
 composition declares none. `entries` lists the lib overlay selection
 in composition order, caisson-core's forced entries first. An entry
 is `opaque` when its key names no registry entry, as with an overlay
@@ -525,7 +525,7 @@ them:
   gets a working overlay.
 - `pkgs.export.enabled`, `packages.export.enabled`: whether to export
   `legacyPackages`, and the package scope of the flake
-  (`pkgs.<configName>`) as `packages`.
+  (`pkgs.<name>`, after the `name` declared on `mkLib`) as `packages`.
 
 ### `integrations`
 
@@ -792,7 +792,6 @@ mkConfiguration :
   { configModule  : module                                  # structural class
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the structural class registry
-  , name          ? null : nullOr string                    # default for caisson.configInfo.configName
   , specialArgs   ? { }
   , pkgSets       ? null : attrs                            # the pkgSets special argument
   } -> { value : config; outputs : { exports : attrs } }
@@ -847,7 +846,7 @@ mkConfiguration :
   selectable. flake-parts itself resolves like every ecosystem, from
   `ecosystemSrc`, `defaultEcosystemSrc.flake-parts` or the pinned
   source named `flake-parts`, and is instantiated over the composed
-  library. The composition's `namespace` sets flake-parts'
+  library. The `name` the composition declares sets flake-parts'
   `moduleLocation`, so exported modules deduplicate across revisions.
 - `types.libOverlay`: a module-system option type for built library
   overlays. Its `check` verifies the structure recursively: an

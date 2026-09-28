@@ -6,14 +6,6 @@ For `lib.caisson` functions, see [Library Reference](./lib.md).
 
 ## Options
 
-### `caisson.configInfo.configName`
-
-- **Type:** `nullOr str`
-- **Default:** `null`
-- **Source:** `modules/generic/core/caisson/configInfo.nix`
-
-The canonical name of this flake. Used in doc/version strings and as a default namespace name for exports. Some export options (e.g. `caisson.lib.export.enabled`) require this to be set.
-
 ### `caisson.lib.export.enabled`
 
 - **Type:** `bool`
@@ -25,10 +17,10 @@ Whether to enable lib export. When enabled, publishes the selection made by `cai
 ### `caisson.lib.exported`
 
 - **Type:** `function -> lazyAttrsOf raw`
-- **Default:** `composedLib: composedLib.${configName}` (requires `configInfo.configName`)
+- **Default:** `composedLib: composedLib.${name}`, where `name` is the project's name declared on `mkLib` (refused when none is declared)
 - **Source:** `modules/generic/core/caisson/lib.nix`
 
-Function that selects which parts of the composed library to publish as the flake's `lib` output. The default exports the flake's namespace; caisson itself sets `composedLib: { inherit (composedLib) caisson caisson-core; }` so flake-level and composed-level addresses match.
+Function that selects which parts of the composed library to publish as the flake's `lib` output. The default exports the namespace named after the project; caisson itself sets `composedLib: { inherit (composedLib) caisson caisson-core; }` so flake-level and composed-level addresses match.
 
 ### `caisson.manifest`
 

@@ -26,6 +26,7 @@ Create a directory with this `flake.nix`:
       core = caisson.lib.caisson-core;
       lib = core.mkLib {
         inherit (core.pins.flake inputs) sources root;
+        name = "my-flake";
         systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
@@ -34,16 +35,18 @@ Create a directory with this `flake.nix`:
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
-      name = "my-flake";
       configModule = lib.caisson-core.configs.flake.my-flake;
     };
 }
 ```
 
 `caisson-core.mkLib` composes a library: nixpkgs' lib, the machinery
-under `lib.caisson-core`, and the overlays you register. `systems`,
-the platforms the flake builds for, is declared here; flake-parts
-reads it from the composition. Consuming
+under `lib.caisson-core`, and the overlays you register. `name` is the
+project's name: the flake configuration takes it as its own name, and
+your overlays contribute to the composed library under it
+(`lib.my-flake`). `systems`, the platforms the flake builds for, is
+declared here too; flake-parts reads it from the composition.
+Consuming
 caisson as a project registers everything it exports, its
 integrations included, which contributes `lib.caisson` (one namespace per integration
 target); `lib.caisson.flake-parts.mkConfiguration` then evaluates
@@ -64,8 +67,6 @@ registration, so the configuration comes back as
 { ... }:
 { pkgs, ... }:
 {
-  caisson.configInfo.configName = "my-flake";
-
   perSystem =
     { pkgs, ... }:
     {
@@ -110,6 +111,8 @@ in the config module. `core.mkLibOverlays ./lib-overlays` reads
 ```nix
       lib = core.mkLib {
         inherit (core.pins.flake inputs) sources root;
+        name = "my-flake";
+        systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
         };
@@ -120,7 +123,6 @@ in the config module. `core.mkLibOverlays ./lib-overlays` reads
 
 ```nix
   caisson = {
-    configInfo.configName = "my-flake";
     libOverlays.exported = libOverlays: { inherit (libOverlays) default; };
     lib.export.enabled = true;
   };
@@ -146,6 +148,8 @@ by creating its directory:
 ```nix
       lib = core.mkLib {
         inherit (core.pins.flake inputs) sources root;
+        name = "my-flake";
+        systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
         };
@@ -243,6 +247,8 @@ A consumer registers your exported overlay the same way:
       core = caisson.lib.caisson-core;
       lib = core.mkLib {
         inherit (core.pins.flake inputs) sources root;
+        name = "consumer";
+        systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson my-flake;
         };
@@ -250,7 +256,6 @@ A consumer registers your exported overlay the same way:
       };
     in
     lib.caisson.flake-parts.mkConfiguration {
-      name = "consumer";
       configModule = lib.caisson-core.configs.flake.consumer;
     };
 }

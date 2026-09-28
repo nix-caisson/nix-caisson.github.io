@@ -283,18 +283,32 @@ default, what an evaluation gets when it passes no `moduleImports`.
 ### `manifest`
 
 ```
-manifest : { _type : "caisson-manifest";
+manifest : { _type : "caisson-manifest"; type : "lib";
+             name ? str;
+             entries : listOf { key : str; opaque : bool; };
              sources : attrs; root : nullOr root;
              modules : attrsOf (attrsOf module);
              configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
              pkgOverlays : attrsOf pkgOverlay;
              defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
-             namespace : nullOr str; projects : attrs }
+             namespace : nullOr str; projects : attrs;
+             childless : bool; inputs : list; parent : nullOr manifest;
+             ancestors : listOf manifest; nearest : attrsOf manifest;
+             children : attrs }
 ```
 
 The composition's self-description, injected as its final overlay.
-`sources`, `root`, `defaultEcosystemSrc`, `systems`, `namespace`,
+`name` is the `namespace` argument, and is absent when the
+composition declares none; `namespace` holds the same value, null
+when undeclared, and is being retired in favour of `name`. `entries` lists the lib overlay selection
+in composition order, caisson-core's forced entries first. An entry
+is `opaque` when its key names no registry entry, as with an overlay
+imported by value; a keyless entry gets a synthesized `keyless/<n>`
+key. The lib `mkLib` returns is the full lib of a root declaration,
+so `childless` is false, `parent` is null, and `ancestors`, `inputs`,
+`nearest` and `children` are empty.
+`sources`, `root`, `defaultEcosystemSrc`, `systems`,
 `projects` and `configs` are the `mkLib` arguments as given, except
 that a directory reader's pin files are stated relative to the root
 when the directory lies in the root's tree (`pin.dir` is kept

@@ -286,6 +286,7 @@ default, what an evaluation gets when it passes no `moduleImports`.
 manifest : { _type : "caisson-manifest"; type : "lib";
              name ? str;
              entries : listOf { key : str; opaque : bool; };
+             history : listOf event;
              sources : attrs; root : nullOr root;
              modules : attrsOf (attrsOf module);
              configs : attrsOf (attrsOf module);
@@ -332,6 +333,52 @@ publishes in its CI.
 
 `_type = "caisson-manifest"` marks the attrset as a manifest, which
 is how `manifestOf` recognizes one.
+
+`history` lists the events recorded on the way to the lib, in stage
+order: the lib overlay registrations, then one `layer` event per
+selected entry in composition order, then the `modules`, `configs`
+and `pkgOverlays` registrations.
+
+```
+event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib
+          type : "lib"; operation : "registry" | "layer";
+          key : str; index : int;                            # index within its operation
+          origin : { project : nullOr str; file : nullOr str; };
+          prev ? attrs; result ? attrs; }                    # layer events only, lazy
+```
+
+`origin.project` is the project that registered the entry (the
+composition's own `name` for a local one, `caisson-core` for its
+entries) and `origin.file` the file the entry was built from, where
+there is one; a lib overlay built from a file records it as its
+`origin`. A layer event also keeps the two sides of its overlay call
+`final: prev: result`: `prev` is the accumulation it received and
+`result` the attrset it returned. They are the
+values the lib was built from, and nothing reads them until
+`definers` does.
+
+### `definers`
+
+```
+definers : manifest -> listOf str
+         -> listOf { key; index; origin; value; position : nullOr { file; line; column; }; }
+```
+
+The layers that define an attribute path, in composition order: the
+last is the winner and the rest are shadowed. `value` is the path's
+value after that layer. `position` is where the layer binds the name,
+from `unsafeGetAttrPos`, kept only when it lies within the layer's
+file, so a name the layer computes (with `mapAttrs`, say) reports
+none. A layer that returns `prev.x // { ... }` carries the names
+already under `x` without defining them: a name counts as carried
+when its binding position is the same in what the layer returned and
+what it received, or, with no position on either side, its value is
+equal.
+
+```nix
+definers lib.caisson-core.libManifest [ "my-project" "greet" ]
+# [ { key = "default"; value = <function>; position = { file = ".../lib-overlays/default/default.nix"; line = 6; ... }; ... } ]
+```
 
 ### `manifestOf`
 

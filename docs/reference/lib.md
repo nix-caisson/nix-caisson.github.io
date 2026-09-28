@@ -444,8 +444,8 @@ class whose integration forces it (`flake`, `structural`), and
 exported so a consumer's composition carries `caisson/core` there.
 
 The registry selectors, `caisson.libOverlays.exported`,
-`caisson.modules.<class>.exported`, `caisson.pkgOverlays.exported`
-and `caisson.nixpkgs.overlays.exported`, each choose what of a
+`caisson.modules.<class>.exported` and `caisson.pkgOverlays.exported`,
+each choose what of a
 registry leaves the project, and each defaults to the entries the
 project registers itself. An entry a consumed project contributed
 (`<project>/<name>`), or one caisson-core publishes into every
@@ -457,41 +457,27 @@ outputs are `libOverlays`, `modules` (and `flakeModules`),
 `caisson/default` for the `flake` class is caisson's contribution to
 the default default: it imports `caisson/nixpkgs` below.
 
-### `modules.flake."caisson/nixpkgs"`, `modules.flake."caisson/nixpkgs-interface"`
+### `modules.flake."caisson/nixpkgs"`
 
-- **Source:** `modules/flake/nixpkgs/`,
-  `modules/flake/nixpkgs-interface/`
+- **Source:** `modules/flake/nixpkgs/`
 
-The nixpkgs integration's flake modules. `nixpkgs-interface` declares
-only the overlay registry, `caisson.nixpkgs.overlays.all`: an attrset
-of named overlay-producing functions (each takes the flake's
-`configName` and returns an overlay; `mkPackagesOverlay` and
-`mkPolyfillOverlay` below build them). Registering an overlay does
-nothing by itself; a sibling flake module imports the interface to
-make an overlay available and leaves selection to the consumer.
-
-`nixpkgs` imports the interface and adds the package-set machinery,
-the `caisson.nixpkgs.*` options:
+The nixpkgs integration's flake module, the package-set machinery.
+Package overlays are entries of the mkLib `pkgOverlays` registry
+(`mkPackagesOverlay` and `mkPolyfillOverlay` below build the overlay
+an entry holds), and this module's `caisson.nixpkgs.*` options apply
+them:
 
 - `pkgSets.<name>`: a package-set definition: `pkgFunction` (a
-  nixpkgs-style entry point, e.g. `import inputs.nixpkgs`),
-  `pkgOverlayImports` (a selection function from the mkLib
-  `pkgOverlays` registry to the entries to apply; default every entry
-  named `default` or `<project>/default`), and `overlayImports` (a
-  selection function from `overlays.all` to the overlays to apply,
-  default all). A set applies the registry entries first, each after
-  the entries it imports and each key once (`pkgOverlaysFor`), then
-  the `overlays.all` overlays, so a flake's own entries there can
-  still adjust what a project's entry provides. Each set is reified per
-  system and handed to `perSystem` modules as the `pkgSets` argument;
-  `pkgSets.pkgs` also becomes the default `perSystem` `pkgs`.
+  nixpkgs-style entry point, e.g. `import inputs.nixpkgs`) and
+  `pkgOverlayImports` (a selection function from the registry to the
+  entries to apply; default every entry named `default` or
+  `<project>/default`). A set applies each selected entry after the
+  entries it imports, and each key once (`pkgOverlaysFor`). Each set
+  is reified per system and handed to `perSystem` modules as the
+  `pkgSets` argument; `pkgSets.pkgs` also becomes the default
+  `perSystem` `pkgs`.
 - `config`: the nixpkgs config applied to every generated package set.
-- `overlays.exported` and `overlays.export.enabled`: the selection
-  from `overlays.all` published in the flake's `overlays` output. The
-  default selection is the entries the flake defines in files of its
-  own tree (under its `root`); an entry a consumed project's flake
-  module pushed into the registry leaves only when the selector names
-  it. The `overlays` output also carries the entries of
+- The flake's `overlays` output carries the entries of
   `caisson.pkgOverlays.exported` as plain overlays, each with the
   entries it imports composed in, so a consumer that is not caisson
   gets a working overlay.

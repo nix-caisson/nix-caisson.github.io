@@ -344,15 +344,16 @@ event : { manifest : listOf { type : str; name : str; };   # [ ] for the root li
           type : "lib"; operation : "registry" | "layer";
           key : str; index : int;                            # index within its operation
           origin : { project : nullOr str; file : nullOr str; };
-          defined ? attrs; before ? attrs; }                 # layer events only, lazy
+          prev ? attrs; result ? attrs; }                    # layer events only, lazy
 ```
 
 `origin.project` is the project that registered the entry (the
 composition's own `name` for a local one, `caisson-core` for its
 entries) and `origin.file` the file the entry was built from, where
 there is one; a lib overlay built from a file records it as its
-`origin`. A layer event's `defined` is the attrset its overlay
-returned and `before` the accumulation it received. They are the
+`origin`. A layer event also keeps the two sides of its overlay call
+`final: prev: result`: `prev` is the accumulation it received and
+`result` the attrset it returned. They are the
 values the lib was built from, and nothing reads them until
 `definers` does.
 

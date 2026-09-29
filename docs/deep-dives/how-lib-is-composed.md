@@ -43,6 +43,27 @@ selects which of the registered overlays apply to this flake's
 a flake can register overlays for downstream consumers that it does
 not apply to itself.
 
+## The stages
+
+`mkLib` builds the library three times, each a new fixpoint over the
+seed, because some of its arguments are functions of a library and
+can only see what is built before them:
+
+- The core lib is the `caisson-core` entries with the lib overlay
+  registry recorded on its manifest. `libOverlayImports` receives it
+  and picks entries from that registry.
+- The bootstrap lib is the core entries plus the selection, the
+  sequence below without the module registrations. `modules` and
+  `configs` receive it, so they can use every integration's
+  constructors, and its manifest lacks what they register.
+- The full lib is the whole sequence below, and `mkLib` returns it.
+
+Each stage records its own manifest at
+`lib.caisson-core.libManifest`, and the history in each manifest
+begins with the history of the stage before it. Entries registered at
+the earlier stages still close over the full lib, so a module reaches
+its siblings through `closure-lib.caisson-core.modules`.
+
 ## The sequence
 
 The selected overlays are applied in one pass, wrapped by entries

@@ -41,8 +41,8 @@ mkLib :
                       : lib -> attrsOf (attrsOf module)    # class -> name -> configuration
   , libOverlays       ? (mkLibOverlay: { })
                       : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
-  , libOverlayImports ? builtins.attrValues
-                      : attrsOf libOverlay -> listOf libOverlay
+  , libOverlayImports ? (lib: <every project and local registration>)
+                      : lib -> listOf libOverlay           # given the core lib
   , pkgOverlays       ? (mkPkgOverlay: { })
                       : (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
   , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
@@ -64,6 +64,29 @@ declaration; the exact-name fallback over `sources` applies to
 ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
 
+The library is built in three stages, each a new fixpoint over the
+seed with its own manifest in `lib.caisson-core.libManifest`:
+
+- The **core lib** holds the `caisson-core` entries and nothing else,
+  with the lib overlay registry grafted onto its manifest.
+  `libOverlayImports` receives it.
+- The **bootstrap lib** adds the selection, and with it the
+  `nixpkgs-lib` entry and every integration namespace. `modules` and
+  `configs` receive it; its manifest has no `modules`,
+  `moduleProjects`, `configs` or `pkgOverlays`.
+- The **full lib** is the same entries with the module
+  registrations, the configurations and the package overlay registry
+  grafted on. `mkLib` returns it.
+
+A registration made at an earlier stage still closes over the full
+lib. The constructors the core and bootstrap libs hold (`mkModule`,
+the integrations' `mkModule`, `mkLibOverlay`, `mkPkgOverlay`) give the
+entry the full lib as `closure-lib`, and its
+`caisson-core.modules.<class>` is the registry the entry joins, so a
+module imports a sibling by name. A registration under a
+`caisson-core/<name>` key replaces that entry from the bootstrap stage
+on; the core lib keeps the original.
+
 `sources` and `root` come from a pin reader (see `pins` below); at a
 flake top, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
 sources root;`. The registered overlays and modules close over
@@ -73,14 +96,14 @@ of `mkLib`, with no `...`: a missing or unexpected argument, a
 leftover `inputs` included, is Nix's own error at the call site,
 naming `mkLib` and pointing at the pattern.
 
-- `modules` receives the composed `lib` (usable through the fixpoint)
-  and returns the class-keyed registration, built with the
+- `modules` receives the bootstrap lib and returns the class-keyed
+  registration, built with the
   integrations' `mkModule` helpers (`lib.caisson.nixos.mkModule`,
   `lib.caisson.flake-parts.mkModule`, and so on).
   `lib.caisson-core.mkModule "<class>"` is for a class no integration
   covers. `mkModules ./modules` derives the function from the
   conventional layout.
-- `configs` receives the composed `lib` the same way and returns the
+- `configs` receives the bootstrap lib the same way and returns the
   configurations of the tree, keyed by module class then name, the
   layout `configs/<class>/<name>` on disk (colmena's class is
   `colmena`); `mkModules ./configs` reads that layout. They come back
@@ -96,8 +119,11 @@ naming `mkLib` and pointing at the pattern.
   These four arguments take exactly the function shape shown; passing
   anything else is an error.
 - `libOverlayImports` selects which registered overlays apply to the
-  `lib` of this flake; registration also feeds export, so the two can
-  differ.
+  `lib` of this flake. It receives the core lib and names entries from
+  the registry on its manifest
+  (`lib: [ lib.caisson-core.libManifest.libOverlays.my-overlay ]`);
+  the default selects every project and local registration.
+  Registration also feeds export, so the two can differ.
 - `defaultEcosystemSrc` declares the tree's default source per
   ecosystem (`{ nixpkgs = inputs.nixpkgs; ... }`), keyed by the exact
   names the integrations resolve. mkLib captures them into the
@@ -307,7 +333,9 @@ is `opaque` when its key names no registry entry, as with an overlay
 imported by value; a keyless entry gets a synthesized `keyless/<n>`
 key. The lib `mkLib` returns is the full lib of a root declaration,
 so `childless` is false, `parent` is null, and `ancestors`, `inputs`,
-`nearest` and `children` are empty.
+`nearest` and `children` are empty. The manifests of the core and
+bootstrap libs have `childless = true`, and the core manifest lists
+only the `caisson-core` entries in `entries`.
 `sources`, `root`, `defaultEcosystemSrc`, `systems`,
 `projects` and `configs` are the `mkLib` arguments as given, except
 that a directory reader's pin files are stated relative to the root
@@ -335,9 +363,15 @@ publishes in its CI.
 is how `manifestOf` recognizes one.
 
 `history` lists the events recorded on the way to the lib, in stage
-order: the lib overlay registrations, then one `layer` event per
-selected entry in composition order, then the `modules`, `configs`
-and `pkgOverlays` registrations.
+order, and the history of each stage begins with the history of the
+stage before it. The core stage records one `layer` event per
+`caisson-core` entry, then the lib overlay registrations. The
+bootstrap stage adds one `layer` event per entry it composes that the
+core stage did not, in composition order: the selection, and a
+registration replacing a `caisson-core` entry, which so comes after
+the entry it replaces. The full stage adds the `modules`, `configs`
+and `pkgOverlays` registrations. A layer event carries `prev` and
+`result` as the stage that recorded it composed them.
 
 ```
 event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib

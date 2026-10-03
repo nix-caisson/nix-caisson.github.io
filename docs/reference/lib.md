@@ -426,9 +426,9 @@ a flakeless top needs only its `default.nix`. The value may be:
 - a manifest, returned as it is;
 - an attrset carrying one at `caisson.manifest`;
 - an evaluated configuration carrying one at `config.caisson.manifest`;
-- a composed library carrying the phase slots (`libManifest`,
+- a composed library carrying the phase manifests (`libManifest`,
   `pkgsManifest`, `evalManifest` under `caisson-core`), or a package
-  set carrying them in `pkgs.lib`. The last filled slot is the
+  set carrying them in `pkgs.lib`. The last one filled in is the
   manifest: `evalManifest` if set, else `pkgsManifest`, else
   `libManifest`.
 
@@ -438,6 +438,26 @@ A value carrying none of these returns null.
 manifestOf (import ./.)   # the manifest of a flakeless top
 manifestOf lib            # lib.caisson-core.libManifest
 ```
+
+### `withManifests`
+
+```
+lib.caisson-core.withManifests :
+  { pkgsManifest ? nullOr manifest; evalManifest ? nullOr manifest; } -> lib
+```
+
+Carried by every stage of a library `mkLib` builds. It rebuilds that
+stage from its declaration with the given phase manifests filled in:
+the same entries and the same `libManifest`, composed as a new
+fixpoint, so code inside the library that reads
+`final.caisson-core.pkgsManifest` sees the manifest, and `manifestOf`
+returns it. Merging the attribute onto a built library would leave
+those readers seeing `null`. The nixpkgs integration uses it to hand
+out `pkgs.lib`, the bootstrap lib with `pkgsManifest` filled in, and a
+module evaluation fills in `evalManifest` the same way. The rebuilt
+library carries `withManifests` too, and a further call keeps what is
+already filled in. Any other name, `libManifest` included, and any
+value that is neither a manifest nor null is refused.
 
 ### `importApply`
 
@@ -820,8 +840,8 @@ Common conventions:
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
 - `pkgSets`: an attrset of package sets, accepted by every entry
   point and passed through as the `pkgSets` special argument. Where
-  the evaluator has a package-set slot of its own, `pkgSets.pkgs`
-  fills it: required for nixos, home-manager and terranix (the
+  the evaluator takes a package set of its own, `pkgSets.pkgs` is
+  what it gets: required for nixos, home-manager and terranix (the
   evaluation's package set), the default for colmena's
   `meta.nixpkgs`, and the source of system-manager's default
   `nixpkgs.hostPlatform`. flake-parts only forwards it.

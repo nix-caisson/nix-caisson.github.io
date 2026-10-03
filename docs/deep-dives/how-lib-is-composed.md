@@ -83,8 +83,8 @@ The first added overlay injects the machinery and the empty module
 registry under `caisson-core`. The last one records the manifest,
 the composition's self-description, at
 `lib.caisson-core.libManifest` (beside `pkgsManifest` and
-`evalManifest`, the slots for the other two evaluation phases, null
-until a package set or a module evaluation fills them). Module registrations apply after every
+`evalManifest`, the manifests of the other two evaluation phases,
+null until a package set or a module evaluation fills them in). Module registrations apply after every
 selected overlay so that a local name always beats a same-named
 contribution from an overlay or a consumed project.
 
@@ -160,7 +160,8 @@ The `prev.concatLines or ...` shape adds the function only where the
 base does not already provide it, so the same entry composes
 correctly over old and new bases.
 
-The exact contract (walk order, replacement slots, metadata) is
+The exact contract (walk order, the position a replacement takes,
+metadata) is
 specified in
 [caisson-core](https://github.com/nix-caisson/caisson-core), where
 the code lives.

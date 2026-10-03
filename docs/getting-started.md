@@ -42,7 +42,7 @@ Create a directory with this `flake.nix`:
 
 `caisson-core.mkLib` composes a library: nixpkgs' lib, the machinery
 under `lib.caisson-core`, and the overlays you register. `name` is the
-project's name: the flake configuration takes it as its own name, and
+project's name: the flake configuration takes it as its name, and
 your overlays contribute to the composed library under it
 (`lib.my-flake`). `systems`, the platforms the flake builds for, is
 declared here too; flake-parts reads it from the composition.

@@ -39,7 +39,7 @@ below.
 | Integration | Ecosystem name | Source shape |
 | --- | --- | --- |
 | `caisson.flake-parts` | `flake-parts` | flake-parts source tree |
-| `caisson.nixpkgs` | `nixpkgs` | nixpkgs source tree (per package set, as `pkgFunction`) |
+| `caisson.nixpkgs` | `nixpkgs` | nixpkgs source tree (per package config) |
 | `caisson.nixos` | `nixpkgs` | nixpkgs source tree |
 | `caisson.nixos-minimal` | `nixpkgs` | nixpkgs source tree (the `nixos` class under the minimal evaluator) |
 | `caisson.home-manager` | `home-manager` | home-manager source tree |

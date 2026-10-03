@@ -15,7 +15,7 @@ an entry like everything else.
 - `defaultEcosystemSrc`: the tree's default source per ecosystem, by
   exact name (see [Ecosystem sources](../concepts/ecosystem-sources.md)).
   `nixpkgs` supplies the `nixpkgs-lib` part of the stack unless
-  `nixpkgs-lib` names a source of its own, such as the
+  `nixpkgs-lib` is declared separately, such as the
   `nix-community/nixpkgs.lib` mirror for a flake that carries no
   nixpkgs. The published `nixpkgs-lib` entry imports that source's
   `lib` directory as upstream fixes it; an
@@ -45,9 +45,9 @@ not apply to itself.
 
 ## The stages
 
-`mkLib` builds the library three times, each a new fixpoint over the
-seed, because some of its arguments are functions of a library and
-can only see what is built before them:
+`mkLib` builds the library in four stages, each a new fixpoint over
+the seed, because some of its arguments are functions of a library
+and can only see what is built before them:
 
 - The core lib is the `caisson-core` entries with the lib overlay
   registry recorded on its manifest. `libOverlayImports` receives it
@@ -56,9 +56,14 @@ can only see what is built before them:
   sequence below without the module registrations. `modules` and
   `configs` receive it, so they can use every integration's
   constructors, and its manifest lacks what they register.
-- The full lib is the whole sequence below, and `mkLib` returns it.
+- The registered lib is the whole sequence below, with the module,
+  configuration and package overlay registries on its manifest.
+  `pkgSets` receives it, because a package config selects from those
+  registries, and its manifest lacks `pkgSets`.
+- The full lib adds the package configs to the manifest, and `mkLib`
+  returns it.
 
-Each stage records its own manifest at
+Each stage records a manifest at
 `lib.caisson-core.libManifest`, and the history in each manifest
 begins with the history of the stage before it. Entries registered at
 the earlier stages still close over the full lib, so a module reaches
@@ -83,8 +88,8 @@ The first added overlay injects the machinery and the empty module
 registry under `caisson-core`. The last one records the manifest,
 the composition's self-description, at
 `lib.caisson-core.libManifest` (beside `pkgsManifest` and
-`evalManifest`, the slots for the other two evaluation phases, null
-until a package set or a module evaluation fills them). Module registrations apply after every
+`evalManifest`, the manifests of the other two evaluation phases,
+null until a package set or a module evaluation fills them in). Module registrations apply after every
 selected overlay so that a local name always beats a same-named
 contribution from an overlay or a consumed project.
 
@@ -160,7 +165,8 @@ The `prev.concatLines or ...` shape adds the function only where the
 base does not already provide it, so the same entry composes
 correctly over old and new bases.
 
-The exact contract (walk order, replacement slots, metadata) is
+The exact contract (walk order, the position a replacement takes,
+metadata) is
 specified in
 [caisson-core](https://github.com/nix-caisson/caisson-core), where
 the code lives.

@@ -115,8 +115,8 @@ home-manager, and the rest) are handed in as explicit
 `ecosystemSrc` arguments instead of being re-pinned and re-wired
 through the input graph.
 
-Everything caisson adds is published through the flake schema's only
-freeform slot, the `lib` output: composed libraries, the module
+Everything caisson adds is published through the one output the
+flake schema leaves freeform, `lib`: composed libraries, the module
 registry, and the manifest (the composition's self-description) all
 live there, and the remaining flake outputs (`modules.<class>`,
 `libOverlays`, per-system products) are projections from it that keep

@@ -45,6 +45,8 @@ mkLib :
                       : lib -> listOf libOverlay           # given the core lib
   , pkgOverlays       ? (mkPkgOverlay: { })
                       : (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
+  , pkgSets           ? (lib: { })
+                      : lib -> attrsOf configuration       # package configs by name, given the registered lib
   , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
                                                            # nixpkgs supplies the nixpkgs-lib part unless nixpkgs-lib names its own
   , systems           ? null : listOf str                  # the platforms the tree builds on
@@ -56,7 +58,7 @@ Builds a composed library over the seed, the empty attribute set: the
 `caisson-core` entry (registered under that name, so a registration
 under the same name replaces it), the published `nixpkgs-lib` entry
 (nixpkgs' `lib`, sourced from `defaultEcosystemSrc`, imported by every
-integration overlay rather than composed on its own), the selected
+integration overlay rather than composed separately), the selected
 registered overlays, then two synthetic overlays: the local module
 registrations (so local names win over overlay-borne contributions)
 and the manifest. Every source arrives as an argument or a
@@ -64,8 +66,9 @@ declaration; the exact-name fallback over `sources` applies to
 ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
 
-The library is built in three stages, each a new fixpoint over the
-seed with a manifest in `lib.caisson-core.libManifest`:
+The library is built in four stages, each a new fixpoint over the
+seed with a manifest in `lib.caisson-core.libManifest`. Each stage
+exists because some argument is a function of it:
 
 - The **core lib** holds the `caisson-core` entries and nothing else,
   with the lib overlay registry grafted onto its manifest.
@@ -73,13 +76,17 @@ seed with a manifest in `lib.caisson-core.libManifest`:
 - The **bootstrap lib** adds the selection, and with it the
   `nixpkgs-lib` entry and every integration namespace. `modules` and
   `configs` receive it; its manifest has no `modules`,
-  `moduleProjects`, `configs` or `pkgOverlays`.
-- The **full lib** is the same entries with the module
+  `moduleProjects`, `configs`, `pkgOverlays` or `pkgSets`.
+- The **registered lib** is the same entries with the module
   registrations, the configurations and the package overlay registry
-  grafted on. `mkLib` returns it.
+  grafted on. `pkgSets` receives it, since a package config selects
+  from those registries; its manifest has no `pkgSets`. It is built
+  only when a package config is read.
+- The **full lib** adds `pkgSets`. `mkLib` returns it.
 
+The core, bootstrap and registered manifests have `childless = true`.
 A registration made at an earlier stage still closes over the full
-lib. The constructors the core and bootstrap libs hold (`mkModule`,
+lib. The constructors the earlier libs hold (`mkModule`,
 the integrations' `mkModule`, `mkLibOverlay`, `mkPkgOverlay`) give the
 entry the full lib as `closure-lib`, and its
 `caisson-core.modules.<class>` is the registry the entry joins, so a
@@ -118,6 +125,15 @@ naming `mkLib` and pointing at the pattern.
   ./pkg-overlays` derives it from the layout (see `pkgOverlays` below).
   These four arguments take exactly the function shape shown; passing
   anything else is an error.
+- `pkgSets` receives the registered lib and returns the package
+  configs of the tree by name, each a configuration an integration's
+  constructor built:
+  `pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };` declares
+  one for every configuration in `configs/nixpkgsConfig` (see
+  `caisson.nixpkgs` below). `mkLib` finalizes each with the name it is
+  declared under and the registered manifest as its parent, and
+  records them in the manifest's `pkgSets`; the flake reads its
+  package sets from there.
 - `libOverlayImports` selects which registered overlays apply to the
   `lib` of this flake. It receives the core lib and names entries from
   the registry on its manifest
@@ -333,9 +349,12 @@ is `opaque` when its key names no registry entry, as with an overlay
 imported by value; a keyless entry gets a synthesized `keyless/<n>`
 key. The lib `mkLib` returns is the full lib of a root declaration,
 so `childless` is false, `parent` is null, and `ancestors`, `inputs`,
-`nearest` and `children` are empty. The manifests of the core and
-bootstrap libs have `childless = true`, and the core manifest lists
-only the `caisson-core` entries in `entries`.
+`nearest` and `children` are empty. The manifests of the core,
+bootstrap and registered libs have `childless = true`, and the core
+manifest lists only the `caisson-core` entries in `entries`.
+`pkgSets` holds the package configs declared in the `pkgSets`
+argument, each the manifest its configuration returned, with the
+registered manifest as its `parent`.
 `sources`, `root`, `defaultEcosystemSrc`, `systems`,
 `projects` and `configs` are the `mkLib` arguments as given, except
 that a directory reader's pin files are stated relative to the root
@@ -458,6 +477,24 @@ module evaluation fills in `evalManifest` the same way. The rebuilt
 library carries `withManifests` too, and a further call keeps what is
 already filled in. Any other name, `libManifest` included, and any
 value that is neither a manifest nor null is refused.
+
+### `finalizeChild`
+
+```
+lib.caisson-core.finalizeChild :
+  { name : str; parent : manifest; what ? str; } -> configuration -> manifest
+```
+
+A configuration learns its name and its parent from where it is
+declared, so what an integration's `mkConfiguration` returns is a
+function `{ name, parent }: manifest`. `finalizeChild` calls it with
+the name it is declared under and the parent's childless manifest,
+and requires a manifest back. It first reads the function's pattern
+with `builtins.functionArgs` and requires exactly `name` and
+`parent`, so anything else declared where a configuration belongs is
+refused there, with a message saying what a configuration is. `what`
+names the declaration in those messages. `mkLib` finalizes each
+`pkgSets` entry this way.
 
 ### `importApply`
 
@@ -604,22 +641,14 @@ the default default: it imports `caisson/nixpkgs` below.
 
 - **Source:** `modules/flake/nixpkgs/`
 
-The nixpkgs integration's flake module, the package-set machinery.
-Package overlays are entries of the mkLib `pkgOverlays` registry
-(`mkPackagesOverlay` and `mkPolyfillOverlay` below build the overlay
-an entry holds), and this module's `caisson.nixpkgs.*` options apply
-them:
+The nixpkgs integration's flake module. It hands `perSystem` the
+package sets of the package configs declared in `mkLib`'s `pkgSets`
+(see `caisson.nixpkgs` below), and exports from them:
 
-- `pkgSets.<name>`: a package-set definition: `pkgFunction` (a
-  nixpkgs-style entry point, e.g. `import inputs.nixpkgs`) and
-  `pkgOverlayImports` (a selection function from the registry to the
-  entries to apply; default every entry named `default` or
-  `<project>/default`). A set applies each selected entry after the
-  entries it imports, and each key once (`pkgOverlaysFor`). Each set
-  is reified per system and handed to `perSystem` modules as the
-  `pkgSets` argument; `pkgSets.pkgs` also becomes the default
-  `perSystem` `pkgs`.
-- `config`: the nixpkgs config applied to every generated package set.
+- The `perSystem` `pkgSets` argument is every package config's set at
+  that system, keyed by config name, and `pkgs` is the `default`
+  config's set. A flake that declares no `default` config keeps the
+  `pkgs` flake-parts provides.
 - The flake's `overlays` output carries the entries of
   `caisson.pkgOverlays.exported` as plain overlays, each with the
   entries it imports composed in, so a consumer that is not caisson
@@ -828,7 +857,7 @@ Common conventions:
 
 - Every integration exports `mkConfiguration` (evaluate the target's
   module system with the selected class modules) and, where it has a
-  module class of its own, `mkModule`, the form a tree registers that
+  module class, `mkModule`, the form a tree registers that
   class's modules with (`caisson-core.mkModule` bound to the class).
   Target-specific variants and helpers sit beside them under the same
   namespace.
@@ -840,7 +869,7 @@ Common conventions:
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
 - `pkgSets`: an attrset of package sets, accepted by every entry
   point and passed through as the `pkgSets` special argument. Where
-  the evaluator takes a package set of its own, `pkgSets.pkgs` is
+  the evaluator takes a package set, `pkgSets.pkgs` is
   what it gets: required for nixos, home-manager and terranix (the
   evaluation's package set), the default for colmena's
   `meta.nixpkgs`, and the source of system-manager's default
@@ -1057,9 +1086,92 @@ needs the home-manager integration composed beside it.
   -> homeConfiguration`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
-### `caisson.nixpkgs`
+### `caisson.nixpkgs` (module class `nixpkgsConfig`)
 
 - **Source:** `lib-overlays/nixpkgs/default.nix`
+
+The nixpkgs integration builds package sets from package configs. A
+package config is a module evaluation of the class nixpkgs evaluates
+`pkgs/top-level/config.nix` under: nixpkgs' options (`allowUnfree`
+and the rest) sit at the top level, as upstream declares them, and
+caisson's sit under `caisson.nixpkgs`. Its module lives at
+`configs/nixpkgsConfig/<name>/default.nix`, and further modules of
+the class are registered under `modules/nixpkgsConfig/<name>`.
+
+#### `mkConfiguration`
+
+```
+lib.caisson.nixpkgs.mkConfiguration :
+  { configModule  ? null : module      # the config's module
+  , moduleImports ? null : registry -> listOf module
+  , ecosystemSrc  ? null : path        # the nixpkgs source tree
+  } -> configuration
+```
+
+Declares one package config, in `mkLib`'s `pkgSets`. `configModule`
+defaults to the configuration registered under the name the config is
+declared under (`lib.caisson-core.configs.nixpkgsConfig.<name>`), and
+a config with neither evaluates with no module of the tree.
+`moduleImports` selects from the `nixpkgsConfig` module registry and
+defaults to every entry named `default`. `ecosystemSrc` is the
+nixpkgs tree, resolved from the composition's declarations when
+absent (see [Ecosystem sources](../concepts/ecosystem-sources.md)).
+
+It returns a configuration: a function `{ name, parent }: manifest`
+that `mkLib` calls. The manifest has `type = "nixpkgs"`, the config's
+`name`, its `systems`, the evaluation as `value`, the config handed
+to nixpkgs as `config`, and one package set per system under
+`children.nixpkgs.<system>`, whose `value` is the set.
+
+Two options under `caisson.nixpkgs` declare the sets:
+
+- `caisson.nixpkgs.systems`: the systems to build a set for. It
+  defaults to the `systems` declared on `mkLib`; a config with no
+  systems in force is an error saying to declare them.
+- `caisson.nixpkgs.overlays`: the package overlay registry entries the
+  sets apply, each after the entries it imports and each key once. It
+  defaults to every entry named `default` or `<project>/default`; a
+  config adds to that with
+  `options.caisson.nixpkgs.overlays.default ++ [ lib.caisson.nixpkgs.overlays.<name> ]`.
+
+caisson instantiates the sets itself, without going through
+`pkgs/top-level/default.nix`: it boots the stdenv stages and
+`stage.nix` on the composed library with `pkgsManifest` filled in, so
+`pkgs.lib` is the library the config is declared under and
+`pkgs.lib.caisson-core.pkgsManifest` is the set's manifest. The
+derivations are the ones `import nixpkgs { system; config; overlays; }`
+produces. `mkConfigurationWithEcosystemArgs` takes `ecosystemArgs` as
+well, merged into every instantiation (`crossSystem`,
+`crossOverlays`, `stdenvStages`).
+
+#### `mkConfigurations`
+
+```
+lib.caisson.nixpkgs.mkConfigurations :
+  { moduleImports ? null; ecosystemSrc ? null; } -> attrsOf configuration
+```
+
+Declares a package config for every configuration registered in
+`configs/nixpkgsConfig`, by its name, each as `mkConfiguration`
+builds it without `configModule`. The arguments apply to all of them.
+`pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };` is the
+usual declaration; a tree that wants only some configs, or one that
+differs, declares them with `mkConfiguration`. `mkIntegration`
+generates this function for every integration whose
+`mkConfiguration` finds its module by name.
+
+#### `pkgSets`, `overlays`
+
+```
+lib.caisson.nixpkgs.pkgSets  : attrsOf manifest     # the package configs, by name
+lib.caisson.nixpkgs.overlays : attrsOf pkgOverlay   # the package overlay registry, by name
+```
+
+Views of the manifest: the package configs `mkLib` recorded, and the
+package overlay registry a config module selects from.
+
+#### Overlay constructors and types
+
 - `mkScope : pkgs -> (callPackage -> attrs) -> scope`: a
   `makeScope` wrapper handing the scope function its `callPackage`.
 - `mkPackagesOverlay : pkgsFn -> name -> overlayFn`: turns a scope

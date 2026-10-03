@@ -218,11 +218,16 @@ compose only some of them, keep the project registration and select
 per item over the combined dictionary:
 
 ```nix
-        libOverlayImports = overlays: [
-          overlays."caisson/flake-parts"
-          overlays."caisson/nixos"
-          overlays.default
-        ];
+        libOverlayImports =
+          lib:
+          let
+            overlays = lib.caisson-core.libManifest.libOverlays;
+          in
+          [
+            overlays."caisson/flake-parts"
+            overlays."caisson/nixos"
+            overlays.default
+          ];
 ```
 
 Registering a single overlay by hand

@@ -58,7 +58,7 @@ can only see what is built before them:
   constructors, and its manifest lacks what they register.
 - The full lib is the whole sequence below, and `mkLib` returns it.
 
-Each stage records its own manifest at
+Each stage records a manifest at
 `lib.caisson-core.libManifest`, and the history in each manifest
 begins with the history of the stage before it. Entries registered at
 the earlier stages still close over the full lib, so a module reaches

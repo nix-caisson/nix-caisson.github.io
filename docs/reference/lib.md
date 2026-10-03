@@ -65,7 +65,7 @@ ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
 
 The library is built in three stages, each a new fixpoint over the
-seed with its own manifest in `lib.caisson-core.libManifest`:
+seed with a manifest in `lib.caisson-core.libManifest`:
 
 - The **core lib** holds the `caisson-core` entries and nothing else,
   with the lib overlay registry grafted onto its manifest.
@@ -93,7 +93,7 @@ sources root;`. The registered overlays and modules close over
 `sources` as `closure-inputs`, so the closure holds the pinned trees
 under their input names and no `self`. The signature is the pattern
 of `mkLib`, with no `...`: a missing or unexpected argument, a
-leftover `inputs` included, is Nix's own error at the call site,
+leftover `inputs` included, is Nix's error at the call site,
 naming `mkLib` and pointing at the pattern.
 
 - `modules` receives the bootstrap lib and returns the class-keyed
@@ -220,7 +220,7 @@ it was read from as `origin` (null for an entry built from a
 function), and `project`: null for a local registration, the
 contributing project's name for an entry from `projects`, so the
 local entries alone are a filter on that field. A project's entries
-join under `<project>/<name>`; a key of the project's own (one
+join under `<project>/<name>`; a key the project registered itself (one
 without a `/`) becomes `<project>/<key>` in its imports too, so an
 import still meets its sibling, and a key naming another project's
 entry (one with a `/`) is kept, so two projects importing the same
@@ -382,7 +382,7 @@ event : { manifest : listOf { type : str; name : str; };   # [ ] for the root li
 ```
 
 `origin.project` is the project that registered the entry (the
-composition's own `name` for a local one, `caisson-core` for its
+composition's `name` for a local one, `caisson-core` for its
 entries) and `origin.file` the file the entry was built from, where
 there is one; a lib overlay built from a file records it as its
 `origin`. A layer event also keeps the two sides of its overlay call
@@ -594,7 +594,7 @@ project registers itself. An entry a consumed project contributed
 (`<project>/<name>`), or one caisson-core publishes into every
 composition, leaves only when a selector names it: a project
 republishes an upstream's entries only on purpose, and a consumer
-takes them from that upstream through its own `projects`. The flake
+takes them from that upstream through its `projects`. The flake
 outputs are `libOverlays`, `modules` (and `flakeModules`),
 `pkgOverlays` when the selection holds any, and `overlays`.
 `caisson/default` for the `flake` class is caisson's contribution to
@@ -940,7 +940,7 @@ mkConfiguration :
   evaluation's outputs with the root's source info (out path,
   revision, last-modified) beside them and `self.inputs` the sources,
   so flake-parts modules receive `self`, `self'` and `inputs` as they
-  would under Nix's own flake evaluation. `moduleImports` selects over
+  would under Nix's flake evaluation. `moduleImports` selects over
   the `flake` class of `lib.caisson-core.modules`, the same registry
   every adapter selects from, so modules arriving by local
   registration, overlay contribution, or consumed project are all
@@ -1028,7 +1028,7 @@ integration composed beside it.
   useGlobalPkgs?, useUserPackages?, activationMode?,
   specialArgs?, ... } -> module (nixos class)`: embeds
   home-manager in a NixOS generation. `activationMode = "upstream"`
-  uses home-manager's own NixOS module; `"user-service"` embeds
+  uses home-manager's NixOS module; `"user-service"` embeds
   standalone activation packages behind a `ConditionUser` user unit
   and leaves `users.users` untouched, which keeps it safe for systemd-homed hosts (one
   hosted user). Both write `/etc/caisson-home-manager/source.json`
@@ -1110,7 +1110,7 @@ step projects the evaluated configuration onto.
   is the node constructor's twin, also a module argument. Every node
   receives colmena's `name` and `nodes` special arguments (the latter
   the whole hive, lazily, for cross-node references), so a module
-  written for colmena's own evaluator works unchanged. Node names are
+  written for colmena's evaluator works unchanged. Node names are
   free: `meta`, `defaults` and `network`, reserved in colmena's flat
   hive, are ordinary names under `nodes`. The only constraint is
   colmena's `--on` filter grammar: a name containing a comma, starting

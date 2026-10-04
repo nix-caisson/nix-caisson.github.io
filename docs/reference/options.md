@@ -45,7 +45,7 @@ The configurations of an integration declared beneath this configuration, by nam
 }
 ```
 
-Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
+Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. An entry of an integration that evaluates a configuration at a system (nixos) reads back as its evaluations by system, `config.caisson.nixos.configurations.laptop.x86_64-linux`, a manifest for every system in force. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
 
 A configuration declared beneath sees this configuration without the configurations declared beneath it (the childless view). In that view an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson-core.evalManifest.childless`:
 
@@ -93,6 +93,17 @@ Function that selects which of the configurations declared under `caisson.<integ
   caisson.structural.configurations.impl = lib.caisson.structural.mkConfiguration { };
 }
 ```
+
+The configurations themselves are passed up as well, each with its path, and the top publishes them under the output attribute set their integration declares, named from the paths:
+
+```nix
+{ lib, ... }:
+{
+  caisson.nixos.configurations.laptop = lib.caisson.nixos.mkConfiguration { };
+}
+```
+
+publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A name that is alone stays bare. Names that collide gain the segments that tell them apart, from the segment nearest the top: `host-1` declared in the structural configurations `a` and `b` is published as `a/host-1` and `b/host-1`, and a configuration with several systems in force as `x86_64-linux/laptop` and `aarch64-linux/laptop`. Configurations that still share a name are refused, with their paths.
 
 `caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the evaluation that holds the configurations: it is absent from the childless view, and from an evaluation that carries no manifest.
 

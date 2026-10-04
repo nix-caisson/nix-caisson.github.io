@@ -60,7 +60,24 @@ innerGreeting =
 
 A module that only declares configurations needs no such test. What the configurations beneath export is passed up without that test, through `caisson.<integration>.exported` below.
 
-An entry that is not a configuration, or is a configuration of another integration, is refused. Structural and flake-parts configurations are those that can be declared and can hold others: the constructors of the other integrations return an evaluated value.
+An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts, nixos and nixos-minimal configurations can be declared; the constructors of the other integrations return an evaluated value. Structural and flake-parts evaluations hold configurations beneath them.
+
+### `caisson.nixpkgs.pkgSet`
+
+- **Type:** `str`
+- **Default:** `"default"`
+- **Source:** `lib-overlays/nixos/compose.nix`, in every evaluation of the `nixos` class
+
+An option of a NixOS configuration: the package config whose set the configuration runs on, by the name it is declared under in `pkgSets` on `mkLib`. The set is that config's set at the configuration's system, and it is defined as `nixpkgs.pkgs` (as the `pkgs` module argument under the minimal evaluator). Any module of the configuration may define the option:
+
+```nix
+{ ... }:
+{
+  caisson.nixpkgs.pkgSet = "stable";
+}
+```
+
+A name the composition does not declare is refused, with the names it does declare.
 
 ### `caisson.<integration>.exported`
 

@@ -187,13 +187,16 @@ selection, and export.
 ## 4. Use an integration
 
 Integrations bring the same conventions to other module ecosystems
-and take their ecosystem as an explicit `ecosystemSrc`. A NixOS system,
-in the config module's `perSystem` or at the top level:
+and take their ecosystem as an explicit `ecosystemSrc`. A NixOS system
+takes its system and its package set from the composition: it is
+evaluated at the system `mkLib` declares, on the package config named
+`default`, which the `mkLib` call declares with
+`pkgSets = lib: { default = lib.caisson.nixpkgs.mkConfiguration { }; };`.
+At the top level of the config module:
 
 ```nix
-  flake.nixosConfigurations.example = lib.caisson.nixos.mkConfiguration {
+  flake.nixosConfigurations.example = lib.caisson.nixos.mkTopConfiguration {
     ecosystemSrc = inputs.nixpkgs;
-    pkgSets.pkgs = import inputs.nixpkgs { system = "x86_64-linux"; };
     configModule =
       { ... }:
       {

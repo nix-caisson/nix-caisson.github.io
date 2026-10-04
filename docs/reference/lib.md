@@ -1120,21 +1120,58 @@ mkConfiguration :
 
 - **Source:** `lib-overlays/nixos/default.nix`
 - `mkModule : freeformModule -> module`: class-bound `mkModule`.
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?,
-  specialArgs?, system? } -> nixosSystem`: evaluates
+- `mkConfiguration`:
+
+```
+mkConfiguration :
+  { configModule  ? (the configuration registered under the name)
+                  : module                                  # nixos class
+  , ecosystemSrc  ? null                                    # the nixpkgs source tree
+  , moduleImports ? (every entry named default)
+                  : attrsOf module -> listOf module          # selection from the nixos class registry
+  , specialArgs   ? { }
+  } -> configuration
+```
+
+  Returns a configuration, a function of `{ name, parent }`, built
+  with `lib.caisson-core.mkConfiguration`. A parent that declares it
+  under `caisson.nixos.configurations.<name>` finalizes it, and
+  `mkTopConfiguration` finalizes it at a top. The evaluation is
   `<ecosystemSrc>/nixos/lib/eval-config.nix` (a nixpkgs source tree)
-  with the selected class modules, the config module, and a framework
-  module pinning `nixpkgs.pkgs` to `pkgSets.pkgs`. Extra arguments
-  pass through to `eval-config.nix`.
+  over the selected class modules and the config module. When
+  `configModule` is absent, the config module is the configuration
+  registered under the configuration's name,
+  `lib.caisson-core.configs.nixos.<name>`. The manifest's `value` is
+  the evaluated NixOS configuration, and its `outputs` are `toplevel`,
+  `vm`, `vmWithBootLoader` and `images`, each a reference into
+  `config.system.build`.
+
+  The system and the package set come from the composition, through
+  the manifest. The configuration is evaluated at the system in force
+  where it is declared, `systems` on `mkLib`, and a composition with
+  no system, or with more than one, is refused. It runs on the set of
+  the package config its `caisson.nixpkgs.pkgSet` option names,
+  `default` unless a module of the configuration says otherwise; the
+  set is that config's set at the configuration's system, defined as
+  `nixpkgs.pkgs`. The sets at that system also reach the modules by
+  config name, as the `pkgSets` special argument.
+- `mkTopConfiguration`: the same arguments. It finalizes the
+  configuration with `lib.caisson-core.finalizeTop` and returns the
+  evaluated NixOS configuration, which is what `nixos-rebuild --file`
+  reads and what a test evaluates with no configuration above it.
 - `mkConfigurationFull`: as `mkConfiguration`, additionally passing nixpkgs'
   `module-list.nix` as `baseModules`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
-  (see the conventions above); eval-config's `baseModules` is one of
+  (see the conventions above); eval-config's `baseModules` is among
   the arguments reachable that way.
-- `compose : { context?, nixpkgsModule? } -> args -> { modules,
-  specialArgs, checkedPkgSets, src }`: the composition of the class
-  from the caisson arguments (the framework and selected modules, the
-  config module, the package-set module, the resolved nixpkgs
+- `mkConfigurations`: a configuration for every configuration
+  registered in the class, each as `mkConfiguration` builds it without
+  `configModule`.
+- `compose : { context?, nixpkgsModule? } -> { lib, manifest } -> args
+  -> { modules, specialArgs, system, pkgSets, src }`: the composition
+  of the class on the view being evaluated, from the caisson arguments
+  (the framework and selected modules, the config module, the
+  package-set module, the system, the resolved nixpkgs
   source), which every entry point here builds on and which an
   integration evaluating the `nixos` class with another evaluator
   reads, so two evaluators cannot express different machines from the
@@ -1156,8 +1193,14 @@ its default default belong to the nixos integration, and the module
 list comes from `caisson.nixos.compose`; composing it needs the nixos
 integration composed beside it.
 
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, specialArgs?, prefix? } -> evaluation`.
+- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
+  specialArgs?, prefix? } -> configuration`: the arguments of
+  `caisson.nixos.mkConfiguration` plus `prefix`, and the same result,
+  a configuration whose manifest's `value` is the evaluation. The
+  system and the package set come from the composition as they do
+  there.
+- `mkTopConfiguration`: the same arguments; finalizes the
+  configuration at a top and returns the evaluation.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
   (`prefix`, `modules`, `specialArgs`).
 
@@ -1370,7 +1413,11 @@ step projects the evaluated configuration onto.
   `colmena apply`. The schema version is asserted against the
   `makeHive` of the ecosystem source, so a colmena revision that moves
   it fails at evaluation; a node that did not come from
-  `mkNixosConfiguration` is refused. `pkgSets` on the colmena
+  `mkNixosConfiguration` is refused. What the constructor returns is a
+  NixOS configuration, and the colmena configuration finalizes it
+  under the name of the node, so a node takes its system and its
+  package set from the composition like any NixOS configuration.
+  `pkgSets` on the colmena
   configuration only serves `colmena eval` (`introspect`).
   `mkNixosConfigurationWithEcosystemArgs`
   is the node constructor's twin, also a module argument. Every node

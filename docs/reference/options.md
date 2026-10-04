@@ -28,7 +28,7 @@ Function that selects which parts of the composed library to publish as the flak
 - **Default:** the composed library's `caisson-core.evalManifest`, or its `caisson-core.libManifest` in an evaluation that carries none
 - **Source:** `modules/generic/core/caisson/manifest.nix`
 
-The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural and flake-parts evaluations carry a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared them (`modules/flake/core/caisson/systems.nix`).
+The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural and flake-parts evaluations carry a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems`, the empty list when the composition declares none, so such a flake has no per-system outputs (`modules/flake/core/caisson/systems.nix`).
 
 ### `caisson.<integration>.configurations`
 

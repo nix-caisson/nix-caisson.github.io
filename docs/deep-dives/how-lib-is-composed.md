@@ -193,7 +193,7 @@ integrations and tooling, each importing `caisson-lib`.
 
 ## Where the composed `lib` goes
 
-`lib.caisson.flake-parts.mkConfiguration` passes the composed library to flake-parts as
+`lib.caisson.flake-parts.mkTopConfiguration` passes the composed library to flake-parts as
 `specialArgs.lib`, so modules receive it as their ordinary `lib`
 argument. `flake.lib` publishes a selection of it when
 `caisson.lib.export.enabled` is set; the default selection is the

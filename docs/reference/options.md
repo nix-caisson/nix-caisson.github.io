@@ -28,7 +28,7 @@ Function that selects which parts of the composed library to publish as the flak
 - **Default:** the composed library's `caisson-core.evalManifest`, or its `caisson-core.libManifest` in an evaluation that carries none
 - **Source:** `modules/generic/core/caisson/manifest.nix`
 
-The manifest of this evaluation. A structural configuration carries one (`type`, `name`, `parent`, `children`, and the registries and declared facts of the composition it is declared under); a flake-parts evaluation carries none, and there this is the composition's manifest: `inputs`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared one (`modules/flake/core/caisson/systems.nix`).
+The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural and flake-parts evaluations carry one. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared one (`modules/flake/core/caisson/systems.nix`).
 
 ### `caisson.<integration>.configurations`
 
@@ -60,7 +60,7 @@ innerGreeting =
 
 A module that only declares configurations needs no such test. What the configurations beneath export is passed up without one, through `caisson.<integration>.exported` below.
 
-An entry that is not a configuration, or is a configuration of another integration, is refused. Structural configurations are the ones that can be declared and can hold others so far: the constructors of the other integrations return an evaluated value, and an evaluation that carries no manifest (a flake-parts one) refuses to finalize an entry.
+An entry that is not a configuration, or is a configuration of another integration, is refused. Structural and flake-parts configurations are the ones that can be declared and can hold others: the constructors of the other integrations return an evaluated value.
 
 ### `caisson.<integration>.exported`
 

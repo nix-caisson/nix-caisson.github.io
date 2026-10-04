@@ -34,7 +34,7 @@ Create a directory with this `flake.nix`:
         configs = core.mkModules ./configs;
       };
     in
-    lib.caisson.flake-parts.mkConfiguration {
+    lib.caisson.flake-parts.mkTopConfiguration {
       configModule = lib.caisson-core.configs.flake.my-flake;
     };
 }
@@ -49,7 +49,7 @@ declared here too; flake-parts reads it from the composition.
 Consuming
 caisson as a project registers everything it exports, its
 integrations included, which contributes `lib.caisson` (one namespace per integration
-target); `lib.caisson.flake-parts.mkConfiguration` then evaluates
+target); `lib.caisson.flake-parts.mkTopConfiguration` then evaluates
 flake-parts with that library and your config module. flake-parts
 comes from the `flake-parts` input of the flake, like every ecosystem
 caisson wraps: the integration calls that source with the composed
@@ -256,7 +256,7 @@ A consumer registers your exported overlay the same way:
         configs = core.mkModules ./configs;
       };
     in
-    lib.caisson.flake-parts.mkConfiguration {
+    lib.caisson.flake-parts.mkTopConfiguration {
       configModule = lib.caisson-core.configs.flake.consumer;
     };
 }

@@ -10,7 +10,7 @@ caisson fixes those problems for library overlays. The result is something the N
 
 ## What Makes Overlays Safe
 
-Four properties, applied together, address the collision and ordering risks that gave overlays a bad name:
+The following properties, applied together, address the collision and ordering risks that gave overlays a bad name:
 
 ### Namespacing
 
@@ -24,7 +24,7 @@ overlay = final: prev: {
 };
 ```
 
-This means two independent projects do not collide unless the project names do: `lib.projectA.helper` and `lib.projectB.helper` coexist without interference, as they would in any language with a module system. caisson's convention helps here: a project declares its name once, as `name` on `mkLib`, and contributes to the composed library under that name, so if every project uses its canonical name, collisions are unlikely in practice. Choose a distinctive name for your flake; generic names like `utils` or `helpers` invite collisions, while project-specific names like `caisson` or `acme-infra` make them vanishingly rare. This is a convention, not an enforcement mechanism: if two upstream flakes happen to choose the same `name`, their `lib` contributions will merge into the same namespace.
+This means two independent projects do not collide unless the project names do: `lib.projectA.helper` and `lib.projectB.helper` coexist without interference, as they would in any language with a module system. caisson's convention helps here: a project declares its name as `name` on `mkLib`, and contributes to the composed library under that name, so if every project uses its canonical name, collisions are unlikely in practice. Choose a distinctive name for your flake; generic names like `utils` or `helpers` invite collisions, while project-specific names like `caisson` or `acme-infra` make them vanishingly rare. This is a convention, not an enforcement mechanism: if two upstream flakes happen to choose the same `name`, their `lib` contributions will merge into the same namespace.
 
 ### prev-Based Merging
 
@@ -38,7 +38,7 @@ See [Closed Inputs](./closed-inputs.md) for the full mechanism.
 
 ### Dependency Tracking
 
-Library overlays sometimes need to call functions defined by other library overlays. Without explicit dependency management, this requires manually ensuring that overlays are applied in the right order, a fragile arrangement that breaks when overlays are reorganized or new ones are added.
+Library overlays sometimes need to call functions defined by other library overlays. Without explicit dependency management, this requires manually ensuring that overlays are applied in the right order, a fragile arrangement that breaks when overlays are reorganized or new overlays are added.
 
 caisson solves this. A registered overlay is an `{ imports ? [ ], overlay }` attrset, and `imports` is where its dependencies go. Entries are built overlays; the closure's `mkLibOverlay` member exists exactly so a dependency can be built in place:
 
@@ -70,7 +70,7 @@ The safety mechanisms described here aren't free. Import chains are
 flattened depth-first with duplicates preserved (an overlay's imports
 are applied before it, every time it appears) and folded through the
 caisson-core, so evaluation cost grows with the number of
-overlays and the depth of the dependency graph. One contract worth
+overlays and the depth of the dependency graph. A contract worth
 knowing: the base library is contributed as an opaque attribute set,
 so overriding one of its attributes changes what readers of the
 composed library see, without re-tying the base's internal

@@ -2,7 +2,7 @@
 
 A step-by-step first flake: create it, add a library overlay, register
 a module, use an integration, then consume your flake from a second
-one. The finished shape of each step also exists as a working flake
+flake. The finished shape of each step also exists as a working flake
 under `examples/literate-flake/` in the repository, with commentary.
 
 ## 1. A minimal caisson flake
@@ -46,7 +46,7 @@ your overlays contribute to the composed library under it
 declared here too; flake-parts reads it from the composition.
 Consuming
 caisson as a project registers everything it exports, its
-integrations included, which contributes `lib.caisson` (one namespace per integration
+integrations included, which contributes `lib.caisson` (a namespace per integration
 target); `lib.caisson.flake-parts.mkTopConfiguration` then evaluates
 flake-parts with that library and your config module, the
 configuration registered under the project's name
@@ -229,7 +229,7 @@ per item over the combined dictionary:
 
 Registering a single overlay by hand
 (`nixos = caisson.libOverlays.nixos`) is the way to cherry-pick or
-rename one. The [library reference](reference/lib.md) documents
+rename it. The [library reference](reference/lib.md) documents
 the integration namespaces.
 
 ## 5. Consume your flake from another flake

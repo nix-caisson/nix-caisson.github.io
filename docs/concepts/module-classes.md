@@ -29,14 +29,14 @@ class declares it from its overlay, so composing the nixos integration
 is what makes `modules/nixos` register, and an integration that wraps
 another declares the same class again with the wrapper's `mkModule`, which
 every reader then registers through. A class no integration covers
-(`hardware`, the way ch-hardware defines one for its capture modules)
+(`hardware`, the way ch-hardware defines it for its capture modules)
 is declared by the overlay that defines it, and the class-free
 `generic` group (a module any class may import; the name comes from
 flake-parts, whose export leaves those modules unstamped) is declared
 by caisson-core. A directory for a class nothing composed declares is
 an error. An entry is a directory holding a `default.nix`, a symlink
-to one included; anything else in a directory being read is an error,
-so a stray file cannot silently vanish from a registry.
+to such a directory included; anything else in a directory being read
+is an error, so a stray file cannot silently vanish from a registry.
 
 A tree with another layout writes the registration by hand, with the
 `mkModule` of the integration that owns the class applied to the
@@ -63,13 +63,14 @@ covers.
 
 ## Core and default
 
-Two entry names carry meaning in every class, for every project a
-composition lists (caisson among them, no differently):
+The entry names `core` and `default` carry meaning in every class,
+for every project a composition lists (caisson among them, no
+differently):
 
 - `core`: the framework module of the class. An integration forces
   every entry named `core` (`core`, `<project>/core`) into every
   evaluation of its class, before anything the evaluation selects.
-  Registering one is the big hammer, for a module the class cannot
+  Registering a `core` is the big hammer, for a module the class cannot
   function without; the core module of caisson declares the
   `caisson.*` options every evaluation carries (the manifest, the
   registry selectors, `caisson.exports`).
@@ -80,7 +81,7 @@ composition lists (caisson among them, no differently):
   for the `flake` class carries the nixpkgs integration's module
   layer.
 
-The core module of caisson lives once, as the `generic` entry `core`;
+The core module of caisson lives as the `generic` entry `core`;
 `modules/structural/core` is a symlink to it and `modules/flake/core`
 imports it and adds the flake mechanics, so each class that forces it
 registers it as `core` in that class.
@@ -93,7 +94,7 @@ nested use of `mkModule` stays in that class.
 ## Registration APIs
 
 Modules enter the class-keyed registry (`lib.caisson-core.modules`)
-in three ways:
+in these ways:
 
 - **Local registration**, `mkLib`'s `modules` hook: a function
   `lib: { ... }` receiving the composed `lib` (whose helpers, like
@@ -132,14 +133,14 @@ in three ways:
   dictionary. Selection stays per item at each use site, and a
   local registration beats a same-named project entry.
 
-The registry is a shared, class-keyed space per composition, so two
-rules keep multiple contributors coherent. Names within a class are a
-single flat space: qualify contributed names with your project prefix
-(`my-flake/my-service`), the same discipline as top-level library
-namespaces; short names are for the registrations made in the `mkLib`
-call itself. And precedence is deterministic: those local
-registrations apply last, so a local entry always wins over a
-same-named contribution.
+The registry is a shared, class-keyed space per composition, so rules
+on names and precedence keep multiple contributors coherent. Names
+within a class are a flat space: qualify contributed names with your
+project prefix (`my-flake/my-service`), the same discipline as
+top-level library namespaces; short names are for the registrations
+made in the `mkLib` call itself. And precedence is deterministic:
+those local registrations apply last, so a local entry always wins
+over a same-named contribution.
 
 Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their class this way (colmena's class is `colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
 
@@ -155,7 +156,7 @@ imports = [ inputs.my-upstream.modules.nixos.myModule ];
 imports = [ inputs.my-upstream.modules.homeManager.myModule ];
 ```
 
-The exported modules have their inputs already closed over, so importing one is possible without threading the upstream's dependencies.
+The exported modules have their inputs already closed over, so importing them is possible without threading the upstream's dependencies.
 
 ## Export Controls
 
@@ -166,7 +167,7 @@ Per-class export controls live under:
 
 For flake-parts compatibility, `flake.flakeModules` mirrors
 `flake.modules.flake`, and the `flake` class always exports a `default`
-entry (an empty module unless the selection provides one) so
+entry (an empty module unless the selection provides it) so
 `flakeModules.default` exists for consumers that import it by
 convention.
 

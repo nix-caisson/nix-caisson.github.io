@@ -6,8 +6,8 @@ they have proven to work for us, they resolve ambiguity about where a
 thing belongs, and they make it easier for someone new to a repository
 to come up to speed. A repository that keeps them registers by naming
 the directories (`caisson-core.mkModules ./modules`, `mkModules
-./configs`, `mkLibOverlays ./lib-overlays`); one with another layout
-writes its registrations by hand. This repository and its
+./configs`, `mkLibOverlays ./lib-overlays`); a repository with another
+layout writes its registrations by hand. This repository and its
 integrations use them, and the documentation and the
 `examples/literate-flake` example assume them.
 
@@ -49,9 +49,10 @@ modules/<class>/<module>/<flake-name>/*.nix
 
 Reusable modules, keyed first by module class (directory names are the
 class names: `flake`, `nixos`, `homeManager`, and `generic` for a
-module any class may import), then by the module's name. Two
-names carry meaning in every class: `core`, forced into every
-evaluation of the class, and `default`, the default default (see
+module any class may import), then by the module's name. The names
+`core` and `default` carry meaning in every class: `core` is forced
+into every evaluation of the class, and `default` is the default
+default (see
 [Module classes](concepts/module-classes.md)); the conventional
 exported module is `modules/<class>/default/`. `default.nix` is the
 module's entry point, and its implementation files sit under a

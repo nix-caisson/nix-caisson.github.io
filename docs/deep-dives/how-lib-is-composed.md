@@ -30,7 +30,7 @@ an entry like everything else.
 - `projects`: whole upstream contributions, each carrying exported
   overlays and modules that register under `<project>/<name>`.
 
-The registry also holds the two entries caisson-core publishes,
+The registry also holds the entries caisson-core publishes,
 `caisson-core` (the machinery) and `nixpkgs-lib`, under those names.
 Neither is selectable, and a registration under either name replaces
 the entry for every overlay that imports it, so a polyfill over
@@ -45,7 +45,7 @@ not apply to itself.
 
 ## The stages
 
-`mkLib` builds the library in four stages, each a new fixpoint over
+`mkLib` builds the library in stages, each a new fixpoint over
 the seed, because some of its arguments are functions of a library
 and can only see what is built before them:
 
@@ -85,10 +85,10 @@ caisson adds itself:
 ```
 
 The first added overlay injects the machinery and the empty module
-registry under `caisson-core`. The last one records the manifest,
+registry under `caisson-core`. The last records the manifest,
 the composition's self-description, at
 `lib.caisson-core.libManifest` (beside `pkgsManifest` and
-`evalManifest`, the manifests of the other two evaluation phases,
+`evalManifest`, the manifests of the other evaluation phases,
 null until a package set or a module evaluation fills them in). Module registrations apply after every
 selected overlay so that a local name always beats a same-named
 contribution from an overlay or a consumed project.
@@ -108,11 +108,11 @@ Application is the standard Nix overlay contract, folded over the
 sequence above. Each `overlay = final: prev: { ... }` receives
 `prev`, everything accumulated so far, and `final`, the finished
 fixpoint. For an attribute defined by two overlays, the later
-definition wins, and `prev` gives it the earlier one to build on,
+definition wins, and `prev` gives it the earlier definition to build on,
 which is what the `my-flake = (prev.my-flake or { }) // { ... }`
 merge convention relies on.
 
-Two consequences of the fixpoint are worth knowing:
+These consequences of the fixpoint are worth knowing:
 
 - An overlay's output attribute *names* must not depend on `final`; a
   fixpoint whose shape depends on itself diverges.

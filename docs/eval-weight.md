@@ -15,7 +15,7 @@ fixed lock set and Nix version, so they can be gated. CPU and
 wall-clock time are machine-dependent, so they are always reported but
 not gated.
 
-Three semantic counters are derived from the same run, keyed to stable anchors in the
+Semantic counters are derived from the same run, keyed to stable anchors in the
 evaluated source rather than line numbers:
 
 - `nixpkgsEvals`: full nixpkgs instantiations

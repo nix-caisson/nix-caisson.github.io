@@ -2,7 +2,7 @@
 
 ### What goes wrong without caisson that this fixes?
 
-Caisson addresses two major failure patterns seen in poly-flake
+Caisson addresses major failure patterns seen in poly-flake
 setups:
 
 First, input explosion: a flake-parts module that uses `inputs.foo`
@@ -13,7 +13,7 @@ bunch of "follow" pins, or else you get an explosion of flake
 versions.
 
 Second, collisions: Overlays that write top-level attributes tend to
-fight over one flat namespace.
+fight over the same flat namespace.
 
 ### What is `closure-inputs`, and who sets it?
 

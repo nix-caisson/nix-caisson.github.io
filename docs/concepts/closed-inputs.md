@@ -76,7 +76,7 @@ Already-built overlays (for example another flake's exported `libOverlays.defaul
 |---|---|
 | `mkModule` | Creates class-specific module normalizers with closed inputs |
 | `mkLibOverlay` | Applies the closure to registered library overlays |
-| `mkModules`, `mkLibOverlays` | Derive the registrations from `modules/<class>/<name>` (also `configs/`) and `lib-overlays/<name>`, applying the two above |
+| `mkModules`, `mkLibOverlays` | Derive the registrations from `modules/<class>/<name>` (also `configs/`) and `lib-overlays/<name>`, applying `mkModule` and `mkLibOverlay` |
 | `importApply` | Applies static arguments to a module through the import chain |
 | `mkLib` | Bootstraps a composed library with closed overlays |
 | `caisson.flake-parts.mkTopConfiguration` | Creates flake outputs with closed modules |

@@ -28,7 +28,7 @@ Function that selects which parts of the composed library to publish as the flak
 - **Default:** the composed library's `caisson-core.evalManifest`, or its `caisson-core.libManifest` in an evaluation that carries none
 - **Source:** `modules/generic/core/caisson/manifest.nix`
 
-The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural and flake-parts evaluations carry a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared one (`modules/flake/core/caisson/systems.nix`).
+The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural and flake-parts evaluations carry a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared them (`modules/flake/core/caisson/systems.nix`).
 
 ### `caisson.<integration>.configurations`
 
@@ -47,7 +47,7 @@ The configurations of an integration declared beneath this configuration, by nam
 
 Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
 
-A configuration declared beneath sees this one without the configurations declared beneath it (the childless view). In that view an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson-core.evalManifest.childless`:
+A configuration declared beneath sees this configuration without the configurations declared beneath it (the childless view). In that view an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson-core.evalManifest.childless`:
 
 ```nix
 # an option of this configuration, defined from a configuration beneath it
@@ -58,9 +58,9 @@ innerGreeting =
     config.caisson.structural.configurations.inner.value.config.greeting;
 ```
 
-A module that only declares configurations needs no such test. What the configurations beneath export is passed up without one, through `caisson.<integration>.exported` below.
+A module that only declares configurations needs no such test. What the configurations beneath export is passed up without that test, through `caisson.<integration>.exported` below.
 
-An entry that is not a configuration, or is a configuration of another integration, is refused. Structural and flake-parts configurations are the ones that can be declared and can hold others: the constructors of the other integrations return an evaluated value.
+An entry that is not a configuration, or is a configuration of another integration, is refused. Structural and flake-parts configurations are those that can be declared and can hold others: the constructors of the other integrations return an evaluated value.
 
 ### `caisson.<integration>.exported`
 

@@ -2,7 +2,7 @@
 
 Each integration takes its ecosystem as an argument, the ecosystem
 source, and calls the evaluator inside that source; it pins nothing
-itself. A single
+itself. A
 caisson revision therefore works with any nixpkgs, home-manager, or
 colmena revision with a compatible evaluation contract, and two
 consumers of that same caisson revision can pin different revisions
@@ -54,7 +54,7 @@ to `nixpkgs`.
 
 ## How does caisson get access to ecosystem sources?
 
-A source comes from one of three places, in priority order:
+A source comes from one of these places, in priority order:
 
 1. **Explicit argument.** `ecosystemSrc = inputs.nixpkgs` at the
    call site always wins.
@@ -65,5 +65,5 @@ A source comes from one of three places, in priority order:
    passed to `mkLib` is used. For a flake that declares that input
    anyway, this is the common case.
 
-If none of the three places can provide a needed ecosystem source,
+If none of these places can provide a needed ecosystem source,
 it triggers an evaluation error.

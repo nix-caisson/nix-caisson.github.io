@@ -17,7 +17,7 @@ structure above it).
 
 The wordmarks have transparent backgrounds by design: place the day
 wordmark on light surfaces (fog tokens) and the night wordmark on dark
-ones (night tokens) — and composite over the intended surface when
+surfaces (night tokens), and composite over the intended surface when
 generating previews. The favicon is dark-native and serves both modes.
 
 ## Palette

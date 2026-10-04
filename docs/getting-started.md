@@ -31,7 +31,7 @@ Create a directory with this `flake.nix`:
         projects = {
           inherit caisson;
         };
-        configs = core.mkModules ./configs;
+        configs = lib: lib.caisson-core.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration { };
@@ -58,8 +58,8 @@ library, so the evaluation runs on the same nixpkgs lib the rest of
 the composition does.
 
 The config module is the flake's top-level configuration, and it
-is registered rather than named by path: `core.mkModules ./configs`
-reads `configs/<class>/<name>/default.nix` into the `configs`
+is registered rather than named by path: `lib.caisson-core.mkModules
+./configs`, the reader of the lib `configs` is handed, reads `configs/<class>/<name>/default.nix` into the `configs`
 registration, so the configuration comes back as
 `lib.caisson-core.configs.flake.my-flake`. Create
 `configs/flake/my-flake/default.nix`:
@@ -106,7 +106,7 @@ An overlay contributes a namespace to the composed library. Create
 ```
 
 Register it in `flake.nix` and export it, and turn on the lib export
-in the config module. `core.mkLibOverlays ./lib-overlays` reads
+in the config module. `lib.caisson-core.mkLibOverlays ./lib-overlays` reads
 `lib-overlays/<name>/default.nix` into the `libOverlays` registration:
 
 ```nix
@@ -117,8 +117,8 @@ in the config module. `core.mkLibOverlays ./lib-overlays` reads
         projects = {
           inherit caisson;
         };
-        configs = core.mkModules ./configs;
-        libOverlays = core.mkLibOverlays ./lib-overlays;
+        configs = lib: lib.caisson-core.mkModules ./configs;
+        libOverlays = lib: lib.caisson-core.mkLibOverlays ./lib-overlays;
       };
 ```
 
@@ -141,7 +141,7 @@ export enabled) to consumers as `flake.lib`. Use it in `perSystem`:
 
 Modules are class-keyed: `flake` modules feed flake-parts, and
 integration classes (`nixos`, `homeManager`, ...) feed their module
-systems. `core.mkModules ./modules` reads
+systems. `lib.caisson-core.mkModules ./modules` reads
 `modules/<class>/<name>/default.nix` into the registration, the
 first directory level being the class; register a flake-class module
 by creating its directory:
@@ -154,9 +154,9 @@ by creating its directory:
         projects = {
           inherit caisson;
         };
-        modules = core.mkModules ./modules;
-        configs = core.mkModules ./configs;
-        libOverlays = core.mkLibOverlays ./lib-overlays;
+        modules = lib: lib.caisson-core.mkModules ./modules;
+        configs = lib: lib.caisson-core.mkModules ./configs;
+        libOverlays = lib: lib.caisson-core.mkLibOverlays ./lib-overlays;
       };
 ```
 
@@ -258,7 +258,7 @@ A consumer registers your exported overlay the same way:
         projects = {
           inherit caisson my-flake;
         };
-        configs = core.mkModules ./configs;
+        configs = lib: lib.caisson-core.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration { };

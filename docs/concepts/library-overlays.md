@@ -108,8 +108,8 @@ still takes the arg list, as `{ ... }:`.
 Register it in your flake's `mkLib` call:
 
 ```nix
-libOverlays = mkLibOverlay: {
-  default = mkLibOverlay ./lib-overlays/default;
+libOverlays = lib: {
+  default = lib.caisson-core.mkLibOverlay ./lib-overlays/default;
 };
 ```
 
@@ -135,9 +135,9 @@ When one overlay needs functions from another, declare the dependency:
 The `imports` list ensures `default` is applied first, so `prev.myProject.greet` is available. Register the extended overlay normally:
 
 ```nix
-libOverlays = mkLibOverlay: {
-  default = mkLibOverlay ./lib-overlays/default;
-  extended = mkLibOverlay ./lib-overlays/extended;
+libOverlays = lib: {
+  default = lib.caisson-core.mkLibOverlay ./lib-overlays/default;
+  extended = lib.caisson-core.mkLibOverlay ./lib-overlays/extended;
 };
 ```
 

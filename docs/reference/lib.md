@@ -111,23 +111,26 @@ naming `mkLib` and pointing at the pattern.
   integrations' `mkModule` helpers (`lib.caisson.nixos.mkModule`,
   `lib.caisson.flake-parts.mkModule`, and so on).
   `lib.caisson-core.mkModule "<class>"` is for a class no integration
-  covers. `mkModules ./modules` derives the function from the
+  covers. `lib: lib.caisson-core.mkModules ./modules` reads the
   conventional layout.
 - `configs` receives the bootstrap lib the same way and returns the
   configurations of the tree, keyed by module class then name, the
   layout `configs/<class>/<name>` on disk (colmena's class is
-  `colmena`); `mkModules ./configs` reads that layout. They come back
+  `colmena`); `lib: lib.caisson-core.mkModules ./configs` reads that
+  layout. They come back
   as `lib.caisson-core.configs.<class>.<name>`, so a top and a
   configuration that evaluates another beneath itself reach them by
   name rather than by a path out of their directory.
 - `libOverlays` receives the core lib and returns the registered
   overlays. An entry is made with `lib.caisson-core.mkLibOverlay`,
   which closes it over the sources of the composition;
-  `mkLibOverlays ./lib-overlays` derives the function from the layout.
+  `lib: lib.caisson-core.mkLibOverlays ./lib-overlays` reads the
+  layout.
 - `pkgOverlays` receives the bootstrap lib and returns the registered
   package overlays. An entry is made with
-  `lib.caisson-core.mkPkgOverlay`; `mkPkgOverlays ./pkg-overlays`
-  derives the function from the layout (see `pkgOverlays` below).
+  `lib.caisson-core.mkPkgOverlay`;
+  `lib: lib.caisson-core.mkPkgOverlays ./pkg-overlays` reads the
+  layout (see `pkgOverlays` below).
   These four arguments take exactly the function shape shown; passing
   anything else is an error.
 - `pkgSets` receives the registered lib and returns the package
@@ -170,18 +173,31 @@ naming `mkLib` and pointing at the pattern.
 ### `mkModules`, `mkLibOverlays`, `mkPkgOverlays`
 
 ```
-mkModules     : path -> lib -> attrsOf (attrsOf module)   # <dir>/<class>/<name>/default.nix
-mkLibOverlays : path -> lib -> attrsOf libOverlay         # <dir>/<name>/default.nix
-mkPkgOverlays : path -> lib -> attrsOf pkgOverlay         # <dir>/<name>/default.nix
+mkModules     : path -> attrsOf (attrsOf module)   # <dir>/<class>/<name>/default.nix
+mkLibOverlays : path -> attrsOf libOverlay         # <dir>/<name>/default.nix
+mkPkgOverlays : path -> attrsOf pkgOverlay         # <dir>/<name>/default.nix
 ```
 
-The directory readers: each returns the function `mkLib` takes, so a
-tree with the conventional layout registers by naming the directory
-(`modules = core.mkModules ./modules; configs = core.mkModules
-./configs; libOverlays = core.mkLibOverlays ./lib-overlays;`).
+The directory readers. A reader belongs to the lib it is read from:
+it takes a directory and returns the registrations, built with the
+class index and the entry constructors of that lib. Each registry
+function of `mkLib` receives a lib, so a tree with the conventional
+layout takes the reader from it and names the directory:
+
+```nix
+modules = lib: lib.caisson-core.mkModules ./modules;
+configs = lib: lib.caisson-core.mkModules ./configs;
+libOverlays = lib: lib.caisson-core.mkLibOverlays ./lib-overlays;
+pkgOverlays = lib: lib.caisson-core.mkPkgOverlays ./pkg-overlays;
+```
+
+The readers are the registered entry `caisson-core/readers`, so a
+composition that registers another entry under that name reads its
+directories with that entry.
+
 `mkModules` reads the first directory level as the class, whatever
 its name, and registers each entry directory through the class index
-of the composed library, `caisson-core.classes.<class>.mkModule`, the
+of the lib, `caisson-core.classes.<class>.mkModule`, the
 `mkModule` of the integration that declares the class; a directory
 for a class no composed integration declares is an error naming the
 declared classes. `mkLibOverlays` applies `mkLibOverlay`, and
@@ -189,9 +205,7 @@ declared classes. `mkLibOverlays` applies `mkLibOverlay`, and
 a directory holding a `default.nix`, a symlink to such a directory
 included; anything else in a directory being read is an error, so a
 stray file cannot silently vanish from a registry. A tree with another
-layout writes the registration by hand. The readers are also available
-before any composition exists, on `caisson-core` itself
-(`caisson.lib.caisson-core.mkModules`).
+layout writes the registration by hand.
 
 ### `classes`, `contributeClasses`
 

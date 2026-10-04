@@ -60,7 +60,7 @@ innerGreeting =
 
 A module that only declares configurations needs no such test. What the configurations beneath export is passed up without that test, through `caisson.<integration>.exported` below.
 
-An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts and nixos configurations can be declared. A nixos-minimal configuration is read as a top (`mkTopConfiguration`) and is refused beneath another configuration, and the constructors of the other integrations return an evaluated value. Structural and flake-parts evaluations hold configurations beneath them.
+An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts and nixos configurations can be declared. A configuration of an integration that evaluates a class another integration owns is a configuration of the owner in the tree: `lib.caisson.nixos-minimal.mkConfiguration` returns a nixos configuration, declared under `caisson.nixos.configurations` and published with the others. The constructors of the remaining integrations return an evaluated value. Structural and flake-parts evaluations hold configurations beneath them.
 
 ### `caisson.nixpkgs.pkgSet`
 

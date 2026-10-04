@@ -1313,7 +1313,11 @@ package set arrives as the `pkgs` module argument rather than through
 registration form (`caisson.nixos.mkModule`), its framework module and
 its default default belong to the nixos integration, and the module
 list comes from `caisson.nixos.compose`; composing it needs the nixos
-integration composed beside it.
+integration composed beside it. In the tree its configurations are
+nixos configurations: the manifest's `type` is `nixos`, a
+configuration is declared under `caisson.nixos.configurations` and
+published under `nixosConfigurations`, and it is `nearest.nixos` for
+what is declared beneath it.
 
 - `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
   specialArgs?, prefix? } -> configuration`: the arguments of

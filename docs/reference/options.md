@@ -28,7 +28,7 @@ Function that selects which parts of the composed library to publish as the flak
 - **Default:** the composed library's `caisson-core.evalManifest`, or its `caisson-core.libManifest` in an evaluation that carries none
 - **Source:** `modules/generic/core/caisson/manifest.nix`
 
-The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural, flake-parts and NixOS evaluations carry a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems`, the empty list when the composition declares none, so such a flake has no per-system outputs (`modules/flake/core/caisson/systems.nix`).
+The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Every configuration built with `lib.caisson.integrations.mkModuleConfiguration` carries a manifest: structural, flake-parts and NixOS configurations today. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems`, the empty list when the composition declares none, so such a flake has no per-system outputs (`modules/flake/core/caisson/systems.nix`).
 
 ### `caisson.<integration>.configurations`
 
@@ -60,7 +60,7 @@ innerGreeting =
 
 A module that only declares configurations needs no such test. What the configurations beneath export is passed up without that test, through `caisson.<integration>.exported` below.
 
-An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts and nixos configurations can be declared. A configuration of an integration that evaluates a class another integration owns is a configuration of the owner in the tree: `lib.caisson.nixos-minimal.mkConfiguration` returns a nixos configuration, declared under `caisson.nixos.configurations` and published with the others. The constructors of the remaining integrations return an evaluated value. Structural, flake-parts and NixOS evaluations hold configurations beneath them.
+An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts and nixos configurations can be declared. A configuration of an integration that evaluates a class another integration owns is a configuration of the owner in the tree: `lib.caisson.nixos-minimal.mkConfiguration` returns a nixos configuration, declared under `caisson.nixos.configurations` and published with the others. The constructors of the remaining integrations return an evaluated value. Every configuration holds configurations of any integration beneath it. That holds for the configurations built with `lib.caisson.integrations.mkModuleConfiguration`, which today are the structural, flake-parts and NixOS configurations.
 
 ### `caisson.nixpkgs.pkgSet`
 

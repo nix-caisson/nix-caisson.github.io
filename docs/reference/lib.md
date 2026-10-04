@@ -869,8 +869,45 @@ those that own a module class, read from the class index. caisson's
 core module declares `caisson.<integration>.configurations` for each.
 `childrenOf` takes an evaluated configuration's `config` and returns
 the configurations declared beneath it, by integration and then name,
-leaving out an integration with none: the `children` an integration's
-`evaluate` returns to `lib.caisson-core.mkConfiguration`.
+leaving out an integration with none: the `children`
+`mkModuleConfiguration` hands to `lib.caisson-core.mkConfiguration`.
+
+#### `frameworkModules`, `mkModuleConfiguration`
+
+```
+frameworkModules      : str -> attrsOf module -> listOf module
+mkModuleConfiguration : { type : str; perSystem ? false; evaluate : view -> evaluated; } -> configuration
+evaluated = { value; outputs ? { }; config ? value.config; }
+```
+
+Every configuration can hold configurations of any integration
+beneath it. These are where that is written, so that no integration
+writes it.
+
+`frameworkModules` takes a class and its registry and returns the
+framework module of the class, which every evaluation of the class
+imports: caisson's core module for the class, read from the closure of
+caisson, followed by `coreModules` of the registry. The core module
+declares `caisson.manifest`, `caisson.<integration>.configurations`,
+`caisson.<integration>.exported` and `caisson.exports`.
+
+`mkModuleConfiguration` builds a configuration that is a module
+evaluation. `type` and `perSystem` are what
+`lib.caisson-core.mkConfiguration` takes. `evaluate` is the evaluator
+step of the integration: from the view being evaluated,
+`{ lib, manifest }`, it returns `value`, the evaluation as the
+evaluator returned it, and `outputs`, the references into it that the
+integration declares (`config` says where the evaluated options are
+when that is not `value.config`). The builder adds the rest: the
+configurations the modules declare are the children of the
+configuration, and `caisson.exports`, which carries what they pass
+up, is the `exports` output.
+
+structural, flake-parts, nixos and nixos-minimal are built from both.
+The constructors of colmena, home-manager, terranix and system-manager
+return an evaluated value and are not yet built from them, so a
+configuration of those can neither hold configurations nor be
+declared beneath another.
 
 #### `entriesOf`, `publish`, `displayName`, `topValue`
 
@@ -1262,15 +1299,12 @@ mkConfiguration :
   `config.system.build`, and `exports`, what the configuration passes
   up to its parent.
 
-  A NixOS configuration holds configurations beneath it. Every
-  evaluation of the class imports caisson's core module, so a module
-  of the configuration declares them under
-  `caisson.<integration>.configurations`, as a module of a structural
-  configuration does. They are held in the manifest of the
-  evaluation, a configuration evaluated at a system beneath its
-  system, they see the evaluation as `nearest.nixos`, and what they
-  export is passed up through it, so a top publishes them with the
-  others. The same holds under the minimal evaluator.
+  Like every configuration, a NixOS configuration holds configurations
+  of any integration beneath it
+  (`caisson.integrations.mkModuleConfiguration`): a module of it
+  declares them under `caisson.<integration>.configurations`, they
+  see the evaluation as `nearest.nixos`, and a top publishes them with
+  the others.
 
   The package set comes from the composition, through the manifest.
   An evaluation runs on the set of the package config its

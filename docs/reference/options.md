@@ -50,14 +50,34 @@ Each entry is finalized when it is read, with the attribute it is declared under
 A configuration declared beneath sees this one without the configurations declared beneath it (the childless view). In that view an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson-core.evalManifest.childless`:
 
 ```nix
-caisson.exports =
+# an option of this configuration, defined from a configuration beneath it
+innerGreeting =
   if lib.caisson-core.evalManifest.childless then
-    { }
+    null
   else
-    config.caisson.structural.configurations.inner.outputs.exports;
+    config.caisson.structural.configurations.inner.value.config.greeting;
 ```
 
+A module that only declares configurations needs no such test. What the configurations beneath export is passed up without one, through `caisson.<integration>.exported` below.
+
 An entry that is not a configuration, or is a configuration of another integration, is refused. Structural configurations are the ones that can be declared and can hold others so far: the constructors of the other integrations return an evaluated value, and an evaluation that carries no manifest (a flake-parts one) refuses to finalize an entry.
+
+### `caisson.<integration>.exported`
+
+- **Type:** function from the configurations declared to an attribute set of them
+- **Default:** `configurations: configurations`, every configuration declared
+- **Source:** `modules/generic/core/caisson/configurations.nix`
+
+Function that selects which of the configurations declared under `caisson.<integration>.configurations` this configuration passes up. What each selected configuration exports (its `outputs.exports`: `lib`, `libOverlays`, `modules`, `pkgOverlays`) is merged into this configuration's `caisson.exports`, beside what the registry selectors here choose. A configuration beneath passes up what lies beneath it in turn, so the exports of a tree of structural configurations reach its top with nothing written:
+
+```nix
+{ lib, ... }:
+{
+  caisson.structural.configurations.impl = lib.caisson.structural.mkConfiguration { };
+}
+```
+
+`caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the evaluation that holds the configurations: it is absent from the childless view, and from an evaluation that carries no manifest.
 
 ### `caisson.modules`
 

@@ -68,7 +68,7 @@ An entry that is not a configuration, or is a configuration of another integrati
 - **Default:** `"default"`
 - **Source:** `lib-overlays/nixos/compose.nix`, in every evaluation of the `nixos` class
 
-An option of a NixOS configuration: the package config whose set the configuration runs on, by the name it is declared under in `pkgSets` on `mkLib`. The set is that config's set at the configuration's system, and it is defined as `nixpkgs.pkgs` (as the `pkgs` module argument under the minimal evaluator). Any module of the configuration may define the option:
+An option of a NixOS configuration: the package config whose set the configuration runs on, by the name it is declared under in `pkgSets` on `mkLib`. A configuration has an evaluation for every system in force, and in each the set is that config's set at the system of the evaluation, defined as `nixpkgs.pkgs` (as the `pkgs` module argument under the minimal evaluator). Any module of the configuration may define the option:
 
 ```nix
 { ... }:

@@ -557,6 +557,28 @@ and the parent's `sources`, `root`, `systems`, `projects`,
 `defaultEcosystemSrc`, `pkgSets` and registries. A `record` that names
 a field `mkConfiguration` writes is refused.
 
+An integration that evaluates a configuration at a system passes
+`perSystem = true`. What is declared is then a configuration with an
+evaluation for every system in force where it is declared:
+
+```
+laptop                    # the configuration; no value
+└── children.system
+    ├── x86_64-linux      # its evaluation at x86_64-linux
+    └── aarch64-linux     # its evaluation at aarch64-linux
+```
+
+The manifest the configuration returns is the configuration, and its
+children, under `children.system`, are its evaluations by system.
+There are as many as there are systems in force, also for a single
+system, and none where no system is in force; nothing is refused.
+Each evaluation is a manifest as described above, named by its
+system, carrying that system as `system` and as the only entry of
+`systems`, with the configuration as its parent. `evaluate` reads the
+system from the manifest it is handed. The tree always holds the
+evaluations by system; leaving the system out of a name where nothing
+needs it is a separate step (`caisson.integrations.elideSystems`).
+
 ### `finalizeTop`
 
 ```
@@ -809,6 +831,21 @@ core module declares `caisson.<integration>.configurations` for each.
 the configurations declared beneath it, by integration and then name,
 leaving out an integration with none: the `children` an integration's
 `evaluate` returns to `lib.caisson-core.mkConfiguration`.
+
+#### `elideSystems`, `topValue`
+
+```
+elideSystems : manifest -> manifest | attrsOf manifest
+topValue     : manifest -> value | attrsOf value
+```
+
+Each takes the manifest of a per-system configuration, whose
+evaluations the tree holds by system. `elideSystems` leaves the
+system out where nothing needs it: it returns the evaluation where
+the configuration has exactly one, and the evaluations by system
+otherwise. `topValue` is that followed by each evaluation's `value`,
+which is what a per-system integration's `mkTopConfiguration`
+returns.
 
 #### `mkIntegration`
 
@@ -1141,24 +1178,33 @@ mkConfiguration :
   over the selected class modules and the config module. When
   `configModule` is absent, the config module is the configuration
   registered under the configuration's name,
-  `lib.caisson-core.configs.nixos.<name>`. The manifest's `value` is
-  the evaluated NixOS configuration, and its `outputs` are `toplevel`,
-  `vm`, `vmWithBootLoader` and `images`, each a reference into
-  `config.system.build`.
+  `lib.caisson-core.configs.nixos.<name>`.
 
-  The system and the package set come from the composition, through
-  the manifest. The configuration is evaluated at the system in force
-  where it is declared, `systems` on `mkLib`, and a composition with
-  no system, or with more than one, is refused. It runs on the set of
-  the package config its `caisson.nixpkgs.pkgSet` option names,
-  `default` unless a module of the configuration says otherwise; the
-  set is that config's set at the configuration's system, defined as
-  `nixpkgs.pkgs`. The sets at that system also reach the modules by
-  config name, as the `pkgSets` special argument.
+  A NixOS configuration is evaluated at a system, so the integration
+  passes `perSystem`: the manifest is the configuration, and its
+  children, under `children.system`, are its evaluations by system,
+  an evaluation for every system in force where it is declared
+  (`systems` on `mkLib`). There are as many as there are systems, also
+  for a single system, and none where no system is in force. An
+  evaluation's `value` is the evaluated NixOS configuration, and its
+  `outputs` are `toplevel`, `vm`, `vmWithBootLoader` and `images`,
+  each a reference into `config.system.build`.
+
+  The package set comes from the composition, through the manifest.
+  An evaluation runs on the set of the package config its
+  `caisson.nixpkgs.pkgSet` option names, `default` unless a module of
+  the configuration says otherwise; the set is that config's set at
+  the system of the evaluation, defined as `nixpkgs.pkgs`. The sets at
+  that system also reach the modules by config name, as the `pkgSets`
+  special argument. A module reads the system as
+  `lib.caisson-core.evalManifest.system` and the name of its
+  configuration as `lib.caisson-core.evalManifest.parent.name`.
 - `mkTopConfiguration`: the same arguments. It finalizes the
-  configuration with `lib.caisson-core.finalizeTop` and returns the
-  evaluated NixOS configuration, which is what `nixos-rebuild --file`
-  reads and what a test evaluates with no configuration above it.
+  configuration with `lib.caisson-core.finalizeTop` and returns what a
+  tool reads (`caisson.integrations.topValue`): the evaluated NixOS
+  configuration where the configuration has exactly one evaluation,
+  which is what `nixos-rebuild --file` reads and what a test
+  evaluates, and the evaluated configurations by system otherwise.
 - `mkConfigurationFull`: as `mkConfiguration`, additionally passing nixpkgs'
   `module-list.nix` as `baseModules`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
@@ -1416,7 +1462,10 @@ step projects the evaluated configuration onto.
   `mkNixosConfiguration` is refused. What the constructor returns is a
   NixOS configuration, and the colmena configuration finalizes it
   under the name of the node, so a node takes its system and its
-  package set from the composition like any NixOS configuration.
+  package set from the composition like any NixOS configuration. A
+  node is a machine, so the configuration has to come to exactly one
+  evaluation; with no system in force, or several, the colmena
+  configuration refuses it and names the systems.
   `pkgSets` on the colmena
   configuration only serves `colmena eval` (`introspect`).
   `mkNixosConfigurationWithEcosystemArgs`

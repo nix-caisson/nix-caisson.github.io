@@ -43,7 +43,7 @@ whose helpers (`lib.caisson.flake-parts.mkModule`,
 `lib.caisson.nixos.mkModule`, and the `caisson-core.mkModule` they
 are bound from) are closed the same way. There is no ambient lookup
 anywhere in this chain: the only sources a registration can see are
-the ones the registering flake passed to `mkLib`. They carry no
+those the registering flake passed to `mkLib`. They carry no
 `self`: a registration reads its flake's identity from
 `closure-lib.caisson-core.libManifest.root` and a sibling module from
 `closure-lib.caisson-core.modules`.
@@ -64,7 +64,7 @@ module references my-flake's inputs without the consumer declaring,
 
 ## What the closure contains
 
-The contents differ by registration kind, because the two kinds are
+The contents differ by registration kind, because the kinds are
 evaluated at different times.
 
 A library overlay's closure contains registration helpers, sources and
@@ -76,7 +76,7 @@ the library of the defining composition:
   composition being built, which may belong to a consumer;
   `closure-lib` is the composition of the definer, so an integration
   reaches the registry of the composition that registered it (its
-  `core` module, for one) wherever it is composed. It is read inside
+  `core` module, for example) wherever it is composed. It is read inside
   the overlay function or a function the overlay defines, never while
   the overlay is being registered.
 - `mkLibOverlay`: the same helper, for building nested overlays.
@@ -127,7 +127,7 @@ arguments.
 
 The same split governs version skew. An exported module built against
 `closure-inputs.nixpkgs` uses the definer's nixpkgs pin even when the
-consumer runs a different one. Each flake's files run against the
+consumer runs a different pin. Each flake's files run against the
 pins that flake tested with, the pins are visible in each flake's
 lock, and nothing forces every repository to upgrade in lockstep. Where a consumer
 does want to override a definer's pin, flake-level `follows` on the

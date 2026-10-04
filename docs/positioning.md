@@ -2,7 +2,7 @@
 
 Where caisson sits relative to plain flake-parts, flakelight,
 snowfall-lib, and the dendritic pattern, characterized from the
-documentation of those projects. The honest summary first: all five
+documentation of those projects. The honest summary first: all of them
 produce working flakes, and the differences are about which
 conventions you want enforced by machinery rather than by
 discipline.
@@ -87,7 +87,7 @@ repository and the conventions need to hold across a fleet.
 
 ## What is caisson-specific
 
-Independently of the convention trade-offs above, three things are
+Independently of the convention trade-offs above, these things are
 distinctive here rather than variations on a shared theme:
 
 - **Library composition with identity**
@@ -95,7 +95,7 @@ distinctive here rather than variations on a shared theme:
   replacement, and reliable polyfills, implemented in caisson-core, a
   zero-dependency flake usable without caisson.
 - **Explicit ecosystem sources**: integrations pin none of their
-  ecosystems; the consumer hands each in, so a single caisson
+  ecosystems; the consumer hands each in, so a caisson
   revision works with any nixpkgs, home-manager, or colmena revision
   with a compatible evaluation contract.
 - **Evaluation-weight gates** ([guide](eval-weight.md)): framework
@@ -104,10 +104,10 @@ distinctive here rather than variations on a shared theme:
 
 ## The relationship to flakes
 
-Flakes do two jobs today: acquisition (fetching, pinning, integrity)
-and composition (deciding which copy of each dependency an evaluation
-actually uses, via the `follows` pin bucket). caisson separates the
-two. Flakes keep acquisition. Composition moves to the evaluation
+Flakes today do acquisition (fetching, pinning, integrity) and
+composition (deciding which copy of each dependency an evaluation
+actually uses, via the `follows` pin bucket). caisson separates
+them. Flakes keep acquisition. Composition moves to the evaluation
 layer, with real semantics: deduplication is
 key identity, override is wholesale replacement of a keyed entry,
 local patches are the keyless tail, and ecosystems (nixpkgs,
@@ -115,7 +115,7 @@ home-manager, and the rest) are handed in as explicit
 `ecosystemSrc` arguments instead of being re-pinned and re-wired
 through the input graph.
 
-Everything caisson adds is published through the one output the
+Everything caisson adds is published through the output the
 flake schema leaves freeform, `lib`: composed libraries, the module
 registry, and the manifest (the composition's self-description) all
 live there, and the remaining flake outputs (`modules.<class>`,

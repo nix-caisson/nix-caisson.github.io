@@ -40,14 +40,14 @@ mkLib :
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
   , configs           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> configuration
-  , libOverlays       ? (mkLibOverlay: { })
-                      : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
+  , libOverlays       ? (lib: { })
+                      : lib -> attrsOf libOverlay          # given the core lib
   , libOverlayImports ? (lib: <every project and local registration>)
                       : lib -> listOf libOverlay           # given the core lib
   , extraLibOverlayImports ? (lib: [ ])
                       : lib -> listOf libOverlay           # given the core lib
-  , pkgOverlays       ? (mkPkgOverlay: { })
-                      : (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
+  , pkgOverlays       ? (lib: { })
+                      : lib -> attrsOf pkgOverlay          # given the bootstrap lib
   , pkgSets           ? (lib: { })
                       : lib -> attrsOf configuration       # package configs by name, given the registered lib
   , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
@@ -120,12 +120,14 @@ naming `mkLib` and pointing at the pattern.
   as `lib.caisson-core.configs.<class>.<name>`, so a top and a
   configuration that evaluates another beneath itself reach them by
   name rather than by a path out of their directory.
-- `libOverlays` receives the input-closed `mkLibOverlay` helper and
-  returns the registered overlays; `mkLibOverlays ./lib-overlays`
-  derives it from the layout.
-- `pkgOverlays` receives the input-closed `mkPkgOverlay` helper and
-  returns the registered package overlays; `mkPkgOverlays
-  ./pkg-overlays` derives it from the layout (see `pkgOverlays` below).
+- `libOverlays` receives the core lib and returns the registered
+  overlays. An entry is made with `lib.caisson-core.mkLibOverlay`,
+  which closes it over the sources of the composition;
+  `mkLibOverlays ./lib-overlays` derives the function from the layout.
+- `pkgOverlays` receives the bootstrap lib and returns the registered
+  package overlays. An entry is made with
+  `lib.caisson-core.mkPkgOverlay`; `mkPkgOverlays ./pkg-overlays`
+  derives the function from the layout (see `pkgOverlays` below).
   These four arguments take exactly the function shape shown; passing
   anything else is an error.
 - `pkgSets` receives the registered lib and returns the package
@@ -169,10 +171,8 @@ naming `mkLib` and pointing at the pattern.
 
 ```
 mkModules     : path -> lib -> attrsOf (attrsOf module)   # <dir>/<class>/<name>/default.nix
-mkLibOverlays : path -> (freeformOverlay -> libOverlay) -> attrsOf libOverlay
-                                                          # <dir>/<name>/default.nix
-mkPkgOverlays : path -> (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
-                                                          # <dir>/<name>/default.nix
+mkLibOverlays : path -> lib -> attrsOf libOverlay         # <dir>/<name>/default.nix
+mkPkgOverlays : path -> lib -> attrsOf pkgOverlay         # <dir>/<name>/default.nix
 ```
 
 The directory readers: each returns the function `mkLib` takes, so a

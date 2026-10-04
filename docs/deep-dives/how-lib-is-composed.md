@@ -24,8 +24,9 @@ an entry like everything else.
   and a flake that declares no source fails only where that entry is
   composed, with a message naming the declaration.
 - `libOverlays`: the flake's overlay registrations, built with
-  the input-closed `mkLibOverlay` helper or registered directly when
-  already built (another flake's export, for example).
+  `lib.caisson-core.mkLibOverlay` of the core lib the function
+  receives, or registered directly when already built (another
+  flake's export, for example).
 - `modules`: the flake's class-keyed module registrations.
 - `projects`: whole upstream contributions, each carrying exported
   overlays and modules that register under `<project>/<name>`.

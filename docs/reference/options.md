@@ -149,7 +149,7 @@ Additions to the default selection of a class for the configurations beneath thi
 }
 ```
 
-A configuration that passes no `moduleImports` gets every entry named `default` followed by these, those of the levels above it first. A configuration that passes `moduleImports` gets what it selects. Definitions from several modules are concatenated.
+A configuration that passes no `moduleImports` gets every entry named `default` followed by these, those of the levels above it first. A configuration that passes `moduleImports` gets what it selects in place of that default, and one that passes `extraModuleImports` gets what that selects in addition. Definitions from several modules are concatenated.
 
 ### `caisson.modules`
 

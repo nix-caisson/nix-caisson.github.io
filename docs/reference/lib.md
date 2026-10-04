@@ -40,12 +40,14 @@ mkLib :
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
   , configs           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> configuration
-  , libOverlays       ? (mkLibOverlay: { })
-                      : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
+  , libOverlays       ? (lib: { })
+                      : lib -> attrsOf libOverlay          # given the core lib
   , libOverlayImports ? (lib: <every project and local registration>)
                       : lib -> listOf libOverlay           # given the core lib
-  , pkgOverlays       ? (mkPkgOverlay: { })
-                      : (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
+  , extraLibOverlayImports ? (lib: [ ])
+                      : lib -> listOf libOverlay           # given the core lib
+  , pkgOverlays       ? (lib: { })
+                      : lib -> attrsOf pkgOverlay          # given the bootstrap lib
   , pkgSets           ? (lib: { })
                       : lib -> attrsOf configuration       # package configs by name, given the registered lib
   , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
@@ -109,21 +111,26 @@ naming `mkLib` and pointing at the pattern.
   integrations' `mkModule` helpers (`lib.caisson.nixos.mkModule`,
   `lib.caisson.flake-parts.mkModule`, and so on).
   `lib.caisson-core.mkModule "<class>"` is for a class no integration
-  covers. `mkModules ./modules` derives the function from the
+  covers. `lib: lib.caisson-core.mkModules ./modules` reads the
   conventional layout.
 - `configs` receives the bootstrap lib the same way and returns the
   configurations of the tree, keyed by module class then name, the
   layout `configs/<class>/<name>` on disk (colmena's class is
-  `colmena`); `mkModules ./configs` reads that layout. They come back
+  `colmena`); `lib: lib.caisson-core.mkModules ./configs` reads that
+  layout. They come back
   as `lib.caisson-core.configs.<class>.<name>`, so a top and a
   configuration that evaluates another beneath itself reach them by
   name rather than by a path out of their directory.
-- `libOverlays` receives the input-closed `mkLibOverlay` helper and
-  returns the registered overlays; `mkLibOverlays ./lib-overlays`
-  derives it from the layout.
-- `pkgOverlays` receives the input-closed `mkPkgOverlay` helper and
-  returns the registered package overlays; `mkPkgOverlays
-  ./pkg-overlays` derives it from the layout (see `pkgOverlays` below).
+- `libOverlays` receives the core lib and returns the registered
+  overlays. An entry is made with `lib.caisson-core.mkLibOverlay`,
+  which closes it over the sources of the composition;
+  `lib: lib.caisson-core.mkLibOverlays ./lib-overlays` reads the
+  layout.
+- `pkgOverlays` receives the bootstrap lib and returns the registered
+  package overlays. An entry is made with
+  `lib.caisson-core.mkPkgOverlay`;
+  `lib: lib.caisson-core.mkPkgOverlays ./pkg-overlays` reads the
+  layout (see `pkgOverlays` below).
   These four arguments take exactly the function shape shown; passing
   anything else is an error.
 - `pkgSets` receives the registered lib and returns the package
@@ -139,7 +146,11 @@ naming `mkLib` and pointing at the pattern.
   `lib` of this flake. It receives the core lib and names entries from
   the registry it carries, `nixpkgs-lib.overlays` below
   (`lib: [ lib.caisson-core.nixpkgs-lib.overlays.my-overlay ]`);
-  the default selects every project and local registration.
+  the default selects every project and local registration, and a
+  selection given here replaces it.
+- `extraLibOverlayImports` has the same form and adds to the
+  selection, whichever it is: a flake that names a further entry with
+  it keeps the default.
   Registration also feeds export, so what is registered and what is
   selected can differ.
 - `defaultEcosystemSrc` declares the tree's default source per
@@ -162,20 +173,31 @@ naming `mkLib` and pointing at the pattern.
 ### `mkModules`, `mkLibOverlays`, `mkPkgOverlays`
 
 ```
-mkModules     : path -> lib -> attrsOf (attrsOf module)   # <dir>/<class>/<name>/default.nix
-mkLibOverlays : path -> (freeformOverlay -> libOverlay) -> attrsOf libOverlay
-                                                          # <dir>/<name>/default.nix
-mkPkgOverlays : path -> (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
-                                                          # <dir>/<name>/default.nix
+mkModules     : path -> attrsOf (attrsOf module)   # <dir>/<class>/<name>/default.nix
+mkLibOverlays : path -> attrsOf libOverlay         # <dir>/<name>/default.nix
+mkPkgOverlays : path -> attrsOf pkgOverlay         # <dir>/<name>/default.nix
 ```
 
-The directory readers: each returns the function `mkLib` takes, so a
-tree with the conventional layout registers by naming the directory
-(`modules = core.mkModules ./modules; configs = core.mkModules
-./configs; libOverlays = core.mkLibOverlays ./lib-overlays;`).
+The directory readers. A reader belongs to the lib it is read from:
+it takes a directory and returns the registrations, built with the
+class index and the entry constructors of that lib. Each registry
+function of `mkLib` receives a lib, so a tree with the conventional
+layout takes the reader from it and names the directory:
+
+```nix
+modules = lib: lib.caisson-core.mkModules ./modules;
+configs = lib: lib.caisson-core.mkModules ./configs;
+libOverlays = lib: lib.caisson-core.mkLibOverlays ./lib-overlays;
+pkgOverlays = lib: lib.caisson-core.mkPkgOverlays ./pkg-overlays;
+```
+
+The readers are the registered entry `caisson-core/readers`, so a
+composition that registers another entry under that name reads its
+directories with that entry.
+
 `mkModules` reads the first directory level as the class, whatever
 its name, and registers each entry directory through the class index
-of the composed library, `caisson-core.classes.<class>.mkModule`, the
+of the lib, `caisson-core.classes.<class>.mkModule`, the
 `mkModule` of the integration that declares the class; a directory
 for a class no composed integration declares is an error naming the
 declared classes. `mkLibOverlays` applies `mkLibOverlay`, and
@@ -183,9 +205,7 @@ declared classes. `mkLibOverlays` applies `mkLibOverlay`, and
 a directory holding a `default.nix`, a symlink to such a directory
 included; anything else in a directory being read is an error, so a
 stray file cannot silently vanish from a registry. A tree with another
-layout writes the registration by hand. The readers are also available
-before any composition exists, on `caisson-core` itself
-(`caisson.lib.caisson-core.mkModules`).
+layout writes the registration by hand.
 
 ### `classes`, `contributeClasses`
 
@@ -923,16 +943,24 @@ built with both.
 #### `moduleImportsOf`
 
 ```
-moduleImportsOf : str -> { lib, manifest } -> (registry -> listOf module) | null -> registry -> listOf module
+moduleImportsOf : str -> { lib, manifest } -> args -> registry -> listOf module
 ```
 
 The selection of an evaluation over the registry of its class. It
-takes the class, the view being evaluated and the `moduleImports` the
-configuration was given. Given a selection, it returns that. Given
-none, it returns the default of the class: every entry named
-`default`, followed by what the levels above the evaluation added
-with `caisson.forChildren.defaultModuleImports`, those from the top
-first, each applied to the lib of the evaluation.
+takes the class, the view being evaluated and the arguments of the
+configuration, and reads two of them:
+
+- `moduleImports` replaces the default of the class. With none given,
+  the selection is that default: every entry named `default`,
+  followed by what the levels above the evaluation added with
+  `caisson.forChildren.defaultModuleImports`, those from the top
+  first, each applied to the lib of the evaluation.
+- `extraModuleImports` is appended to the selection, whichever it is.
+  A configuration that adds a module with it keeps the default of its
+  class.
+
+Both are functions of the registry returning modules, and every
+constructor of every integration takes both.
 
 #### `entriesOf`, `publish`, `displayName`, `topValue`
 
@@ -1386,7 +1414,7 @@ configuration is declared under `caisson.nixos.configurations` and
 published under `nixosConfigurations`, and it is `nearest.nixos` for
 what is declared beneath it.
 
-- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
+- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?, extraModuleImports?,
   specialArgs?, prefix? } -> configuration`: the arguments of
   `caisson.nixos.mkConfiguration` plus `prefix`, and the same result,
   a configuration whose manifest's `value` is the evaluation. The
@@ -1402,7 +1430,7 @@ what is declared beneath it.
 - **Source:** `lib-overlays/home-manager/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, specialArgs?, osConfig?, check?,
+  moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check?,
   sourceMeta? } -> homeConfiguration`
   (`mkConfigurationWithEcosystemArgs` is the twin with `ecosystemArgs`;
   home-manager's `lib` argument is reachable that way): runs home-manager's
@@ -1410,11 +1438,11 @@ what is declared beneath it.
   derive from what actually composes: `homeManagerOutPath` from
   `ecosystemSrc` and `nixpkgsOutPath` from `pkgSets.pkgs.path`
   (`schemaVersion` 3).
-- `mkStandaloneAdapter : { moduleImports?, ... } -> { homeModules,
+- `mkStandaloneAdapter : { moduleImports?, extraModuleImports?, ... } -> { homeModules,
   buildHome }`: the selected class modules as a list plus a
   `buildHome` closure over the same arguments.
 - `mkNixosAdapter : { users, ecosystemSrc, hostName?, hostKind?,
-  baseSystem?, sourceMeta?, moduleImports?, sharedModules?,
+  baseSystem?, sourceMeta?, moduleImports?, extraModuleImports?, sharedModules?,
   useGlobalPkgs?, useUserPackages?, activationMode?,
   specialArgs?, ... } -> module (nixos class)`: embeds
   home-manager in a NixOS generation. `activationMode = "upstream"`
@@ -1444,7 +1472,7 @@ module list comes from `caisson.home-manager.compose`; composing it
 needs the home-manager integration composed beside it.
 
 - `mkConfiguration : { ecosystemSrc?, pkgSets, configModule,
-  moduleImports?, specialArgs?, osConfig?, check?, sourceMeta? }
+  moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check?, sourceMeta? }
   -> homeConfiguration`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
@@ -1492,9 +1520,12 @@ These options under `caisson.nixpkgs` declare the sets:
   systems in force is an error saying to declare them.
 - `caisson.nixpkgs.overlays`: the package overlay registry entries the
   sets apply, each after the entries it imports and each key once. It
-  defaults to every entry named `default` or `<project>/default`; a
-  config adds to that with
-  `options.caisson.nixpkgs.overlays.default ++ [ lib.caisson.nixpkgs.overlays.<name> ]`.
+  defaults to every entry named `default` or `<project>/default`, and
+  a definition replaces that default.
+- `caisson.nixpkgs.extraOverlays`: entries applied in addition to
+  `overlays`, whichever selection that is. A config that adds an entry
+  with it keeps the default:
+  `caisson.nixpkgs.extraOverlays = [ lib.caisson.nixpkgs.overlays.<name> ];`.
 
 caisson instantiates the sets itself, without going through
 `pkgs/top-level/default.nix`: it boots the stdenv stages and
@@ -1586,7 +1617,7 @@ step projects the evaluated configuration onto.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   colmena modules.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?, extraModuleImports?,
   specialArgs?, pkgSets? } -> hive`: evaluates the configuration's
   module with the selected colmena-class modules through
   `evalModules`, and projects the result onto colmena's hive schema
@@ -1633,7 +1664,7 @@ step projects the evaluated configuration onto.
 
 - **Source:** `lib-overlays/terranix/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?, extraModuleImports?,
   specialArgs? } -> derivation`:
   `ecosystemSrc.lib.terranixConfiguration` against `pkgSets.pkgs`,
   with the selected class modules and the config module;
@@ -1646,7 +1677,7 @@ step projects the evaluated configuration onto.
 
 - **Source:** `lib-overlays/system-manager/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?, extraModuleImports?,
   specialArgs?, pkgSets? } -> systemConfig`:
   `ecosystemSrc.lib.makeSystemConfig` with the selected class
   modules and the config module, plus a compatibility bridge for the current

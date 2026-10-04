@@ -909,7 +909,7 @@ leaving out an integration with none: the `children`
 
 ```
 frameworkModules      : str -> attrsOf module -> listOf module
-mkModuleConfiguration : { type : str; perSystem ? false; evaluate : view -> evaluated; } -> configuration
+mkModuleConfiguration : { type : str; perSystem ? false; pkgSet ? null; evaluate : view -> evaluated; } -> configuration
 evaluated = { value; outputs ? { }; config ? value.config; }
 ```
 
@@ -920,7 +920,9 @@ step of the integration: from the view being evaluated,
 `{ lib, manifest }`, it returns `value`, the evaluation as the
 evaluator returned it, and `outputs`, the references into it that the
 integration declares (`config` says where the evaluated options are
-when that is not `value.config`).
+when that is not `value.config`). `pkgSet` is the package set
+selection the configuration was constructed with, which the builder
+records on the manifest (`pkgSetOf` below).
 
 The configuration holds configurations of any integration beneath
 it: those its modules declare under
@@ -961,6 +963,49 @@ configuration, and reads two of them:
 
 Both are functions of the registry returning modules, and every
 constructor of every integration takes both.
+
+#### `pkgSetsAt`, `pkgSetOf`
+
+```
+pkgSetsAt : { context, what } -> manifest -> system -> attrsOf pkgs
+pkgSetOf  : { context, what } -> manifest -> attrsOf pkgs -> pkgs
+selection = attrsOf pkgs -> pkgs
+```
+
+How a configuration gets the package set it runs on. It is the same
+for every integration whose configurations run on a package set.
+
+A configuration selects its set when it is constructed, with the
+`pkgSet` argument: a function of the package sets available where the
+configuration is declared, by package config name, each at the system
+of the evaluation.
+
+```nix
+lib.caisson.nixos.mkConfiguration {
+  pkgSet = pkgSets: pkgSets.stable;
+}
+```
+
+A selection holds for the subtree: the configuration that makes it
+and every configuration beneath it that selects none, through levels
+of any integration. A configuration that selects none runs on what
+the nearest configuration above it selected. The top of the tree
+selects the set named `default`, and a composition that declares no
+`default` and selects nothing is told so, with the sets it declares.
+
+Every available set reaches the modules of a configuration by name,
+as the `pkgSets` argument, whichever is selected.
+
+`pkgSetsAt` gives the sets available to an evaluation: the package
+configs its manifest holds, each projected to its set at the system.
+`pkgSetOf` applies the selection in force at the manifest (`pkgSet`,
+which `mkModuleConfiguration` records from the argument and
+`lib.caisson-core` carries to everything beneath) to those sets.
+
+The argument is on the nixos, nixos-minimal, flake-parts and
+structural constructors, and on the colmena node constructors. In a
+flake it selects the `pkgs` of `perSystem`. A structural configuration
+runs on no package set and selects for what is beneath it.
 
 #### `entriesOf`, `publish`, `displayName`, `topValue`
 
@@ -1357,12 +1402,15 @@ mkConfiguration :
   evaluation as `nearest.nixos`.
 
   The package set comes from the composition, through the manifest.
-  An evaluation runs on the set of the package config its
-  `caisson.nixpkgs.pkgSet` option names, `default` unless a module of
-  the configuration says otherwise; the set is that config's set at
-  the system of the evaluation, defined as `nixpkgs.pkgs`. The sets at
-  that system also reach the modules by config name, as the `pkgSets`
-  special argument. A module reads its name as
+  An evaluation runs on the set the `pkgSet` argument selects from
+  the package sets available at the system of the evaluation
+  (`pkgSet = pkgSets: pkgSets.stable`, see
+  `caisson.integrations.pkgSetOf`), defined as `nixpkgs.pkgs`. A
+  configuration that passes none runs on what the nearest
+  configuration above it selected, and at a top on the set named
+  `default`. The sets at that system also reach the modules by config
+  name, as the `pkgSets` special argument, whichever is selected. A
+  module reads its name as
   `lib.caisson-core.evalManifest.name` and its system as
   `lib.caisson-core.evalManifest.system`.
 
@@ -1414,7 +1462,7 @@ configuration is declared under `caisson.nixos.configurations` and
 published under `nixosConfigurations`, and it is `nearest.nixos` for
 what is declared beneath it.
 
-- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?, extraModuleImports?,
+- `mkConfiguration : { configModule?, ecosystemSrc?, pkgSet?, moduleImports?, extraModuleImports?,
   specialArgs?, prefix? } -> configuration`: the arguments of
   `caisson.nixos.mkConfiguration` plus `prefix`, and the same result,
   a configuration whose manifest's `value` is the evaluation. The

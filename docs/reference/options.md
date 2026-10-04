@@ -62,23 +62,6 @@ A module that only declares configurations needs no such test. What the configur
 
 An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts and nixos configurations can be declared. A configuration of an integration that evaluates a class another integration owns is a configuration of the owner in the tree: `lib.caisson.nixos-minimal.mkConfiguration` returns a nixos configuration, declared under `caisson.nixos.configurations` and published with the others. The constructors of the remaining integrations return an evaluated value. A configuration holds configurations of any integration beneath it.
 
-### `caisson.nixpkgs.pkgSet`
-
-- **Type:** `str`
-- **Default:** `"default"`
-- **Source:** `lib-overlays/nixos/compose.nix`, in every evaluation of the `nixos` class
-
-An option of a NixOS configuration: the package config whose set the configuration runs on, by the name it is declared under in `pkgSets` on `mkLib`. A configuration has an evaluation for every system in force, and in each the set is that config's set at the system of the evaluation, defined as `nixpkgs.pkgs` (as the `pkgs` module argument under the minimal evaluator). Any module of the configuration may define the option:
-
-```nix
-{ ... }:
-{
-  caisson.nixpkgs.pkgSet = "stable";
-}
-```
-
-A name the composition does not declare is refused, with the names it does declare.
-
 ### `caisson.<integration>.exported`
 
 - **Type:** function from the configurations declared to an attribute set of them

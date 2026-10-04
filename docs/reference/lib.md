@@ -48,7 +48,7 @@ mkLib :
   , pkgSets           ? (lib: { })
                       : lib -> attrsOf configuration       # package configs by name, given the registered lib
   , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
-                                                           # nixpkgs supplies the nixpkgs-lib part unless nixpkgs-lib names its own
+                                                           # nixpkgs supplies the nixpkgs-lib part unless nixpkgs-lib is declared separately
   , systems           ? null : listOf str                  # the platforms the tree builds on
   , projects          ? { } : attrs                        # consumed upstream contributions, by project name
   } -> lib
@@ -136,8 +136,8 @@ naming `mkLib` and pointing at the pattern.
   package sets from there.
 - `libOverlayImports` selects which registered overlays apply to the
   `lib` of this flake. It receives the core lib and names entries from
-  the registry on its manifest
-  (`lib: [ lib.caisson-core.libManifest.libOverlays.my-overlay ]`);
+  the registry it carries, `nixpkgs-lib.overlays` below
+  (`lib: [ lib.caisson-core.nixpkgs-lib.overlays.my-overlay ]`);
   the default selects every project and local registration.
   Registration also feeds export, so the two can differ.
 - `defaultEcosystemSrc` declares the tree's default source per
@@ -276,7 +276,7 @@ registered directly rather than wrapped.
 The closure's `closure-lib` is the composed library of the composition
 that registered the overlay, bound lazily: read it inside the
 `overlay` function or a function it defines, never while the overlay
-is being registered. An integration reaches the registry of its own
+is being registered. An integration reaches the registry of its
 composition through it (`closure-lib.caisson-core.modules.<class>`),
 wherever it is later composed. The closure's `mkModule` is bound to
 the defining composition, so modules contributed by an overlay close
@@ -458,6 +458,19 @@ manifestOf (import ./.)   # the manifest of a flakeless top
 manifestOf lib            # lib.caisson-core.libManifest
 ```
 
+### `nixpkgs-lib.overlays`
+
+```
+lib.caisson-core.nixpkgs-lib.overlays : attrsOf libOverlay
+```
+
+The lib overlay registry visible at the library it is read from, by
+registry name: the entries `mkLib` registered, the ones consumed
+projects contributed under `<project>/<name>`, and the published
+`caisson-core/<name>` and `nixpkgs-lib` entries. It is a view of
+`libManifest.libOverlays`, and it is what a `libOverlayImports`
+selection refers into. In a library no `mkLib` built it is empty.
+
 ### `withManifests`
 
 ```
@@ -594,7 +607,7 @@ dirty one.
 # flake.nix outputs
 inherit (caisson-core.pins.flake inputs) sources root;
 
-# test-only pins beside the tree's own
+# test-only pins beside the pins of the tree
 inherit (caisson-core.pins.flake-compat ./tests/dependencies) sources;
 
 # a flakeless top pinned with npins
@@ -1044,7 +1057,7 @@ integration composed beside it.
   moduleImports?, specialArgs?, osConfig?, check?,
   sourceMeta? } -> homeConfiguration`
   (`mkConfigurationWithEcosystemArgs` is the twin with `ecosystemArgs`;
-  home-manager's `lib` argument is reachable that way): runs home-manager's own
+  home-manager's `lib` argument is reachable that way): runs home-manager's
   evaluator (`<ecosystemSrc>/modules`). Source metadata defaults
   derive from what actually composes: `homeManagerOutPath` from
   `ecosystemSrc` and `nixpkgsOutPath` from `pkgSets.pkgs.path`

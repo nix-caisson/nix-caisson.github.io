@@ -219,11 +219,7 @@ per item over the combined dictionary:
 
 ```nix
         libOverlayImports =
-          lib:
-          let
-            overlays = lib.caisson-core.libManifest.libOverlays;
-          in
-          [
+          lib: with lib.caisson-core.nixpkgs-lib; [
             overlays."caisson/flake-parts"
             overlays."caisson/nixos"
             overlays.default

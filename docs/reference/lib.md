@@ -869,8 +869,41 @@ those that own a module class, read from the class index. caisson's
 core module declares `caisson.<integration>.configurations` for each.
 `childrenOf` takes an evaluated configuration's `config` and returns
 the configurations declared beneath it, by integration and then name,
-leaving out an integration with none: the `children` an integration's
-`evaluate` returns to `lib.caisson-core.mkConfiguration`.
+leaving out an integration with none: the `children`
+`mkModuleConfiguration` hands to `lib.caisson-core.mkConfiguration`.
+
+#### `frameworkModules`, `mkModuleConfiguration`
+
+```
+frameworkModules      : str -> attrsOf module -> listOf module
+mkModuleConfiguration : { type : str; perSystem ? false; evaluate : view -> evaluated; } -> configuration
+evaluated = { value; outputs ? { }; config ? value.config; }
+```
+
+`mkModuleConfiguration` builds a configuration that is a module
+evaluation. `type` and `perSystem` are what
+`lib.caisson-core.mkConfiguration` takes. `evaluate` is the evaluator
+step of the integration: from the view being evaluated,
+`{ lib, manifest }`, it returns `value`, the evaluation as the
+evaluator returned it, and `outputs`, the references into it that the
+integration declares (`config` says where the evaluated options are
+when that is not `value.config`).
+
+The configuration holds configurations of any integration beneath
+it: those its modules declare under
+`caisson.<integration>.configurations` are its children, and
+`caisson.exports`, which carries what they pass up, is its `exports`
+output.
+
+`frameworkModules` takes a class and its registry and returns the
+framework module of the class, which every evaluation of the class
+imports: caisson's core module for the class, read from the closure of
+caisson, followed by `coreModules` of the registry. The core module
+declares `caisson.manifest`, `caisson.<integration>.configurations`,
+`caisson.<integration>.exported` and `caisson.exports`.
+
+Structural, flake-parts, nixos and nixos-minimal configurations are
+built with both.
 
 #### `entriesOf`, `publish`, `displayName`, `topValue`
 
@@ -1259,7 +1292,12 @@ mkConfiguration :
   no system is in force. An evaluation's `value` is the evaluated
   NixOS configuration, and its `outputs` are `toplevel`, `vm`,
   `vmWithBootLoader` and `images`, each a reference into
-  `config.system.build`.
+  `config.system.build`, and `exports`, what the configuration passes
+  up to its parent.
+
+  A module of the configuration declares configurations beneath it
+  under `caisson.<integration>.configurations`. They see the
+  evaluation as `nearest.nixos`.
 
   The package set comes from the composition, through the manifest.
   An evaluation runs on the set of the package config its

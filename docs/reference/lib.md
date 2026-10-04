@@ -923,16 +923,24 @@ built with both.
 #### `moduleImportsOf`
 
 ```
-moduleImportsOf : str -> { lib, manifest } -> (registry -> listOf module) | null -> registry -> listOf module
+moduleImportsOf : str -> { lib, manifest } -> args -> registry -> listOf module
 ```
 
 The selection of an evaluation over the registry of its class. It
-takes the class, the view being evaluated and the `moduleImports` the
-configuration was given. Given a selection, it returns that. Given
-none, it returns the default of the class: every entry named
-`default`, followed by what the levels above the evaluation added
-with `caisson.forChildren.defaultModuleImports`, those from the top
-first, each applied to the lib of the evaluation.
+takes the class, the view being evaluated and the arguments of the
+configuration, and reads two of them:
+
+- `moduleImports` replaces the default of the class. With none given,
+  the selection is that default: every entry named `default`,
+  followed by what the levels above the evaluation added with
+  `caisson.forChildren.defaultModuleImports`, those from the top
+  first, each applied to the lib of the evaluation.
+- `extraModuleImports` is appended to the selection, whichever it is.
+  A configuration that adds a module with it keeps the default of its
+  class.
+
+Both are functions of the registry returning modules, and every
+constructor of every integration takes both.
 
 #### `entriesOf`, `publish`, `displayName`, `topValue`
 
@@ -1386,7 +1394,7 @@ configuration is declared under `caisson.nixos.configurations` and
 published under `nixosConfigurations`, and it is `nearest.nixos` for
 what is declared beneath it.
 
-- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
+- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?, extraModuleImports?,
   specialArgs?, prefix? } -> configuration`: the arguments of
   `caisson.nixos.mkConfiguration` plus `prefix`, and the same result,
   a configuration whose manifest's `value` is the evaluation. The
@@ -1402,7 +1410,7 @@ what is declared beneath it.
 - **Source:** `lib-overlays/home-manager/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, specialArgs?, osConfig?, check?,
+  moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check?,
   sourceMeta? } -> homeConfiguration`
   (`mkConfigurationWithEcosystemArgs` is the twin with `ecosystemArgs`;
   home-manager's `lib` argument is reachable that way): runs home-manager's
@@ -1410,11 +1418,11 @@ what is declared beneath it.
   derive from what actually composes: `homeManagerOutPath` from
   `ecosystemSrc` and `nixpkgsOutPath` from `pkgSets.pkgs.path`
   (`schemaVersion` 3).
-- `mkStandaloneAdapter : { moduleImports?, ... } -> { homeModules,
+- `mkStandaloneAdapter : { moduleImports?, extraModuleImports?, ... } -> { homeModules,
   buildHome }`: the selected class modules as a list plus a
   `buildHome` closure over the same arguments.
 - `mkNixosAdapter : { users, ecosystemSrc, hostName?, hostKind?,
-  baseSystem?, sourceMeta?, moduleImports?, sharedModules?,
+  baseSystem?, sourceMeta?, moduleImports?, extraModuleImports?, sharedModules?,
   useGlobalPkgs?, useUserPackages?, activationMode?,
   specialArgs?, ... } -> module (nixos class)`: embeds
   home-manager in a NixOS generation. `activationMode = "upstream"`
@@ -1444,7 +1452,7 @@ module list comes from `caisson.home-manager.compose`; composing it
 needs the home-manager integration composed beside it.
 
 - `mkConfiguration : { ecosystemSrc?, pkgSets, configModule,
-  moduleImports?, specialArgs?, osConfig?, check?, sourceMeta? }
+  moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check?, sourceMeta? }
   -> homeConfiguration`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
@@ -1586,7 +1594,7 @@ step projects the evaluated configuration onto.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   colmena modules.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?, extraModuleImports?,
   specialArgs?, pkgSets? } -> hive`: evaluates the configuration's
   module with the selected colmena-class modules through
   `evalModules`, and projects the result onto colmena's hive schema
@@ -1633,7 +1641,7 @@ step projects the evaluated configuration onto.
 
 - **Source:** `lib-overlays/terranix/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?, extraModuleImports?,
   specialArgs? } -> derivation`:
   `ecosystemSrc.lib.terranixConfiguration` against `pkgSets.pkgs`,
   with the selected class modules and the config module;
@@ -1646,7 +1654,7 @@ step projects the evaluated configuration onto.
 
 - **Source:** `lib-overlays/system-manager/default.nix`
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?,
+- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?, extraModuleImports?,
   specialArgs?, pkgSets? } -> systemConfig`:
   `ecosystemSrc.lib.makeSystemConfig` with the selected class
   modules and the config module, plus a compatibility bridge for the current

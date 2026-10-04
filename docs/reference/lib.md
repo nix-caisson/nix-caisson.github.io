@@ -44,6 +44,8 @@ mkLib :
                       : (freeformOverlay -> libOverlay) -> attrsOf libOverlay
   , libOverlayImports ? (lib: <every project and local registration>)
                       : lib -> listOf libOverlay           # given the core lib
+  , extraLibOverlayImports ? (lib: [ ])
+                      : lib -> listOf libOverlay           # given the core lib
   , pkgOverlays       ? (mkPkgOverlay: { })
                       : (freeformOverlay -> pkgOverlay) -> attrsOf pkgOverlay
   , pkgSets           ? (lib: { })
@@ -139,7 +141,11 @@ naming `mkLib` and pointing at the pattern.
   `lib` of this flake. It receives the core lib and names entries from
   the registry it carries, `nixpkgs-lib.overlays` below
   (`lib: [ lib.caisson-core.nixpkgs-lib.overlays.my-overlay ]`);
-  the default selects every project and local registration.
+  the default selects every project and local registration, and a
+  selection given here replaces it.
+- `extraLibOverlayImports` has the same form and adds to the
+  selection, whichever it is: a flake that names a further entry with
+  it keeps the default.
   Registration also feeds export, so what is registered and what is
   selected can differ.
 - `defaultEcosystemSrc` declares the tree's default source per
@@ -1500,9 +1506,12 @@ These options under `caisson.nixpkgs` declare the sets:
   systems in force is an error saying to declare them.
 - `caisson.nixpkgs.overlays`: the package overlay registry entries the
   sets apply, each after the entries it imports and each key once. It
-  defaults to every entry named `default` or `<project>/default`; a
-  config adds to that with
-  `options.caisson.nixpkgs.overlays.default ++ [ lib.caisson.nixpkgs.overlays.<name> ]`.
+  defaults to every entry named `default` or `<project>/default`, and
+  a definition replaces that default.
+- `caisson.nixpkgs.extraOverlays`: entries applied in addition to
+  `overlays`, whichever selection that is. A config that adds an entry
+  with it keeps the default:
+  `caisson.nixpkgs.extraOverlays = [ lib.caisson.nixpkgs.overlays.<name> ];`.
 
 caisson instantiates the sets itself, without going through
 `pkgs/top-level/default.nix`: it boots the stdenv stages and

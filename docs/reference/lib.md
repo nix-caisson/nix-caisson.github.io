@@ -1173,6 +1173,34 @@ differs, declares them with `mkConfiguration`. `mkIntegration`
 generates this function for every integration whose
 `mkConfiguration` finds its module by name.
 
+#### `mkTopPkgSet`
+
+```
+lib.caisson.nixpkgs.mkTopPkgSet : manifest -> pkgs
+```
+
+Turns a package config into what the legacy readers take, for a
+repository that is a package set. Its `default.nix` ends with
+`lib.caisson.nixpkgs.mkTopPkgSet lib.caisson.nixpkgs.pkgSets.default`.
+
+The result is the set for the current system, with a `__functor`
+that takes the legacy arguments and returns the set for the system
+asked for. Nix auto-calls a lambda and not a functor, so
+`nix-build -A hello` indexes the set, and
+`import ./. { system = "aarch64-linux"; }` calls it.
+
+- `system` defaults to `builtins.currentSystem`. Pure evaluation has
+  none: the result is then the functor alone, and a call has to pass
+  `system`. A system the config builds no set for is refused, with
+  the systems it does build.
+- `overlays` are applied over the config's selection, through the
+  set's `appendOverlays`.
+- `config` must be empty. The nixpkgs config is the package config,
+  declared in `configs/nixpkgsConfig/<name>`.
+
+The set carries its manifest in `pkgs.lib.caisson-core.pkgsManifest`,
+whose parent is the config, so nothing else is added to it.
+
 #### `pkgSets`, `overlays`
 
 ```

@@ -107,6 +107,50 @@ publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A n
 
 `caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the evaluation that holds the configurations: it is absent from the childless view, and from an evaluation that carries no manifest.
 
+### `caisson.forChildren.modules`
+
+- **Type:** `attrsOf (attrsOf deferredModule)`, by class and then name
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+Modules registered for the configurations beneath this configuration. An entry joins the registry of its class as those configurations see it (`lib.caisson-core.modules.<class>.<name>`), where a configuration selects it with `moduleImports`:
+
+```nix
+{ lib, ... }:
+{
+  caisson.forChildren.modules.nixos.gaming =
+    { pkgs, ... }:
+    {
+      programs.steam.enable = true;
+    };
+
+  caisson.nixos.configurations.desktop = lib.caisson.nixos.mkConfiguration {
+    moduleImports = modules: [ modules.gaming ];
+  };
+}
+```
+
+A registration reaches every configuration of the class beneath this one, at any depth and through levels of other integrations, and nothing at this configuration. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
+
+A configuration with a configuration beneath it is evaluated in both views, since its registrations are read from the childless view.
+
+### `caisson.forChildren.defaultModuleImports`
+
+- **Type:** `attrsOf (functionTo (listOf module))`, by class
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+Additions to the default selection of a class for the configurations beneath this configuration: a function of the lib of such a configuration returning registered modules.
+
+```nix
+{ ... }:
+{
+  caisson.forChildren.defaultModuleImports.nixos = lib: [ lib.caisson-core.modules.nixos.gaming ];
+}
+```
+
+A configuration that passes no `moduleImports` gets every entry named `default` followed by these, those of the levels above it first. A configuration that passes `moduleImports` gets what it selects in place of that default, and one that passes `extraModuleImports` gets what that selects in addition. Definitions from several modules are concatenated.
+
 ### `caisson.modules`
 
 - **Type:** `attrsOf (submodule { export.enabled; exported; })`

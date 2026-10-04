@@ -30,15 +30,17 @@ The flake defines the closure by calling `mkLib`:
 ```nix
 lib = caisson.lib.caisson-core.mkLib {
   inherit (caisson.lib.caisson-core.pins.flake inputs) sources root;
-  libOverlays = mkLibOverlay: { ... };
+  libOverlays = lib: { ... };
   modules = lib: { ... };
 };
 ```
 
 `mkLib` builds registration helpers closed over the `sources` it was
 given, the flake's pinned inputs as the flake pin reader returns them,
-and hands them to the registration arguments: `libOverlays` receives
-the closed `mkLibOverlay`, and `modules` receives the composed `lib`,
+and hands them to the registration arguments inside the lib each
+receives: `libOverlays` receives the core lib, which carries the
+closed `caisson-core.mkLibOverlay`, and `modules` receives the
+bootstrap lib,
 whose helpers (`lib.caisson.flake-parts.mkModule`,
 `lib.caisson.nixos.mkModule`, and the `caisson-core.mkModule` they
 are bound from) are closed the same way. There is no ambient lookup

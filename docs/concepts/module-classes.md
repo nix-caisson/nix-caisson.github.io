@@ -17,8 +17,8 @@ into the class-keyed registration, and the same reader serves
 `configs/<class>/<name>`:
 
 ```nix
-modules = core.mkModules ./modules;
-configs = core.mkModules ./configs;
+modules = lib: lib.caisson-core.mkModules ./modules;
+configs = lib: lib.caisson-core.mkModules ./configs;
 ```
 
 The first directory level is the class, whatever its name, and each

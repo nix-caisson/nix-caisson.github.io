@@ -13,7 +13,7 @@ integrations use them, and the documentation and the
 
 ## flake.nix
 
-Wiring only: `mkLib` and `lib.caisson.flake-parts.mkConfiguration`. The substance lives in the
+Wiring only: `mkLib` and `lib.caisson.flake-parts.mkTopConfiguration`. The substance lives in the
 directories below.
 
 ## configs/

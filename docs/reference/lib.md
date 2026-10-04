@@ -1018,7 +1018,7 @@ mkConfiguration :
 Returns a configuration, a function of `{ name, parent }`, built with
 `lib.caisson-core.mkConfiguration`. The parent that declares it under
 `caisson.structural.configurations.<name>` finalizes it, and
-`mkTopConfiguration` finalizes one at a top. Nothing is evaluated
+`mkTopConfiguration` finalizes it at a top. Nothing is evaluated
 until the manifest is read.
 
 The evaluation is the framework module (every `core` of the class,
@@ -1056,17 +1056,27 @@ integration wraps no ecosystem, so the signature has no `ecosystemSrc`.
 
 ```
 mkConfiguration :
-  { configModule  : module                                  # flake class
+  { configModule  ? (the configuration registered under the name)
+                  : module                                  # flake class
   , pkgSets       ? null                                    # the `pkgSets` special argument
   , ecosystemSrc  ? null                                    # the flake-parts source
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the flake class registry
   , specialArgs   ? { }                                     # beside `lib`, the composed library
-  } -> flakeOutputs
+  } -> configuration
 ```
 
-  Builds final flake outputs via `flake-parts` using the composed
-  `lib`, so it requires a manifest-carrying, mkLib-built composition.
+  Returns a configuration, a function of `{ name, parent }`, built
+  with `lib.caisson-core.mkConfiguration`. A parent that declares it
+  under `caisson.flake-parts.configurations.<name>` finalizes it, and
+  `mkTopConfiguration` finalizes it at a top. The evaluator's call is
+  flake-parts' `evalFlakeModule` over the lib of the view being
+  evaluated: the manifest's `value` is the evaluation (`config`,
+  `options`), `outputs.flake` is what flake-parts' `mkFlake` returns
+  from it, `outputs.exports` is `caisson.exports`, and `children`
+  holds the configurations declared beneath it. When `configModule` is
+  absent, the config module is the configuration registered under the
+  configuration's name, `lib.caisson-core.configs.flake.<name>`.
   flake-parts' `inputs` are the manifest's pinned `sources`, and the
   integration ties `self` the way Nix does for a flake: the
   evaluation's outputs with the root's source info (out path,
@@ -1079,8 +1089,17 @@ mkConfiguration :
   selectable. flake-parts itself resolves like every ecosystem, from
   `ecosystemSrc`, `defaultEcosystemSrc.flake-parts` or the pinned
   source named `flake-parts`, and is instantiated over the composed
-  library. The `name` the composition declares sets flake-parts'
+  library. The name of the configuration sets flake-parts'
   `moduleLocation`, so exported modules deduplicate across revisions.
+- `mkTopConfiguration`: the same arguments. It finalizes the
+  configuration with `lib.caisson-core.finalizeTop`, under the name
+  the composition declares on `mkLib`, and returns its flake outputs
+  (`outputs.flake`). It is what a `flake.nix` returns from `outputs`,
+  and what a flakeless top that keeps flake-parts returns from
+  `default.nix`.
+- `mkConfigurations`: a configuration for every configuration
+  registered in the class, each as `mkConfiguration` builds it without
+  `configModule`.
 - `types.libOverlay`: a module-system option type for built library
   overlays. Its `check` verifies the structure recursively: an
   attrset with an `overlay` function and a (possibly absent)
@@ -1090,7 +1109,7 @@ mkConfiguration :
 - `types.manifest`: a structural option type for the caisson-core
   lib manifest (`{ inputs, modules, libOverlays, ecosystems, projects,
   systems }`). The export-side check: the core flake-parts module
-  reads `lib.caisson-core.libManifest`
+  reads the manifest of the evaluation
   through an option of this type before projecting the
   `flake.libOverlays` and `flake.modules` outputs.
 

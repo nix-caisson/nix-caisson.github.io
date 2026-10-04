@@ -507,7 +507,64 @@ with `builtins.functionArgs` and requires exactly `name` and
 `parent`, so anything else declared where a configuration belongs is
 refused there, with a message saying what a configuration is. `what`
 names the declaration in those messages. `mkLib` finalizes each
-`pkgSets` entry this way.
+`pkgSets` entry this way, and the `caisson.<integration>.configurations`
+options finalize each entry this way.
+
+### `mkConfiguration`
+
+```
+lib.caisson-core.mkConfiguration :
+  { type     : str                                 # the name of the integration
+  , evaluate : { lib, manifest } ->
+               { value; outputs ? { }; children ? { }; }
+  , record   ? { }                                 # plain data added to the manifest
+  } -> configuration
+```
+
+Builds the configuration of a module evaluation: the function of
+`{ name, parent }` that `finalizeChild` calls. It is what an
+integration's `mkConfiguration` is written with. Nothing is evaluated
+when it is called; the manifest the configuration returns reads
+`value`, `outputs` and `children` from `evaluate` when they are read.
+
+`evaluate` performs the evaluator's call on `lib`, and returns the
+evaluation as the evaluator returned it (`value`), the integration's
+references into it (`outputs`) and the finalized configurations
+declared beneath it, by integration and then name (`children`).
+
+The evaluation has two views. Each is a manifest, and each runs on the
+declaring lib rebuilt with that manifest as `evalManifest`
+(`withManifests`).
+
+- The **childless** view is the evaluation without the configurations
+  declared beneath it: `childless = true` and no `children`.
+- The **full** view is the manifest returned. It carries the childless
+  one as `childlessManifest`, and children are finalized against that,
+  so a child's `parent` and `nearest.<integration>` are the childless
+  manifest of the configuration that declares it.
+
+The childless evaluation runs only when a child, or a reader of
+`childlessManifest`, reads its value, so a configuration with no
+children is evaluated once.
+
+Both views carry `type`, `name`, `parent`, `ancestors` (the parent's
+list with the parent appended), `nearest` (the parent's attrset with
+the parent under its integration; a lib is not among them), `inputs`,
+and the parent's `sources`, `root`, `systems`, `projects`,
+`defaultEcosystemSrc`, `pkgSets` and registries. A `record` that names
+a field `mkConfiguration` writes is refused.
+
+### `finalizeTop`
+
+```
+lib.caisson-core.finalizeTop : configuration -> manifest
+```
+
+Finalizes the configuration a top ends with. A top has no parent that
+declares it under an attribute, so its name is the one the composition
+declares on `mkLib`, absent when it declares none, and its parent is
+the lib's manifest. An integration's `mkTopConfiguration` is this
+followed by the step that turns the manifest into what a tool reads.
 
 ### `importApply`
 
@@ -735,6 +792,21 @@ entry named `default`, in the same way; this list is the default
 default, the selection an evaluation gets when it passes no
 `moduleImports`.
 
+#### `names`, `childrenOf`
+
+```
+names      : listOf str
+childrenOf : config -> attrsOf (attrsOf manifest)
+```
+
+`names` lists the integrations a configuration may be declared of:
+those that own a module class, read from the class index. caisson's
+core module declares `caisson.<integration>.configurations` for each.
+`childrenOf` takes an evaluated configuration's `config` and returns
+the configurations declared beneath it, by integration and then name,
+leaving out an integration with none: the `children` an integration's
+`evaluate` returns to `lib.caisson-core.mkConfiguration`.
+
 #### `mkIntegration`
 
 ```
@@ -921,10 +993,12 @@ Common conventions:
 - **Source:** `lib-overlays/structural/default.nix`
 
 The empty integration: it wraps no ecosystem, and its class carries
-nothing but caisson's core module, the manifest, the registry
-selectors and `caisson.exports`. A structural configuration is the top
-of a repository whose point is what it exports (the `default.nix` of
-caisson is one).
+nothing but caisson's core module: the manifest, the configurations
+declared beneath, the registry selectors and `caisson.exports`. A
+structural configuration is the top of a repository whose point is
+what it exports (the `default.nix` of caisson is one), and a layer at
+any depth, declared beneath another configuration under
+`caisson.structural.configurations`.
 
 - `mkModule : freeformModule -> module`: the registration form for
   structural modules.
@@ -932,29 +1006,45 @@ caisson is one).
 
 ```
 mkConfiguration :
-  { configModule  : module                                  # structural class
+  { configModule  ? (the configuration registered under the name)
+                  : module                                  # structural class
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the structural class registry
   , specialArgs   ? { }
   , pkgSets       ? null : attrs                            # the pkgSets special argument
-  } -> { value : config; outputs : { exports : attrs } }
+  } -> configuration
 ```
 
-Evaluates the framework module (every `core` of the class, the one of
-caisson read through the integration's closure), the selected
-structural modules and the config module with `evalModules` over the
-composed library. `value` is
-the evaluated configuration; `outputs.exports` is `caisson.exports`,
-the `lib`, `libOverlays` and `modules` the selectors chose. The
-signature admits `ecosystemSrc` like every entry point, and this
-integration refuses it, since it wraps no ecosystem.
+Returns a configuration, a function of `{ name, parent }`, built with
+`lib.caisson-core.mkConfiguration`. The parent that declares it under
+`caisson.structural.configurations.<name>` finalizes it, and
+`mkTopConfiguration` finalizes one at a top. Nothing is evaluated
+until the manifest is read.
 
+The evaluation is the framework module (every `core` of the class,
+the one of caisson read through the integration's closure), the
+selected structural modules and the config module, with `evalModules`
+over the lib of the view being evaluated. When `configModule` is
+absent, the config module is the configuration registered under the
+configuration's name, `lib.caisson-core.configs.structural.<name>`,
+and there is none when nothing is registered under it. The manifest's
+`value` is the evaluation as `evalModules` returned it (`config`,
+`options`); `outputs.exports` is `caisson.exports`, the `lib`,
+`libOverlays`, `modules` and `pkgOverlays` the selectors chose; and
+`children` holds the configurations declared beneath it. The
+integration wraps no ecosystem, so the signature has no `ecosystemSrc`.
+
+- `mkConfigurations`: a configuration for every configuration
+  registered in the class, each as `mkConfiguration` builds it without
+  `configModule`.
 - `mkConfigurationWithEcosystemArgs`: the twin; `ecosystemArgs` is
   merged over the `evalModules` call (`class`, `modules`,
   `specialArgs`).
-- `mkTopConfiguration`: the same arguments; returns `outputs.exports`
-  with `caisson.manifest` beside it, which is what `default.nix`
-  returns for a reader that indexes attributes of the file's value.
+- `mkTopConfiguration`: the same arguments. It finalizes the
+  configuration with `lib.caisson-core.finalizeTop` and returns
+  `outputs.exports` with the configuration's manifest beside it as
+  `caisson.manifest`, which is what `default.nix` returns for a reader
+  that indexes attributes of the file's value.
 
 ### `caisson.flake-parts` (module class `flake`)
 

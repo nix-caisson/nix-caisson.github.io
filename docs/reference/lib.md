@@ -1259,7 +1259,18 @@ mkConfiguration :
   no system is in force. An evaluation's `value` is the evaluated
   NixOS configuration, and its `outputs` are `toplevel`, `vm`,
   `vmWithBootLoader` and `images`, each a reference into
-  `config.system.build`.
+  `config.system.build`, and `exports`, what the configuration passes
+  up to its parent.
+
+  A NixOS configuration holds configurations beneath it. Every
+  evaluation of the class imports caisson's core module, so a module
+  of the configuration declares them under
+  `caisson.<integration>.configurations`, as a module of a structural
+  configuration does. They are held in the manifest of the
+  evaluation, a configuration evaluated at a system beneath its
+  system, they see the evaluation as `nearest.nixos`, and what they
+  export is passed up through it, so a top publishes them with the
+  others. The same holds under the minimal evaluator.
 
   The package set comes from the composition, through the manifest.
   An evaluation runs on the set of the package config its

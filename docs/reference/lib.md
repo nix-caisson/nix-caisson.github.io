@@ -557,6 +557,68 @@ and the parent's `sources`, `root`, `systems`, `projects`,
 `defaultEcosystemSrc`, `pkgSets` and registries. A `record` that names
 a field `mkConfiguration` writes is refused.
 
+An integration that evaluates a configuration at a system passes
+`perSystem = true`. A declared configuration is then an evaluation for
+every system in force where it is declared, and the configuration
+returns those evaluations by system. In the tree the system sits
+above the name:
+
+```
+flake
+└── children.system
+    ├── x86_64-linux                     type system
+    │   └── children.nixos.hostname2     an evaluation, with a value
+    └── aarch64-linux                    type system
+        └── children.nixos.hostname2     an evaluation, with a value
+```
+
+There are as many evaluations as there are systems in force, also for
+a single system, and none where no system is in force; nothing is
+refused. Each evaluation is a manifest as described above, under the
+name it is declared by, carrying its system as `system`, and its
+parent is the system, a manifest of type `system`. The parent's full
+manifest holds each system under `children.system`, beside the
+configurations evaluated once for every system, which stay under
+`children.<integration>`. The systems in force carry on beneath an
+evaluation, so a configuration declared beneath it has a system above
+it in turn. `finalizeChild` accepts either result, a manifest or the
+evaluations by system.
+
+### `elide`
+
+```
+lib.caisson-core.elide : listOf path -> listOf (listOf str)
+path = listOf { type : str; name : str; }
+```
+
+The naming rule. A path is the list of segments from a top down to a
+thing, ending in the name of the thing; a system is a segment of type
+`system`. For each path, in order, `elide` returns the segments
+needed to tell the thing apart from the others, as strings in path
+order.
+
+It keeps the last segment of every path, and beyond it only the
+segments where paths that end in the same name fork. Among those
+paths it drops the prefix they share, keeps the segment at which they
+first differ, the segment nearest the top that separates them, and
+does the same within each branch.
+
+```nix
+elide [
+  [ { type = "structural"; name = "a"; } { type = "system"; name = "x86_64-linux";  } { type = "nixos"; name = "host-1"; } ]
+  [ { type = "structural"; name = "b"; } { type = "system"; name = "aarch64-linux"; } { type = "nixos"; name = "host-1"; } ]
+  [ { type = "structural"; name = "a"; } { type = "system"; name = "x86_64-linux";  } { type = "nixos"; name = "host-2"; } ]
+]
+# [ [ "a" "host-1" ] [ "b" "host-1" ] [ "host-2" ] ]
+```
+
+A name that is alone stays bare, whatever sits above it, so the system
+above a configuration with a single system in force drops out. A
+segment is kept as its name, or as `type/name` where the branches of
+that fork hold the same name under several types. How the kept
+segments are written out as a name, and a clash between equal paths,
+are for whoever publishes them (`caisson.integrations.publish`).
+
 ### `finalizeTop`
 
 ```
@@ -567,7 +629,7 @@ Finalizes the configuration a top ends with. A top has no parent that
 declares it under an attribute, so its name is the name the composition
 declares on `mkLib`, absent when it declares none, and its parent is
 the lib's manifest. An integration's `mkTopConfiguration` is this
-followed by the step that turns the manifest into what a tool reads.
+followed by the step that turns the result into what a tool reads.
 
 ### `importApply`
 
@@ -810,6 +872,42 @@ the configurations declared beneath it, by integration and then name,
 leaving out an integration with none: the `children` an integration's
 `evaluate` returns to `lib.caisson-core.mkConfiguration`.
 
+#### `entriesOf`, `publish`, `displayName`, `topValue`
+
+```
+entriesOf   : attrsOf (attrsOf finalized) -> listOf { path; manifest; }
+publish     : listOf { path; manifest; } -> attrsOf (attrsOf value)
+displayName : listOf str -> str
+topValue    : attrsOf manifest -> value | attrsOf value
+```
+
+How the configurations in a tree are named and published.
+
+`entriesOf` gives the entries a configuration passes up: for each
+configuration declared beneath it at any depth whose integration
+declares `exportsTo`, its manifest and its path from there. Its
+argument is what each integration's `exported` selected, by
+integration and then name. The structural, flake-parts and system
+levels on the way are segments of the path. caisson's core module
+defines `caisson.exports.configurations` with it.
+
+`publish` is what a top does with the entries: it groups them by the
+output attribute set each integration's `exportsTo` names, computes
+the names in each from `lib.caisson-core.elide` over the paths, and
+returns the values by attribute set and name. Entries that still share
+a name are refused, with their paths. The flake-parts top writes the
+result into the flake outputs, and the structural top into what it
+returns.
+
+`displayName` writes the kept segments out as a name: in path order,
+separated by `/`. Every name caisson publishes is written by it.
+
+`topValue` is what a tool reads from a top that is a configuration
+evaluated at a system, given its evaluations by system. They are
+named as anything published is, and the name of the top, which the
+file that returns it stands for, is left out of each: a single
+evaluation is its value, and several are the values by system.
+
 #### `mkIntegration`
 
 ```
@@ -818,12 +916,22 @@ mkIntegration :
   , class      : string            # the module class this integration owns
   , mkConfiguration                  : pattern -> result  # the entry point, a pattern function
   , mkConfigurationWithEcosystemArgs : pattern -> result  # the same pattern plus ecosystemArgs
+  , exportsTo  ? null : { attrset : str; value : manifest -> value; }
+                                   # where a top publishes the configurations
   , extra      ? { } : attrs       # further members of the namespace
   } -> { namespace : attrs; classes : attrsOf { integration; mkModule } }
 ```
 
 `mkIntegration` builds an integration that owns a module class from a
 declaration. The result has the parts `namespace` and `classes`.
+
+`exportsTo` says where a top publishes the configurations of the
+integration and what of each: `attrset` is the output attribute set
+(`nixosConfigurations`), and `value` takes a configuration's manifest
+to what is published under its name. It is carried in the namespace.
+An integration that leaves it out (structural, flake-parts) has
+configurations that are not published under a name; what lies beneath
+them is published, with their segment on its path.
 
 `namespace` is the value to publish as `lib.caisson.<name>`. It holds
 `mkConfiguration`, `mkConfigurationWithEcosystemArgs`, `mkModule`, and
@@ -1120,21 +1228,72 @@ mkConfiguration :
 
 - **Source:** `lib-overlays/nixos/default.nix`
 - `mkModule : freeformModule -> module`: class-bound `mkModule`.
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?,
-  specialArgs?, system? } -> nixosSystem`: evaluates
+- `mkConfiguration`:
+
+```
+mkConfiguration :
+  { configModule  ? (the configuration registered under the name)
+                  : module                                  # nixos class
+  , ecosystemSrc  ? null                                    # the nixpkgs source tree
+  , moduleImports ? (every entry named default)
+                  : attrsOf module -> listOf module          # selection from the nixos class registry
+  , specialArgs   ? { }
+  } -> configuration
+```
+
+  Returns a configuration, a function of `{ name, parent }`, built
+  with `lib.caisson-core.mkConfiguration`. A parent that declares it
+  under `caisson.nixos.configurations.<name>` finalizes it, and
+  `mkTopConfiguration` finalizes it at a top. The evaluation is
   `<ecosystemSrc>/nixos/lib/eval-config.nix` (a nixpkgs source tree)
-  with the selected class modules, the config module, and a framework
-  module pinning `nixpkgs.pkgs` to `pkgSets.pkgs`. Extra arguments
-  pass through to `eval-config.nix`.
+  over the selected class modules and the config module. When
+  `configModule` is absent, the config module is the configuration
+  registered under the configuration's name,
+  `lib.caisson-core.configs.nixos.<name>`.
+
+  A NixOS configuration is evaluated at a system, so the integration
+  passes `perSystem`: a declared configuration is an evaluation for
+  every system in force where it is declared (`systems` on `mkLib`),
+  each under its name beneath its system in the tree. There are as
+  many as there are systems, also for a single system, and none where
+  no system is in force. An evaluation's `value` is the evaluated
+  NixOS configuration, and its `outputs` are `toplevel`, `vm`,
+  `vmWithBootLoader` and `images`, each a reference into
+  `config.system.build`.
+
+  The package set comes from the composition, through the manifest.
+  An evaluation runs on the set of the package config its
+  `caisson.nixpkgs.pkgSet` option names, `default` unless a module of
+  the configuration says otherwise; the set is that config's set at
+  the system of the evaluation, defined as `nixpkgs.pkgs`. The sets at
+  that system also reach the modules by config name, as the `pkgSets`
+  special argument. A module reads its name as
+  `lib.caisson-core.evalManifest.name` and its system as
+  `lib.caisson-core.evalManifest.system`.
+
+  The integration declares `exportsTo` as `nixosConfigurations`, each
+  value the evaluated configuration: a flake-parts or structural top
+  publishes the NixOS configurations declared beneath it there, under
+  names from their paths.
+- `mkTopConfiguration`: the same arguments. It finalizes the
+  configuration with `lib.caisson-core.finalizeTop` and returns what a
+  tool reads (`caisson.integrations.topValue`): the evaluated NixOS
+  configuration where there is a single evaluation, which is what
+  `nixos-rebuild --file` reads and what a test evaluates, and the
+  evaluated configurations by system where there are several.
 - `mkConfigurationFull`: as `mkConfiguration`, additionally passing nixpkgs'
   `module-list.nix` as `baseModules`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
-  (see the conventions above); eval-config's `baseModules` is one of
+  (see the conventions above); eval-config's `baseModules` is among
   the arguments reachable that way.
-- `compose : { context?, nixpkgsModule? } -> args -> { modules,
-  specialArgs, checkedPkgSets, src }`: the composition of the class
-  from the caisson arguments (the framework and selected modules, the
-  config module, the package-set module, the resolved nixpkgs
+- `mkConfigurations`: a configuration for every configuration
+  registered in the class, each as `mkConfiguration` builds it without
+  `configModule`.
+- `compose : { context?, nixpkgsModule? } -> { lib, manifest } -> args
+  -> { modules, specialArgs, system, pkgSets, src }`: the composition
+  of the class on the view being evaluated, from the caisson arguments
+  (the framework and selected modules, the config module, the
+  package-set module, the system, the resolved nixpkgs
   source), which every entry point here builds on and which an
   integration evaluating the `nixos` class with another evaluator
   reads, so two evaluators cannot express different machines from the
@@ -1154,10 +1313,20 @@ package set arrives as the `pkgs` module argument rather than through
 registration form (`caisson.nixos.mkModule`), its framework module and
 its default default belong to the nixos integration, and the module
 list comes from `caisson.nixos.compose`; composing it needs the nixos
-integration composed beside it.
+integration composed beside it. In the tree its configurations are
+nixos configurations: the manifest's `type` is `nixos`, a
+configuration is declared under `caisson.nixos.configurations` and
+published under `nixosConfigurations`, and it is `nearest.nixos` for
+what is declared beneath it.
 
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule,
-  moduleImports?, specialArgs?, prefix? } -> evaluation`.
+- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
+  specialArgs?, prefix? } -> configuration`: the arguments of
+  `caisson.nixos.mkConfiguration` plus `prefix`, and the same result,
+  a configuration whose manifest's `value` is the evaluation. The
+  system and the package set come from the composition as they do
+  there.
+- `mkTopConfiguration`: the same arguments; finalizes the
+  configuration at a top and returns the evaluation.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
   (`prefix`, `modules`, `specialArgs`).
 
@@ -1370,7 +1539,14 @@ step projects the evaluated configuration onto.
   `colmena apply`. The schema version is asserted against the
   `makeHive` of the ecosystem source, so a colmena revision that moves
   it fails at evaluation; a node that did not come from
-  `mkNixosConfiguration` is refused. `pkgSets` on the colmena
+  `mkNixosConfiguration` is refused. What the constructor returns is a
+  NixOS configuration, and the colmena configuration finalizes it
+  under the name of the node, so a node takes its system and its
+  package set from the composition like any NixOS configuration. A
+  node is a machine, so the configuration has to have exactly one
+  evaluation; with no system in force, or several, the colmena
+  configuration refuses it and names the systems.
+  `pkgSets` on the colmena
   configuration only serves `colmena eval` (`introspect`).
   `mkNixosConfigurationWithEcosystemArgs`
   is the node constructor's twin, also a module argument. Every node

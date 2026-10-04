@@ -28,7 +28,7 @@ Function that selects which parts of the composed library to publish as the flak
 - **Default:** the composed library's `caisson-core.evalManifest`, or its `caisson-core.libManifest` in an evaluation that carries none
 - **Source:** `modules/generic/core/caisson/manifest.nix`
 
-The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural and flake-parts evaluations carry a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems` when the composition declared them (`modules/flake/core/caisson/systems.nix`).
+The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `sources`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural and flake-parts evaluations carry a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` projections are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems`, the empty list when the composition declares none, so such a flake has no per-system outputs (`modules/flake/core/caisson/systems.nix`).
 
 ### `caisson.<integration>.configurations`
 
@@ -45,7 +45,7 @@ The configurations of an integration declared beneath this configuration, by nam
 }
 ```
 
-Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
+Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. An entry of an integration that evaluates a configuration at a system (nixos) reads back as its evaluations by system, `config.caisson.nixos.configurations.laptop.x86_64-linux`, a manifest for every system in force. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
 
 A configuration declared beneath sees this configuration without the configurations declared beneath it (the childless view). In that view an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson-core.evalManifest.childless`:
 
@@ -60,7 +60,24 @@ innerGreeting =
 
 A module that only declares configurations needs no such test. What the configurations beneath export is passed up without that test, through `caisson.<integration>.exported` below.
 
-An entry that is not a configuration, or is a configuration of another integration, is refused. Structural and flake-parts configurations are those that can be declared and can hold others: the constructors of the other integrations return an evaluated value.
+An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts and nixos configurations can be declared. A configuration of an integration that evaluates a class another integration owns is a configuration of the owner in the tree: `lib.caisson.nixos-minimal.mkConfiguration` returns a nixos configuration, declared under `caisson.nixos.configurations` and published with the others. The constructors of the remaining integrations return an evaluated value. Structural and flake-parts evaluations hold configurations beneath them.
+
+### `caisson.nixpkgs.pkgSet`
+
+- **Type:** `str`
+- **Default:** `"default"`
+- **Source:** `lib-overlays/nixos/compose.nix`, in every evaluation of the `nixos` class
+
+An option of a NixOS configuration: the package config whose set the configuration runs on, by the name it is declared under in `pkgSets` on `mkLib`. A configuration has an evaluation for every system in force, and in each the set is that config's set at the system of the evaluation, defined as `nixpkgs.pkgs` (as the `pkgs` module argument under the minimal evaluator). Any module of the configuration may define the option:
+
+```nix
+{ ... }:
+{
+  caisson.nixpkgs.pkgSet = "stable";
+}
+```
+
+A name the composition does not declare is refused, with the names it does declare.
 
 ### `caisson.<integration>.exported`
 
@@ -76,6 +93,17 @@ Function that selects which of the configurations declared under `caisson.<integ
   caisson.structural.configurations.impl = lib.caisson.structural.mkConfiguration { };
 }
 ```
+
+The configurations themselves are passed up as well, each with its path, and the top publishes them under the output attribute set their integration declares, named from the paths:
+
+```nix
+{ lib, ... }:
+{
+  caisson.nixos.configurations.laptop = lib.caisson.nixos.mkConfiguration { };
+}
+```
+
+publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A name that is alone stays bare. Names that collide gain the segments that tell them apart, from the segment nearest the top: `host-1` declared in the structural configurations `a` and `b` is published as `a/host-1` and `b/host-1`, and a configuration with several systems in force as `x86_64-linux/laptop` and `aarch64-linux/laptop`. Configurations that still share a name are refused, with their paths.
 
 `caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the evaluation that holds the configurations: it is absent from the childless view, and from an evaluation that carries no manifest.
 

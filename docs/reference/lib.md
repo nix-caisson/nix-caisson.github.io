@@ -519,7 +519,7 @@ options finalize each entry this way.
 lib.caisson-core.mkConfiguration :
   { type     : str                                 # the name of the integration
   , evaluate : { lib, manifest } ->
-               { value; outputs ? { }; children ? { }; }
+               { value; outputs ? { }; children ? { }; forChildren ? { }; }
   , record   ? { }                                 # plain data added to the manifest
   } -> configuration
 ```
@@ -546,9 +546,22 @@ as `evalManifest` (`withManifests`).
   that, so a child's `parent` and `nearest.<integration>` are the
   childless manifest of the configuration that declares it.
 
-The childless evaluation runs only when a child, or a reader of
-`childlessManifest`, reads its value, so a configuration with no
-children is evaluated once.
+A configuration with children is evaluated in both views, and a
+configuration with none is evaluated once.
+
+`forChildren` is what the evaluation registers for the configurations
+beneath it: `modules`, by class and then name, and
+`defaultModuleImports`, by class a list of selections, each a function
+of a lib returning modules. They are read from the childless view and
+recorded on the manifest as `forChildren`. A configuration beneath
+inherits the registry and the selections of its parent extended by
+them. Its manifest holds the registry it sees as `modules`, where a
+registration under a name already there replaces the entry, and the
+selections added above it as `defaultModuleImports`, those from the
+top first. The lib it runs on shows that registry as
+`caisson-core.modules`. Every level extends both in turn, so a
+registration reaches every configuration beneath the level that made
+it, at any depth and through a system.
 
 Both views carry `type`, `name`, `parent`, `ancestors` (the parent's
 list with the parent appended), `nearest` (the parent's attrset with
@@ -893,7 +906,9 @@ The configuration holds configurations of any integration beneath
 it: those its modules declare under
 `caisson.<integration>.configurations` are its children, and
 `caisson.exports`, which carries what they pass up, is its `exports`
-output.
+output. What its modules define under `caisson.forChildren` is what
+it registers for the configurations beneath it
+(`lib.caisson-core.mkConfiguration`).
 
 `frameworkModules` takes a class and its registry and returns the
 framework module of the class, which every evaluation of the class
@@ -904,6 +919,20 @@ declares `caisson.manifest`, `caisson.<integration>.configurations`,
 
 Structural, flake-parts, nixos and nixos-minimal configurations are
 built with both.
+
+#### `moduleImportsOf`
+
+```
+moduleImportsOf : str -> { lib, manifest } -> (registry -> listOf module) | null -> registry -> listOf module
+```
+
+The selection of an evaluation over the registry of its class. It
+takes the class, the view being evaluated and the `moduleImports` the
+configuration was given. Given a selection, it returns that. Given
+none, it returns the default of the class: every entry named
+`default`, followed by what the levels above the evaluation added
+with `caisson.forChildren.defaultModuleImports`, those from the top
+first, each applied to the lib of the evaluation.
 
 #### `entriesOf`, `publish`, `displayName`, `topValue`
 

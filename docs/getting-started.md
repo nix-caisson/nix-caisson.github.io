@@ -48,8 +48,9 @@ Consuming
 caisson as a project registers everything it exports, its
 integrations included, which contributes `lib.caisson` (one namespace per integration
 target); `lib.caisson.flake-parts.mkTopConfiguration` then evaluates
-flake-parts with that library and your config module, the one
-registered under the project's name (`configs/flake/my-flake`).
+flake-parts with that library and your config module, the
+configuration registered under the project's name
+(`configs/flake/my-flake`).
 flake-parts
 comes from the `flake-parts` input of the flake, like every ecosystem
 caisson wraps: the integration calls that source with the composed

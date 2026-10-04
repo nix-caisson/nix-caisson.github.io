@@ -1018,7 +1018,7 @@ mkConfiguration :
 Returns a configuration, a function of `{ name, parent }`, built with
 `lib.caisson-core.mkConfiguration`. The parent that declares it under
 `caisson.structural.configurations.<name>` finalizes it, and
-`mkTopConfiguration` finalizes one at a top. Nothing is evaluated
+`mkTopConfiguration` finalizes it at a top. Nothing is evaluated
 until the manifest is read.
 
 The evaluation is the framework module (every `core` of the class,
@@ -1069,7 +1069,7 @@ mkConfiguration :
   Returns a configuration, a function of `{ name, parent }`, built
   with `lib.caisson-core.mkConfiguration`. A parent that declares it
   under `caisson.flake-parts.configurations.<name>` finalizes it, and
-  `mkTopConfiguration` finalizes one at a top. The evaluator's call is
+  `mkTopConfiguration` finalizes it at a top. The evaluator's call is
   flake-parts' `evalFlakeModule` over the lib of the view being
   evaluated: the manifest's `value` is the evaluation (`config`,
   `options`), `outputs.flake` is what flake-parts' `mkFlake` returns

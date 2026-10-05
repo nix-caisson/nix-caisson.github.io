@@ -113,7 +113,7 @@ Modules registered for the configurations beneath this configuration. An entry j
 }
 ```
 
-A registration applies to the configurations of the class beneath this one, including nested ones and ones beneath a configuration of another integration, and not to this configuration. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
+A registration joins the registry that the configurations of the class beneath this one select from, including nested ones and ones beneath a configuration of another integration. A configuration imports it when its selection names it. The registry of this configuration is unchanged. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
 
 A configuration with a configuration beneath it is evaluated in both views, since its registrations are read from the childless view.
 
@@ -149,7 +149,7 @@ The package set the configurations beneath this configuration get by default: a 
 }
 ```
 
-Here every configuration beneath this one runs on the set of the package config named `stable`. The selection replaces the one in force at this configuration for everything beneath it, and a configuration beneath that is constructed with `defaultPkgs` selects for itself and what is beneath it in turn. This configuration runs on the set it was constructed with. When the option is null, the configurations beneath run on the selection in force at this configuration.
+Here the default beneath this configuration is the set of the package config named `stable`. A configuration beneath runs on it unless that configuration, or a configuration between the two, is constructed with `defaultPkgs` or sets this option. This configuration runs on the set it was constructed with. When the option is null, the default beneath is the selection in force at this configuration.
 
 ### `caisson.modules`
 

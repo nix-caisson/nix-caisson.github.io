@@ -581,8 +581,8 @@ registration under a name already there replaces the entry, and the
 selections added above it as `defaultModuleImports`, those from the
 top first. The lib it runs on shows that registry as
 `caisson-core.modules`. Every level extends both in turn, so a
-registration applies to the configurations beneath the level that
-made it, nested ones and ones beneath a system included.
+registration can be selected by the configurations beneath the level
+that made it, nested ones and ones beneath a system included.
 
 Both views carry `type`, `name`, `parent`, `ancestors` (the parent's
 list with the parent appended), `nearest` (the parent's attrset with

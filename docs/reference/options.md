@@ -62,23 +62,6 @@ A module that only declares configurations needs no such test. What the configur
 
 An entry that is not a configuration, or is a configuration of another integration, is refused. Structural, flake-parts and nixos configurations can be declared. A configuration of an integration that evaluates a class another integration owns is a configuration of the owner in the tree: `lib.caisson.nixos-minimal.mkConfiguration` returns a nixos configuration, declared under `caisson.nixos.configurations` and published with the others. The constructors of the remaining integrations return an evaluated value. A configuration holds configurations of any integration beneath it.
 
-### `caisson.nixpkgs.pkgSet`
-
-- **Type:** `str`
-- **Default:** `"default"`
-- **Source:** `lib-overlays/nixos/compose.nix`, in every evaluation of the `nixos` class
-
-An option of a NixOS configuration: the package config whose set the configuration runs on, by the name it is declared under in `pkgSets` on `mkLib`. A configuration has an evaluation for every system in force, and in each the set is that config's set at the system of the evaluation, defined as `nixpkgs.pkgs` (as the `pkgs` module argument under the minimal evaluator). Any module of the configuration may define the option:
-
-```nix
-{ ... }:
-{
-  caisson.nixpkgs.pkgSet = "stable";
-}
-```
-
-A name the composition does not declare is refused, with the names it does declare.
-
 ### `caisson.<integration>.exported`
 
 - **Type:** function from the configurations declared to an attribute set of them
@@ -130,7 +113,7 @@ Modules registered for the configurations beneath this configuration. An entry j
 }
 ```
 
-A registration reaches every configuration of the class beneath this one, at any depth and through levels of other integrations, and nothing at this configuration. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
+A registration joins the registry that the configurations of the class beneath this one select from, including nested ones and ones beneath a configuration of another integration. A configuration imports it when its selection names it. The registry of this configuration is unchanged. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
 
 A configuration with a configuration beneath it is evaluated in both views, since its registrations are read from the childless view.
 
@@ -150,6 +133,23 @@ Additions to the default selection of a class for the configurations beneath thi
 ```
 
 A configuration that passes no `moduleImports` gets every entry named `default` followed by these, those of the levels above it first. A configuration that passes `moduleImports` gets what it selects in place of that default, and one that passes `extraModuleImports` gets what that selects in addition. Definitions from several modules are concatenated.
+
+### `caisson.forChildren.defaultPkgs`
+
+- **Type:** `nullOr (functionTo pkgs)`
+- **Default:** `null`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+The package set the configurations beneath this configuration get by default: a function that receives the package sets available to such a configuration, as an attribute set by package config name, and returns the set to run on.
+
+```nix
+{ ... }:
+{
+  caisson.forChildren.defaultPkgs = pkgSets: pkgSets.stable;
+}
+```
+
+Here the default beneath this configuration is the set of the package config named `stable`. A configuration beneath runs on it unless that configuration, or a configuration between the two, is constructed with `defaultPkgs` or sets this option. This configuration runs on the set it was constructed with. When the option is null, the default beneath is the selection in force at this configuration.
 
 ### `caisson.modules`
 

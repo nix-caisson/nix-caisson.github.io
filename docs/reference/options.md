@@ -159,7 +159,7 @@ Here the default beneath this configuration is the set of the package config nam
 - **Default:** `null`
 - **Source:** `modules/generic/core/caisson/forChildren.nix`
 
-The systems in force for the configurations beneath this configuration. A configuration evaluated at a system, such as a NixOS configuration or a home, has an evaluation for each.
+The systems the configurations declared inside this one are evaluated for. It applies to configurations that are evaluated per system, such as a NixOS configuration or a home: each gets one evaluation per system listed.
 
 ```nix
 { ... }:
@@ -168,7 +168,9 @@ The systems in force for the configurations beneath this configuration. A config
 }
 ```
 
-Here a NixOS configuration at `x86_64-linux` holds its configurations at `aarch64-linux`: an image it serves, for example. The list is taken from the systems in force where this configuration is declared, and a system outside them is refused. When the option is null, the list beneath a configuration evaluated at a system is that system alone, so a home beneath a NixOS configuration is evaluated at the system of the machine, and the list beneath any other configuration is the list in force at it.
+Set on a NixOS configuration for `x86_64-linux`, this makes the configurations declared inside it be evaluated for `aarch64-linux`: an image it serves, for example. Set on a structural or flake level, it narrows what is inside that level. The systems have to be among those allowed where this configuration is declared, and one that is not is refused.
+
+When the option is null, a configuration that is itself evaluated per system has its children evaluated for its system only, so a home inside a NixOS configuration for `x86_64-linux` is evaluated for `x86_64-linux`. Any other configuration passes on the list it was given.
 
 ### `caisson.modules`
 

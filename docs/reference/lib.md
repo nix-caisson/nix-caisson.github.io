@@ -923,8 +923,10 @@ leaving out an integration with none: the `children`
 
 ```
 frameworkModules      : str -> attrsOf module -> listOf module
-mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; evaluate : view -> evaluated; } -> configuration
+mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; evaluate : view -> evaluated; } -> configuration
 evaluated = { value; outputs ? { }; config ? value.config; }
+exportsTo = { attrset : str; value : manifest -> value;
+              name ? : { name, manifest } -> { value : str; description ? : str; }; }
 ```
 
 `mkModuleConfiguration` builds a configuration that is a module
@@ -937,6 +939,19 @@ integration declares (`config` says where the evaluated options are
 when that is not `value.config`). `defaultPkgs` is the package set
 selection the configuration was constructed with, which the builder
 records on the manifest (`pkgSetOf` below).
+
+`exportsTo` says how the configuration is published, and the builder
+records it on the manifest too. `attrset` is the output attribute set
+(`nixosConfigurations`), and `value` takes the manifest of the
+configuration to what is published. `name` is for an integration
+whose configurations are known by a name other than the one they are
+declared under: it takes the name the configuration is passed up
+under and its manifest, and returns `value`, the name to publish it
+under, and optionally `description`, a sentence saying what it did.
+The home-manager integration names a home beneath a NixOS
+configuration `<user>@<host>` with it. A configuration built with no
+`exportsTo` (structural, flake-parts) is not published under a name;
+what lies beneath it is published, with its segment on the path.
 
 The configuration holds configurations of any integration beneath
 it: those its modules declare under
@@ -1032,30 +1047,32 @@ runs on no package set and selects for what is beneath it.
 #### `entriesOf`, `publish`, `displayName`, `topValue`
 
 ```
-entriesOf   : attrsOf (attrsOf finalized) -> listOf { path; manifest; }
-publish     : listOf { path; manifest; } -> attrsOf (attrsOf value)
+entriesOf   : attrsOf (attrsOf finalized) -> listOf entry
+publish     : listOf entry -> attrsOf (attrsOf value)
+entry       = { path; manifest; attrset; value; description ?; }
 displayName : listOf str -> str
 topValue    : attrsOf manifest -> value | attrsOf value
 ```
 
 How the configurations in a tree are named and published.
 
-`entriesOf` gives the entries a configuration passes up: for each
-configuration declared beneath it at any depth whose integration
-declares `exportsTo`, its manifest and its path from there. Its
-argument is what each integration's `exported` selected, by
-integration and then name. The structural, flake-parts and system
+`entriesOf` gives the entries a configuration passes up, one for each
+configuration declared beneath it, nested ones included, whose
+manifest records `exportsTo`. Its argument is what each integration's
+`exported` selected, by integration and then name. An entry is made
+by the level that passes the configuration up, where the name it is
+passed up under is known, from what the manifest records: the output
+attribute set, the value, and the path from there, whose last segment
+holds the name `exportsTo.name` returns where there is one. A name
+that contains `/` is refused. The structural, flake-parts and system
 levels on the way are segments of the path. caisson's core module
 defines `caisson.exports.configurations` with it.
 
-`publish` is what a top does with the entries: it groups them by the
-output attribute set each integration's `exportsTo` names, computes
-the names in each from `lib.caisson-core.elide` over the paths, and
-returns the values by attribute set and name. Where the `exportsTo`
-of an integration carries `name`, the name it returns for an entry
-stands as the last segment of that entry's path before `elide` runs;
-a name that contains `/` is refused. Entries that still share a name
-are refused, with their paths. The flake-parts top writes the
+`publish` is what a top does with the entries, and the entries are
+all it reads: it groups them by the output attribute set each
+carries, computes the names in each from `lib.caisson-core.elide`
+over the paths, and returns the values by attribute set and name.
+Entries that still share a name are refused, with their paths. The flake-parts top writes the
 result into the flake outputs, and the structural top into what it
 returns.
 
@@ -1076,29 +1093,12 @@ mkIntegration :
   , class      : string            # the module class this integration owns
   , mkConfiguration                  : pattern -> result  # the entry point, a pattern function
   , mkConfigurationWithEcosystemArgs : pattern -> result  # the same pattern plus ecosystemArgs
-  , exportsTo  ? null : { attrset : str; value : manifest -> value;
-                          name ? : { name, manifest } -> { value : str; description ? : str; }; }
-                                   # where a top publishes the configurations
   , extra      ? { } : attrs       # further members of the namespace
   } -> { namespace : attrs; classes : attrsOf { integration; mkModule } }
 ```
 
 `mkIntegration` builds an integration that owns a module class from a
 declaration. The result has the parts `namespace` and `classes`.
-
-`exportsTo` says where a top publishes the configurations of the
-integration and what of each: `attrset` is the output attribute set
-(`nixosConfigurations`), and `value` takes a configuration's manifest
-to what is published under its name. `name` is for an integration
-whose configurations are known by a name other than the one they are
-declared under: it takes the name an entry carries and its manifest,
-and returns `value`, the name to carry instead, and optionally
-`description`, a sentence saying what it did. The home-manager
-integration names a home beneath a NixOS configuration `<user>@<host>`
-with it. `exportsTo` is carried in the namespace.
-An integration that leaves it out (structural, flake-parts) has
-configurations that are not published under a name; what lies beneath
-them is published, with their segment on its path.
 
 `namespace` is the value to publish as `lib.caisson.<name>`. It holds
 `mkConfiguration`, `mkConfigurationWithEcosystemArgs`, `mkModule`, and
@@ -1454,8 +1454,9 @@ mkConfiguration :
   `lib.caisson-core.evalManifest.name` and its system as
   `lib.caisson-core.evalManifest.system`.
 
-  The integration declares `exportsTo` as `nixosConfigurations`, each
-  value the evaluated configuration: a flake-parts or structural top
+  A NixOS configuration records `exportsTo` as `nixosConfigurations`,
+  the value being the evaluated configuration: a flake-parts or
+  structural top
   publishes the NixOS configurations declared beneath it there, under
   names from their paths.
 - `mkTopConfiguration`: the same arguments. It finalizes the

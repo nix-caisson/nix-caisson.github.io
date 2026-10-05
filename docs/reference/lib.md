@@ -993,13 +993,16 @@ lib.caisson.nixos.mkConfiguration {
 }
 ```
 
+The function receives the available sets as an attribute set and
+returns the one to run on, here the set of the package config named
+`stable`.
+
 A selection holds for the subtree: the configuration that makes it
 and every configuration beneath it that selects none, through levels
 of any integration. A configuration that selects none runs on what
 the nearest configuration above it selected. The selection at the top
-of the tree is the `pkgSet` argument of `mkLib`
-(`pkgSet = pkgSets: pkgSets.stable;` in the `mkLib` call). It
-defaults to the set named `default`, and a composition that declares
+of the tree is the `pkgSet` argument of `mkLib`, a function of the
+same shape. It defaults to the set named `default`, and a composition that declares
 no `default` and selects nothing is told so, with the sets it
 declares.
 
@@ -1413,8 +1416,7 @@ mkConfiguration :
 
   The package set comes from the composition, through the manifest.
   An evaluation runs on the set the `pkgSet` argument selects from
-  the package sets available at the system of the evaluation
-  (`pkgSet = pkgSets: pkgSets.stable`, see
+  the package sets available at the system of the evaluation (see
   `caisson.integrations.pkgSetOf`), defined as `nixpkgs.pkgs`. A
   configuration that passes none runs on what the nearest
   configuration above it selected, and at a top on what the `pkgSet`

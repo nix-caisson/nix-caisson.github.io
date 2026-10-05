@@ -50,6 +50,8 @@ mkLib :
                       : lib -> attrsOf pkgOverlay          # given the bootstrap lib
   , pkgSets           ? (lib: { })
                       : lib -> attrsOf configuration       # package configs by name, given the registered lib
+  , pkgSet            ? (pkgSets: pkgSets.default)
+                      : attrsOf pkgs -> pkgs               # the package set selected at the top of the tree
   , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
                                                            # nixpkgs supplies the nixpkgs-lib part unless nixpkgs-lib is declared separately
   , systems           ? null : listOf str                  # the platforms the tree builds on
@@ -142,6 +144,11 @@ naming `mkLib` and pointing at the pattern.
   it is declared under and the registered manifest as its parent, and
   records them in the manifest's `pkgSets`; the flake reads its
   package sets from there.
+- `pkgSet` selects the package set in force at the top of the tree,
+  from the sets available at the system of an evaluation, by package
+  config name. Every configuration runs on it unless it, or a
+  configuration above it, selects another with the `pkgSet` argument
+  of its constructor (see `caisson.integrations.pkgSetOf` below).
 - `libOverlayImports` selects which registered overlays apply to the
   `lib` of this flake. It receives the core lib and names entries from
   the registry it carries, `nixpkgs-lib.overlays` below
@@ -989,9 +996,12 @@ lib.caisson.nixos.mkConfiguration {
 A selection holds for the subtree: the configuration that makes it
 and every configuration beneath it that selects none, through levels
 of any integration. A configuration that selects none runs on what
-the nearest configuration above it selected. The top of the tree
-selects the set named `default`, and a composition that declares no
-`default` and selects nothing is told so, with the sets it declares.
+the nearest configuration above it selected. The selection at the top
+of the tree is the `pkgSet` argument of `mkLib`
+(`pkgSet = pkgSets: pkgSets.stable;` in the `mkLib` call). It
+defaults to the set named `default`, and a composition that declares
+no `default` and selects nothing is told so, with the sets it
+declares.
 
 Every available set reaches the modules of a configuration by name,
 as the `pkgSets` argument, whichever is selected.
@@ -1407,8 +1417,9 @@ mkConfiguration :
   (`pkgSet = pkgSets: pkgSets.stable`, see
   `caisson.integrations.pkgSetOf`), defined as `nixpkgs.pkgs`. A
   configuration that passes none runs on what the nearest
-  configuration above it selected, and at a top on the set named
-  `default`. The sets at that system also reach the modules by config
+  configuration above it selected, and at a top on what the `pkgSet`
+  argument of `mkLib` selects, the set named `default` unless it is
+  given another. The sets at that system also reach the modules by config
   name, as the `pkgSets` special argument, whichever is selected. A
   module reads its name as
   `lib.caisson-core.evalManifest.name` and its system as

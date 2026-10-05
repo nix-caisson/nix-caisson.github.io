@@ -617,15 +617,15 @@ manifest holds each system under `children.system`, beside the
 configurations evaluated once for every system, which stay under
 `children.<integration>`.
 
-A configuration declared inside one that is evaluated per system is
-evaluated for the system of its parent only. A home declared inside a
-NixOS configuration has one evaluation per evaluation of the machine,
-for the same system, whatever systems the tree lists; the manifest of
-each machine evaluation holds that one system as `systems`.
+Where a configuration that is evaluated per system is declared inside
+another, the system of its parent is the default. A home declared
+inside a NixOS configuration has, by default, one evaluation per
+evaluation of the machine, for the same system; the manifest of each
+machine evaluation holds that one system as `systems`.
 
-A parent that wants its children evaluated for other systems returns
-the list as `forChildren.systems`: a machine that holds an image for
-another architecture states that architecture there. A configuration
+A parent changes this by returning `forChildren.systems`, the systems
+its per-system children are evaluated for: a machine that holds an
+image for another architecture states that architecture there. A configuration
 that is evaluated once can return a list the same way, to narrow what
 its children are evaluated for. The list has to come from the systems
 allowed where that parent is declared, and a system outside them is

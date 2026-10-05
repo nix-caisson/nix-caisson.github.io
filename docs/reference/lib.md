@@ -909,7 +909,7 @@ leaving out an integration with none: the `children`
 
 ```
 frameworkModules      : str -> attrsOf module -> listOf module
-mkModuleConfiguration : { type : str; perSystem ? false; selectPkgs ? null; evaluate : view -> evaluated; } -> configuration
+mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; evaluate : view -> evaluated; } -> configuration
 evaluated = { value; outputs ? { }; config ? value.config; }
 ```
 
@@ -920,7 +920,7 @@ step of the integration: from the view being evaluated,
 `{ lib, manifest }`, it returns `value`, the evaluation as the
 evaluator returned it, and `outputs`, the references into it that the
 integration declares (`config` says where the evaluated options are
-when that is not `value.config`). `selectPkgs` is the package set
+when that is not `value.config`). `defaultPkgs` is the package set
 selection the configuration was constructed with, which the builder
 records on the manifest (`pkgSetOf` below).
 
@@ -976,13 +976,13 @@ How a configuration gets the package set it runs on. It is the same
 for every integration whose configurations run on a package set.
 
 A configuration selects its set when it is constructed, with the
-`selectPkgs` argument: a function of the package sets available where
+`defaultPkgs` argument: a function of the package sets available where
 the configuration is declared, by package config name, each at the
 system of the evaluation.
 
 ```nix
 lib.caisson.nixos.mkConfiguration {
-  selectPkgs = pkgSets: pkgSets.stable;
+  defaultPkgs = pkgSets: pkgSets.stable;
 }
 ```
 
@@ -1003,7 +1003,7 @@ as the `pkgSets` argument, whichever is selected.
 
 `pkgSetsAt` gives the sets available to an evaluation: the package
 configs its manifest holds, each projected to its set at the system.
-`pkgSetOf` applies the selection in force at the manifest (`selectPkgs`,
+`pkgSetOf` applies the selection in force at the manifest (`defaultPkgs`,
 which `mkModuleConfiguration` records from the argument and
 `lib.caisson-core` carries to everything beneath) to those sets.
 
@@ -1407,7 +1407,7 @@ mkConfiguration :
   evaluation as `nearest.nixos`.
 
   The package set comes from the composition, through the manifest.
-  An evaluation runs on the set the `selectPkgs` argument selects
+  An evaluation runs on the set the `defaultPkgs` argument selects
   from the package sets available at the system of the evaluation
   (see `caisson.integrations.pkgSetOf`), defined as `nixpkgs.pkgs`. A
   configuration that passes none runs on what the nearest
@@ -1466,7 +1466,7 @@ configuration is declared under `caisson.nixos.configurations` and
 published under `nixosConfigurations`, and it is `nearest.nixos` for
 what is declared beneath it.
 
-- `mkConfiguration : { configModule?, ecosystemSrc?, selectPkgs?, moduleImports?, extraModuleImports?,
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?, moduleImports?, extraModuleImports?,
   specialArgs?, prefix? } -> configuration`: the arguments of
   `caisson.nixos.mkConfiguration` plus `prefix`, and the same result,
   a configuration whose manifest's `value` is the evaluation. The

@@ -4,6 +4,8 @@ This reference documents the caisson framework's module options. All description
 
 For `lib.caisson` functions, see [Library Reference](./lib.md).
 
+The options are declared by caisson's core module, which every evaluation of an integrated class carries. In an evaluation whose library is not a caisson composition, such as a home that home-manager's NixOS module embeds, the core module declares nothing.
+
 ## Options
 
 ### `caisson.lib.export.enabled`
@@ -86,7 +88,7 @@ The configurations themselves are passed up as well, each with its path, and the
 }
 ```
 
-publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A name that is alone stays bare. Names that collide gain the segments that tell them apart, from the segment nearest the top: `host-1` declared in the structural configurations `a` and `b` is published as `a/host-1` and `b/host-1`, and a configuration with several systems in force as `x86_64-linux/laptop` and `aarch64-linux/laptop`. Configurations that still share a name are refused, with their paths.
+publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A name that is alone stays bare. Names that collide gain the segments that tell them apart, from the segment nearest the top: `host-1` declared in the structural configurations `a` and `b` is published as `a/host-1` and `b/host-1`, and a configuration with several systems in force as `x86_64-linux/laptop` and `aarch64-linux/laptop`. Configurations that still share a name are refused, with their paths. An integration may name its configurations before that: a home declared as `chris` beneath the NixOS configuration `laptop` is published as `homeConfigurations."chris@laptop"`.
 
 `caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the evaluation that holds the configurations: it is absent from the childless view, and from an evaluation that carries no manifest.
 
@@ -150,6 +152,23 @@ The package set the configurations beneath this configuration get by default: a 
 ```
 
 Here the default beneath this configuration is the set of the package config named `stable`. A configuration beneath runs on it unless that configuration, or a configuration between the two, is constructed with `defaultPkgs` or sets this option. This configuration runs on the set it was constructed with. When the option is null, the default beneath is the selection in force at this configuration.
+
+### `caisson.forChildren.systems`
+
+- **Type:** `nullOr (listOf str)`
+- **Default:** `null`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+The systems in force for the configurations beneath this configuration. A configuration evaluated at a system, such as a NixOS configuration or a home, has an evaluation for each.
+
+```nix
+{ ... }:
+{
+  caisson.forChildren.systems = [ "aarch64-linux" ];
+}
+```
+
+Here a NixOS configuration at `x86_64-linux` holds its configurations at `aarch64-linux`: an image it serves, for example. The list is taken from the systems in force where this configuration is declared, and a system outside them is refused. When the option is null, the list beneath a configuration evaluated at a system is that system alone, so a home beneath a NixOS configuration is evaluated at the system of the machine, and the list beneath any other configuration is the list in force at it.
 
 ### `caisson.modules`
 

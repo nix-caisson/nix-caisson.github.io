@@ -134,6 +134,23 @@ Additions to the default selection of a class for the configurations beneath thi
 
 A configuration that passes no `moduleImports` gets every entry named `default` followed by these, those of the levels above it first. A configuration that passes `moduleImports` gets what it selects in place of that default, and one that passes `extraModuleImports` gets what that selects in addition. Definitions from several modules are concatenated.
 
+### `caisson.forChildren.defaultPkgs`
+
+- **Type:** `nullOr (functionTo pkgs)`
+- **Default:** `null`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+The package set the configurations beneath this configuration get by default: a function that receives the package sets available to such a configuration, as an attribute set by package config name, and returns the set to run on.
+
+```nix
+{ ... }:
+{
+  caisson.forChildren.defaultPkgs = pkgSets: pkgSets.stable;
+}
+```
+
+Here every configuration beneath this one runs on the set of the package config named `stable`. The selection replaces the one in force at this configuration for everything beneath it, and a configuration beneath that is constructed with `defaultPkgs` selects for itself and what is beneath it in turn. This configuration runs on the set it was constructed with. When the option is null, the configurations beneath run on the selection in force at this configuration.
+
 ### `caisson.modules`
 
 - **Type:** `attrsOf (submodule { export.enabled; exported; })`

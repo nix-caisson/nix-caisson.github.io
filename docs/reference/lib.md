@@ -572,7 +572,8 @@ configuration with none is evaluated once.
 `forChildren` is what the evaluation registers for the configurations
 beneath it: `modules`, by class and then name, and
 `defaultModuleImports`, by class a list of selections, each a function
-of a lib returning modules. They are read from the childless view and
+of a lib returning modules, and `defaultPkgs`, a selection of the
+package set in force beneath, null when it makes none. They are read from the childless view and
 recorded on the manifest as `forChildren`. A configuration beneath
 inherits the registry and the selections of its parent extended by
 them. Its manifest holds the registry it sees as `modules`, where a
@@ -993,8 +994,10 @@ returns the one to run on, here the set of the package config named
 A selection holds for the subtree: the configuration that makes it
 and every configuration beneath it that selects none, through levels
 of any integration. A configuration that selects none runs on what
-the nearest configuration above it selected. Where no configuration
-from the top down selects, a configuration runs on the set named
+the nearest configuration above it selected. A module of a
+configuration selects for the configurations beneath it, and not for
+the configuration itself, with the `caisson.forChildren.defaultPkgs`
+option. Where no configuration from the top down selects, a configuration runs on the set named
 `default`, and a composition that declares no `default` and selects
 nothing is told so, with the sets it declares.
 

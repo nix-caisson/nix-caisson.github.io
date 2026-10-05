@@ -113,7 +113,7 @@ Modules registered for the configurations beneath this configuration. An entry j
 }
 ```
 
-A registration reaches every configuration of the class beneath this one, at any depth and through levels of other integrations, and nothing at this configuration. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
+A registration applies to the configurations of the class beneath this one, including nested ones and ones beneath a configuration of another integration, and not to this configuration. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
 
 A configuration with a configuration beneath it is evaluated in both views, since its registrations are read from the childless view.
 

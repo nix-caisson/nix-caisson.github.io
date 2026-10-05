@@ -581,8 +581,8 @@ registration under a name already there replaces the entry, and the
 selections added above it as `defaultModuleImports`, those from the
 top first. The lib it runs on shows that registry as
 `caisson-core.modules`. Every level extends both in turn, so a
-registration reaches every configuration beneath the level that made
-it, at any depth and through a system.
+registration applies to the configurations beneath the level that
+made it, nested ones and ones beneath a system included.
 
 Both views carry `type`, `name`, `parent`, `ancestors` (the parent's
 list with the parent appended), `nearest` (the parent's attrset with
@@ -1001,8 +1001,8 @@ option. Where no configuration from the top down selects, a configuration runs o
 `default`, and a composition that declares no `default` and selects
 nothing is told so, with the sets it declares.
 
-Every available set reaches the modules of a configuration by name,
-as the `pkgSets` argument, whichever is selected.
+The modules of a configuration can also use any available set by
+name, through the `pkgSets` argument.
 
 `pkgSetsAt` gives the sets available to an evaluation: the package
 configs its manifest holds, each projected to its set at the system.
@@ -1415,8 +1415,8 @@ mkConfiguration :
   (see `caisson.integrations.pkgSetOf`), defined as `nixpkgs.pkgs`. A
   configuration that passes none runs on what the nearest
   configuration above it selected, and on the set named `default`
-  where none above selects. The sets at that system also reach the modules by config
-  name, as the `pkgSets` special argument, whichever is selected. A
+  where none above selects. The modules can also use any set at that
+  system by config name, through the `pkgSets` special argument. A
   module reads its name as
   `lib.caisson-core.evalManifest.name` and its system as
   `lib.caisson-core.evalManifest.system`.

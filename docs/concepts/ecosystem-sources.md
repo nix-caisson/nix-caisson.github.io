@@ -48,9 +48,10 @@ below.
 | `caisson.system-manager` | `system-manager` | system-manager flake |
 | `caisson.structural` | none | no source: the empty integration evaluates caisson's core module alone |
 
-The nixpkgs library that every composed lib is built over is resolved
-separately by caisson-core, under the name `nixpkgs-lib`, falling back
-to `nixpkgs`.
+The nixpkgs library that the integrations call is brought in by the
+`nixpkgs-lib` integration of caisson. It loads the source the
+composing flake supplies under the name `nixpkgs-lib`, falling back to
+`nixpkgs`.
 
 ## How does caisson get access to ecosystem sources?
 

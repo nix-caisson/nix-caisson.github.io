@@ -12,18 +12,18 @@ This builds on flake-parts' `flake.modules` output, which publishes modules unde
 ## Registering a module
 
 A tree laid out as `modules/<class>/<name>/default.nix` registers its
-modules by naming the directory: `caisson-core.mkModules` reads it
+modules by naming the directory: `lib.caisson.mkModules` reads it
 into the class-keyed registration, and the same reader serves
 `configs/<class>/<name>`:
 
 ```nix
-modules = lib: lib.caisson-core.mkModules ./modules;
-configs = lib: lib.caisson-core.mkModules ./configs;
+modules = lib: lib.caisson.mkModules ./modules;
+configs = lib: lib.caisson.mkModules ./configs;
 ```
 
 The first directory level is the class, whatever its name, and each
 entry registers through the class index of the composed library
-(`lib.caisson-core.classes.<class>`): the `mkModule` of the
+(`lib.caisson.classes.<class>`): the `mkModule` of the
 integration that declares the class. Every integration that owns a
 class declares it from its overlay, so composing the nixos integration
 is what makes `modules/nixos` register, and an integration that wraps
@@ -47,11 +47,11 @@ modules = lib: {
   flake.default = lib.caisson.flake-parts.mkModule ./modules/flake/default;
   nixos.my-service = lib.caisson.nixos.mkModule ./modules/nixos/my-service;
   homeManager.shell = lib.caisson.home-manager.mkModule ./modules/home-manager/shell;
-  hardware.tpmFacts = lib.caisson-core.mkModule "hardware" ./modules/hardware/tpmFacts;
+  hardware.tpmFacts = lib.caisson.mkModule "hardware" ./modules/hardware/tpmFacts;
 };
 ```
 
-Each integration's `mkModule` is `lib.caisson-core.mkModule` bound to
+Each integration's `mkModule` is `lib.caisson.mkModule` bound to
 that integration's class:
 
 ```nix
@@ -93,13 +93,13 @@ nested use of `mkModule` stays in that class.
 
 ## Registration APIs
 
-Modules enter the class-keyed registry (`lib.caisson-core.modules`)
+Modules enter the class-keyed registry (`lib.caisson.modules`)
 in these ways:
 
 - **Local registration**, `mkLib`'s `modules` hook: a function
   `lib: { ... }` receiving the composed `lib` (whose helpers, like
   `lib.caisson.flake-parts.mkModule`, build the entries) and returning the
-  class-keyed registration, which `caisson-core.mkModules` derives
+  class-keyed registration, which `lib.caisson.mkModules` derives
   from the conventional layout. This is for the flake's modules.
 - **Overlay contribution**, for modules contributed by a library
   overlay: the overlay closure contains `mkModule` and

@@ -5,7 +5,7 @@ any arrangement evaluates. We recommend the conventions below because
 they have proven to work for us, they resolve ambiguity about where a
 thing belongs, and they make it easier for someone new to a repository
 to come up to speed. A repository that keeps them registers by naming
-the directories (`lib: lib.caisson-core.mkModules ./modules`,
+the directories (`lib: lib.caisson.mkModules ./modules`,
 `mkModules ./configs`, `mkLibOverlays ./lib-overlays`); a repository
 with another
 layout writes its registrations by hand. This repository and its

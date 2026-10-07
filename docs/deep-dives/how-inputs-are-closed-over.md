@@ -28,8 +28,8 @@ reader always knows what the first line is.
 The flake defines the closure by calling `mkLib`:
 
 ```nix
-lib = caisson.lib.caisson-core.mkLib {
-  inherit (caisson.lib.caisson-core.pins.flake inputs) sources root;
+lib = caisson.lib.caisson.mkLib {
+  inherit (caisson.lib.caisson.pins.flake inputs) sources root;
   libOverlays = lib: { ... };
   modules = lib: { ... };
 };
@@ -39,16 +39,16 @@ lib = caisson.lib.caisson-core.mkLib {
 given, the flake's pinned inputs as the flake pin reader returns them,
 and hands them to the registration arguments inside the lib each
 receives: `libOverlays` receives the core lib, which carries the
-closed `caisson-core.mkLibOverlay`, and `modules` receives the
+closed `lib.caisson.mkLibOverlay`, and `modules` receives the
 bootstrap lib,
 whose helpers (`lib.caisson.flake-parts.mkModule`,
-`lib.caisson.nixos.mkModule`, and the `caisson-core.mkModule` they
+`lib.caisson.nixos.mkModule`, and the `lib.caisson.mkModule` they
 are bound from) are closed the same way. There is no ambient lookup
 anywhere in this chain: the only sources a registration can see are
 those the registering flake passed to `mkLib`. They carry no
 `self`: a registration reads its flake's identity from
-`closure-lib.caisson-core.libManifest.root` and a sibling module from
-`closure-lib.caisson-core.modules`.
+`closure-lib.caisson.libManifest.root` and a sibling module from
+`closure-lib.caisson.modules`.
 
 ## When the closure is applied
 
@@ -96,7 +96,7 @@ A module's closure contains the definer's finished world:
 - `closure-inputs`: the pinned sources of the defining flake.
 - `closure-lib`: the composed library of the defining flake. This is
   not the `lib` module argument; see the next section. Its registry,
-  `closure-lib.caisson-core.modules.<class>`, is how a module imports
+  `closure-lib.caisson.modules.<class>`, is how a module imports
   a sibling by name.
 - `mkModule`: a normalizer bound to the same class, so nested module
   composition stays in that class.
@@ -140,7 +140,7 @@ what that resolution contains.
 ## importApply
 
 Closure application composes with module `imports` through
-`lib.caisson-core.importApply`, which applies static arguments to a
+`lib.caisson.importApply`, which applies static arguments to a
 module without losing its file identity: a path is imported and
 wrapped with its `_file`, wrapper modules produced by registration
 are walked rather than replaced, and the arguments are applied to
@@ -148,7 +148,7 @@ the innermost function.
 
 ```nix
 imports = [
-  (closure-lib.caisson-core.importApply ./listener.nix { port = 8080; })
+  (closure-lib.caisson.importApply ./listener.nix { port = 8080; })
 ];
 ```
 

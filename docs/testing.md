@@ -43,7 +43,7 @@ as documented. They are written as completely normal flakes:
 A small lock-bearing flake whose only job is to pin the inputs that
 tests (and formatters) need, so the main `flake.lock` stays free of
 test-only pins. The checks partition takes its inputs as
-`(lib.caisson-core.pins.flake-compat ./tests/dependencies).sources`,
+`(lib.caisson.pins.flake-compat ./tests/dependencies).sources`,
 the flake-compat pin reader, which resolves the lock without
 evaluating the flake.
 

@@ -22,7 +22,7 @@ None of these compose well when modules are re-exported for downstream consumpti
 A tree registers a module with the `mkModule` of the integration that
 owns its class (`lib.caisson.nixos.mkModule`,
 `lib.caisson.flake-parts.mkModule`, and so on). Each is
-`lib.caisson-core.mkModule`, a factory over the class, bound to that
+`lib.caisson.mkModule`, a factory over the class, bound to that
 integration's class:
 
 ```nix
@@ -49,7 +49,7 @@ The closure attrset contains:
 | Key | Value |
 |---|---|
 | `closure-inputs` | The defining flake's pinned sources, the `sources` it passed to `mkLib`: its inputs under their names, with no `self` (distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake) |
-| `closure-lib` | The defining flake's composed `lib` (distinct from the `lib` module arg); its registry, `closure-lib.caisson-core.modules.<class>`, is how a module imports a sibling by name |
+| `closure-lib` | The defining flake's composed `lib` (distinct from the `lib` module arg); its registry, `closure-lib.caisson.modules.<class>`, is how a module imports a sibling by name |
 | `mkModule` | A normalizer bound to the same class, for nested composition |
 
 Path modules are wrapped with `_file` for error locations and `key = toString path`, so a file passed through `mkModule` at two sites deduplicates exactly like importing the same path twice.

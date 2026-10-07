@@ -22,8 +22,8 @@ Type notation used below:
 
 - **Source:** caisson-core's `lib/default.nix` (the `compose`
   primitive, and the composition of the entries below) and
-  `lib-overlays/<name>/default.nix` (`compose`, `resolve`, `kernel`,
-  `lifecycle`, `readers`, `pins`): caisson-core is a composition of those
+  `lib-overlays/<name>/default.nix` (`compose`, `resolve`,
+  `lifecycle`, `readers`, `util`): caisson-core is a composition of those
   entries, and `mkLib` composes the same entries, keyed `caisson-core/<name>`,
   into every library it builds, so this namespace is the same definition
   wherever it appears and each part is a registered entry a same-key
@@ -812,11 +812,63 @@ root = caisson-core.pins.gitRoot ./.;
 
 ## The caisson namespace
 
-`lib.caisson` holds a namespace per integration target
+`lib.caisson` is the namespace a flake writes. It holds the names of
+the framework (below), a namespace per integration target
 (`lib.caisson.flake-parts`, `lib.caisson.nixos`, and so on; see
-[Integration namespaces](#integration-namespaces)), plus the
+[Integration namespaces](#integration-namespaces)), and the
 pkgs-dependent tooling documented at the end of this section.
 caisson's registered flake modules are listed here too.
+
+### The framework names
+
+```nix
+lib = caisson.lib.caisson.mkLib {
+  inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+  projects = { inherit caisson; };
+  modules = lib: lib.caisson.mkModules ./modules;
+  configs = lib: lib.caisson.mkModules ./configs;
+  libOverlays = lib: lib.caisson.mkLibOverlays ./lib-overlays;
+};
+```
+
+| Group | Names under `lib.caisson` |
+| --- | --- |
+| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake` |
+| making and reading entries | `mkModule`, `mkModules`, `mkLibOverlay`, `mkLibOverlays`, `mkPkgOverlay`, `mkPkgOverlays`, `importApply` |
+| registries | `modules`, `configs`, `classes`, `libOverlays`, `pkgOverlays`, `pkgOverlaysFor` |
+| manifests | `libManifest`, `pkgsManifest`, `evalManifest`, `manifestOf` |
+| for an integration written outside caisson | `contributeClasses`, `contributeModules`, `finalizeTop`, `elide`, `ecosystemSrc` |
+
+- `pins`, `callFlake` and `callConsumerFlake` are caisson's code.
+  Their entries are further up this page, written when they were
+  part of caisson-core; read `lib.caisson.<name>` for them.
+- Every other name is the value of the same name under
+  `lib.caisson-core` in the same library, documented in
+  [The caisson-core namespace](#the-caisson-core-namespace).
+  caisson-core is the layer the framework is built on; a flake has
+  no need to name it.
+- `mkLib` adds one thing to the `mkLib` of caisson-core. Several of
+  its arguments are functions of a library that is still being built,
+  and `libOverlays` and `libOverlayImports` receive one that holds
+  caisson-core alone. `lib.caisson.mkLib` hands each such function its
+  library with the names above under `lib.caisson`, so every argument
+  is written the same way.
+
+### Overlay imports
+
+An entry of `libOverlays` or `pkgOverlays` states what it imports as
+names or as entries, and both registries treat them the same way.
+
+- A name is looked up in the registry of the flake that registers the
+  importer: `imports = [ "base" ];` for a neighbour,
+  `imports = [ "caisson/nixpkgs-lib" ];` for an entry of a consumed
+  project.
+- When a project is consumed, its entries become `<project>/<name>`
+  and the keys their imports carry are renamed with them, so an entry
+  that imports its neighbour is composed once.
+- Registering under a name replaces that entry for everything that
+  imports it.
+- Two entries built from different files under one key are refused.
 
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 

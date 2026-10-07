@@ -738,8 +738,9 @@ Keyed composition (`compose`), the layered ecosystem-source
 resolver (`resolve`, over `explicit`, `defaults` and `sources`) and
 the flake caller (`callFlake { src, inputs }`: a flake's outputs
 function applied to inputs given as values, fetching nothing; the
-flake-parts integration instantiates flake-parts through it),
-re-exposed from caisson-core. A flake-parts partition takes the
+flake-parts integration instantiates flake-parts through it).
+`compose` and `resolve` belong to caisson-core; `callFlake` is under
+`lib.caisson`. A flake-parts partition takes the
 inputs of its lockfile'd subflake from `pins.flake-compat` (below).
 See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and

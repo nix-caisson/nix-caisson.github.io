@@ -17,11 +17,16 @@ an entry like everything else.
   `nixpkgs` supplies the `nixpkgs-lib` part of the stack unless
   `nixpkgs-lib` is declared separately, such as the
   `nix-community/nixpkgs.lib` mirror for a flake that carries no
-  nixpkgs. The published `nixpkgs-lib` entry imports that source's
-  `lib` directory as upstream fixes it; an
-  overlay that needs upstream's functions imports the entry from its
-  closure (`{ entries, ... }: { imports = [ entries.nixpkgs-lib ]; ... }`),
-  and a flake that declares no source fails only where that entry is
+  nixpkgs. The `nixpkgs-lib` integration of caisson
+  (`lib-overlays/nixpkgs-lib`) is the entry that imports the `lib`
+  directory of that source as upstream fixes it. It loads the source
+  of the flake whose `mkLib` call composes it, so a flake that takes
+  caisson as a project gets the nixpkgs library it declares. Every
+  caisson integration imports the entry. An overlay outside caisson
+  that calls upstream's functions imports it by key from the caisson
+  source tree:
+  `(mkLibOverlay (closure-inputs.caisson.outPath + "/lib-overlays/nixpkgs-lib")) // { key = "nixpkgs-lib"; }`.
+  A flake that declares no source fails only where that entry is
   composed, with a message naming the declaration.
 - `libOverlays`: the flake's overlay registrations, built with
   `lib.caisson-core.mkLibOverlay` of the core lib the function

@@ -59,12 +59,13 @@ mkLib :
 
 Builds a composed library over the seed, the empty attribute set: the
 `caisson-core` entry (registered under that name, so a registration
-under the same name replaces it), the published `nixpkgs-lib` entry
-(nixpkgs' `lib`, sourced from `defaultEcosystemSrc`, imported by every
-integration overlay rather than composed separately), the selected
-registered overlays, then the synthetic overlays: the local module
-registrations (so local names win over overlay-borne contributions)
-and the manifest. Every source arrives as an argument or a
+under the same name replaces it), the selected registered overlays,
+then the synthetic overlays: the local module registrations (so local
+names win over overlay-borne contributions) and the manifest. In a
+flake that uses caisson, the selected overlays include the
+`nixpkgs-lib` entry, which is the `lib` of nixpkgs loaded from the
+source that `defaultEcosystemSrc` declares. The caisson integration
+overlays import it. Every source arrives as an argument or a
 declaration; the exact-name fallback over `sources` applies to
 ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
@@ -144,10 +145,11 @@ naming `mkLib` and pointing at the pattern.
   package sets from there.
 - `libOverlayImports` selects which registered overlays apply to the
   `lib` of this flake. It receives the core lib and names entries from
-  the registry it carries, `nixpkgs-lib.overlays` below
-  (`lib: [ lib.caisson-core.nixpkgs-lib.overlays.my-overlay ]`);
-  the default selects every project and local registration, and a
-  selection given here replaces it.
+  the `libOverlays` registry described below.
+  `libOverlayImports = lib: [ lib.caisson-core.libOverlays.my-overlay ];`
+  selects the entry registered as `my-overlay`. The default selects
+  the project and local registrations, and a selection given here
+  replaces it.
 - `extraLibOverlayImports` has the same form and adds to the
   selection, whichever it is: a flake that names a further entry with
   it keeps the default.
@@ -481,18 +483,46 @@ manifestOf (import ./.)   # the manifest of a flakeless top
 manifestOf lib            # lib.caisson-core.libManifest
 ```
 
-### `nixpkgs-lib.overlays`
+### `libOverlays`, `pkgOverlays`
 
 ```
-lib.caisson-core.nixpkgs-lib.overlays : attrsOf libOverlay
+lib.caisson-core.libOverlays : attrsOf libOverlay
+lib.caisson-core.pkgOverlays : attrsOf pkgOverlay
 ```
 
-The lib overlay registry visible at the library it is read from, by
-registry name: the entries `mkLib` registered, the entries consumed
-projects contributed under `<project>/<name>`, and the published
-`caisson-core/<name>` and `nixpkgs-lib` entries. It is a view of
-`libManifest.libOverlays`, and it is what a `libOverlayImports`
-selection refers into. In a library no `mkLib` built it is empty.
+These attributes are the lib overlay registry and the package overlay
+registry of the composition that built the library, keyed by registry
+name. Each has the name of the `mkLib` argument that fills it and of
+the manifest field it is a view of.
+
+- `libOverlays` holds the entries `mkLib` registered, the entries
+  consumed projects contributed under `<project>/<name>`, and the
+  `caisson-core/<name>` entries. A `libOverlayImports` selection
+  refers into it.
+- `pkgOverlays` holds the package overlay entries: those `mkLib`
+  registered and those consumed projects contributed. A package config
+  selects from it:
+  `caisson.nixpkgs.overlays = [ lib.caisson-core.pkgOverlays.default ];`.
+
+Both are empty in a library that no `mkLib` call built.
+
+### `ecosystemSrc`
+
+```
+lib.caisson-core.ecosystemSrc : name -> source | null
+```
+
+`ecosystemSrc` takes an ecosystem name and returns the source the
+composition supplies for exactly that name. That is the
+`defaultEcosystemSrc.<name>` the composition declares, or else the
+source it pins under that name, or else null. The result is fixed by
+the arguments of the `mkLib` call.
+
+An overlay whose added names come from a source calls it on `prev`.
+`prev.caisson-core.ecosystemSrc "nixpkgs-lib"` returns the nixpkgs
+library source of the flake whose `mkLib` call composes the overlay,
+whichever flake registered the overlay. The `nixpkgs-lib` integration
+of caisson finds its source this way.
 
 ### `withManifests`
 
@@ -1676,7 +1706,7 @@ These options under `caisson.nixpkgs` declare the sets:
 - `caisson.nixpkgs.extraOverlays`: entries applied in addition to
   `overlays`, whichever selection that is. A config that adds an entry
   with it keeps the default:
-  `caisson.nixpkgs.extraOverlays = [ lib.caisson.nixpkgs.overlays.<name> ];`.
+  `caisson.nixpkgs.extraOverlays = [ lib.caisson-core.pkgOverlays.<name> ];`.
 
 caisson instantiates the sets itself, without going through
 `pkgs/top-level/default.nix`: it boots the stdenv stages and
@@ -1732,15 +1762,14 @@ asked for. Nix auto-calls a lambda and not a functor, so
 The set carries its manifest in `pkgs.lib.caisson-core.pkgsManifest`,
 whose parent is the config, so nothing else is added to it.
 
-#### `pkgSets`, `overlays`
+#### `pkgSets`
 
 ```
-lib.caisson.nixpkgs.pkgSets  : attrsOf manifest     # the package configs, by name
-lib.caisson.nixpkgs.overlays : attrsOf pkgOverlay   # the package overlay registry, by name
+lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by name
 ```
 
-Views of the manifest: the package configs `mkLib` recorded, and the
-package overlay registry a config module selects from.
+`pkgSets` is a view of the manifest. It holds the package configs
+`mkLib` recorded, by name.
 
 #### Overlay constructors and types
 

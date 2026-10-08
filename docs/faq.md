@@ -18,9 +18,9 @@ fight over the same flat namespace.
 ### What is `closure-inputs`, and who sets it?
 
 `closure-inputs` is the `sources` your flake passes to `mkLib`: its
-pinned inputs, under their input names, as the flake pin reader
-returns them (`inherit (caisson-core.pins.flake inputs) sources
-root;`), with no `self`. The caisson framework threads it in:
+pinned inputs, under their input names and with no `self`.
+`inherit (caisson.lib.caisson.pins.flake inputs) sources root;` in the
+`mkLib` call passes them. The caisson framework threads it in:
 `mkLibOverlay` and `mkModule` apply it to each registered file as the
 file's first argument list. A file always receives the sources of the
 flake that registered it: an overlay or module consumed from another
@@ -44,7 +44,7 @@ implement whatever merging logic they deem appropriate.
 Yes. `lib.caisson.flake-parts.mkTopConfiguration` wraps the
 `mkFlake` of flake-parts, and plain
 flake-parts modules work unchanged. It is recommended to start by
-composing a library with `caisson-core.mkLib`. You can hand your
+composing a library with `lib.caisson.mkLib`. You can hand your
 existing top-level module to `mkTopConfiguration` and let the conventions
 spread file by file from there.
 

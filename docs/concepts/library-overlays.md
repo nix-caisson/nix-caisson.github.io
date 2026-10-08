@@ -109,7 +109,7 @@ Register it in your flake's `mkLib` call:
 
 ```nix
 libOverlays = lib: {
-  default = lib.caisson-core.mkLibOverlay ./lib-overlays/default;
+  default = lib.caisson.mkLibOverlay ./lib-overlays/default;
 };
 ```
 
@@ -136,8 +136,8 @@ The `imports` list ensures `default` is applied first, so `prev.myProject.greet`
 
 ```nix
 libOverlays = lib: {
-  default = lib.caisson-core.mkLibOverlay ./lib-overlays/default;
-  extended = lib.caisson-core.mkLibOverlay ./lib-overlays/extended;
+  default = lib.caisson.mkLibOverlay ./lib-overlays/default;
+  extended = lib.caisson.mkLibOverlay ./lib-overlays/extended;
 };
 ```
 

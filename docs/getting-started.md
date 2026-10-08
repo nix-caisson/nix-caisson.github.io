@@ -23,23 +23,24 @@ Create a directory with this `flake.nix`:
   outputs =
     inputs@{ caisson, ... }:
     let
-      core = caisson.lib.caisson-core;
-      lib = core.mkLib {
-        inherit (core.pins.flake inputs) sources root;
+      lib = caisson.lib.caisson.mkLib {
+        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
         name = "my-flake";
         systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
         };
-        configs = lib: lib.caisson-core.mkModules ./configs;
+        configs = lib: lib.caisson.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration { };
 }
 ```
 
-`caisson-core.mkLib` composes a library: nixpkgs' lib, the machinery
-under `lib.caisson-core`, and the overlays you register. `name` is the
+`lib.caisson.mkLib` composes a library from the lib of nixpkgs, the
+functions and registries of caisson under `lib.caisson` (where each
+integration also has a namespace), and the overlays you register.
+`name` is the
 project's name: the flake configuration takes it as its name, and
 your overlays contribute to the composed library under it
 (`lib.my-flake`). `systems`, the platforms the flake builds for, is
@@ -57,11 +58,11 @@ caisson wraps: the integration calls that source with the composed
 library, so the evaluation runs on the same nixpkgs lib the rest of
 the composition does.
 
-The config module is the flake's top-level configuration, and it
-is registered rather than named by path: `lib.caisson-core.mkModules
-./configs`, the reader of the lib `configs` is handed, reads `configs/<class>/<name>/default.nix` into the `configs`
-registration, so the configuration comes back as
-`lib.caisson-core.configs.flake.my-flake`. Create
+The config module is the top-level configuration of the flake, and it
+is registered. `lib.caisson.mkModules ./configs` reads
+`configs/<class>/<name>/default.nix` into the `configs` registration,
+and the configuration is then `lib.caisson.configs.flake.my-flake`.
+Create
 `configs/flake/my-flake/default.nix`:
 
 ```nix
@@ -106,19 +107,19 @@ An overlay contributes a namespace to the composed library. Create
 ```
 
 Register it in `flake.nix` and export it, and turn on the lib export
-in the config module. `lib.caisson-core.mkLibOverlays ./lib-overlays` reads
+in the config module. `lib.caisson.mkLibOverlays ./lib-overlays` reads
 `lib-overlays/<name>/default.nix` into the `libOverlays` registration:
 
 ```nix
-      lib = core.mkLib {
-        inherit (core.pins.flake inputs) sources root;
+      lib = caisson.lib.caisson.mkLib {
+        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
         name = "my-flake";
         systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
         };
-        configs = lib: lib.caisson-core.mkModules ./configs;
-        libOverlays = lib: lib.caisson-core.mkLibOverlays ./lib-overlays;
+        configs = lib: lib.caisson.mkModules ./configs;
+        libOverlays = lib: lib.caisson.mkLibOverlays ./lib-overlays;
       };
 ```
 
@@ -141,22 +142,22 @@ export enabled) to consumers as `flake.lib`. Use it in `perSystem`:
 
 Modules are class-keyed: `flake` modules feed flake-parts, and
 integration classes (`nixos`, `homeManager`, ...) feed their module
-systems. `lib.caisson-core.mkModules ./modules` reads
+systems. `lib.caisson.mkModules ./modules` reads
 `modules/<class>/<name>/default.nix` into the registration, the
-first directory level being the class; register a flake-class module
+first directory level being the class. Register a flake-class module
 by creating its directory:
 
 ```nix
-      lib = core.mkLib {
-        inherit (core.pins.flake inputs) sources root;
+      lib = caisson.lib.caisson.mkLib {
+        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
         name = "my-flake";
         systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson;
         };
-        modules = lib: lib.caisson-core.mkModules ./modules;
-        configs = lib: lib.caisson-core.mkModules ./configs;
-        libOverlays = lib: lib.caisson-core.mkLibOverlays ./lib-overlays;
+        modules = lib: lib.caisson.mkModules ./modules;
+        configs = lib: lib.caisson.mkModules ./configs;
+        libOverlays = lib: lib.caisson.mkLibOverlays ./lib-overlays;
       };
 ```
 
@@ -224,10 +225,10 @@ per item over the combined dictionary:
 
 ```nix
         libOverlayImports =
-          lib: with lib.caisson-core.nixpkgs-lib; [
-            overlays."caisson/flake-parts"
-            overlays."caisson/nixos"
-            overlays.default
+          lib: with lib.caisson; [
+            libOverlays."caisson/flake-parts"
+            libOverlays."caisson/nixos"
+            libOverlays.default
           ];
 ```
 
@@ -250,15 +251,14 @@ A consumer registers your exported overlay the same way:
   outputs =
     inputs@{ caisson, my-flake, ... }:
     let
-      core = caisson.lib.caisson-core;
-      lib = core.mkLib {
-        inherit (core.pins.flake inputs) sources root;
+      lib = caisson.lib.caisson.mkLib {
+        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
         name = "consumer";
         systems = [ "x86_64-linux" ];
         projects = {
           inherit caisson my-flake;
         };
-        configs = lib: lib.caisson-core.mkModules ./configs;
+        configs = lib: lib.caisson.mkModules ./configs;
       };
     in
     lib.caisson.flake-parts.mkTopConfiguration { };
@@ -283,7 +283,8 @@ import modules without composing anything.
 - [Closed inputs](concepts/closed-inputs.md), the convention every
   registered file follows.
 - [How `lib` is composed](deep-dives/how-lib-is-composed.md): the
-  whole composition pass, and composing with `caisson-core` directly.
+  whole composition pass, and caisson-core, the layer `lib.caisson` is
+  built on.
 - [Testing](./testing.md), including `callConsumerFlake` for testing
   consumer flakes without a push/lock cycle.
 - [FAQ](faq.md) for the questions this page tends to raise.

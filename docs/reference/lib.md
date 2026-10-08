@@ -22,12 +22,12 @@ Type notation used below:
 
 - **Source:** caisson-core's `lib/default.nix` (the `compose`
   primitive, and the composition of the entries below) and
-  `lib-overlays/<name>/default.nix` (`compose`, `resolve`, `kernel`,
-  `lifecycle`, `readers`, `pins`): caisson-core is a composition of those
-  entries, and `mkLib` composes the same entries, keyed `caisson-core/<name>`,
-  into every library it builds, so this namespace is the same definition
-  wherever it appears and each part is a registered entry a same-key
-  entry replaces.
+  `lib-overlays/<name>/default.nix` (`compose`, `resolve`,
+  `lifecycle`, `readers`, `lists`, `attrsets`, `strings`,
+  `functions`). caisson-core is a composition of those entries.
+  `mkLib` composes them into the library it builds under the keys
+  `caisson-core/<name>`, and an entry registered under the same key
+  replaces the entry of that key.
 
 ### `mkLib`
 
@@ -723,10 +723,150 @@ importApply : freeformModule -> attrs -> module
 
 Applies static arguments to a module through `_file`/`imports` wrappers while preserving wrapper metadata. Used for threading arguments through module import chains.
 
-### `callConsumerFlake`
+### `compose`, `resolve`
+
+`compose` composes entries by key. `resolve` resolves an ecosystem
+source from `explicit`, `defaults` and `sources`, in that order. See
+[How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
+the documentation of caisson-core.
+
+## The caisson namespace
+
+The functions, registries and manifests a flake uses are under
+`lib.caisson`. It holds those listed in
+[Functions and registries](#functions-and-registries-under-libcaisson),
+a namespace per integration target (`lib.caisson.flake-parts`,
+`lib.caisson.nixos`, and so on; see
+[Integration namespaces](#integration-namespaces)), and the
+pkgs-dependent tooling documented at the end of this section.
+caisson's registered flake modules are listed here too.
+
+### Functions and registries under `lib.caisson`
+
+```nix
+lib = caisson.lib.caisson.mkLib {
+  inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+  projects = { inherit caisson; };
+  modules = lib: lib.caisson.mkModules ./modules;
+  configs = lib: lib.caisson.mkModules ./configs;
+  libOverlays = lib: lib.caisson.mkLibOverlays ./lib-overlays;
+};
+```
+
+| Group | Names under `lib.caisson` |
+| --- | --- |
+| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake` |
+| making and reading entries | `mkModule`, `mkModules`, `mkLibOverlay`, `mkLibOverlays`, `mkPkgOverlay`, `mkPkgOverlays`, `importApply` |
+| registries | `modules`, `configs`, `classes`, `libOverlays`, `pkgOverlays`, `pkgOverlaysFor` |
+| manifests | `libManifest`, `pkgsManifest`, `evalManifest`, `manifestOf` |
+| for an integration written outside caisson | `contributeClasses`, `contributeModules`, `finalizeTop`, `elide`, `ecosystemSrc` |
+
+- `pins`, `callFlake` and `callConsumerFlake` are defined in caisson
+  and documented below.
+- Every other name is the value of the same name under
+  `lib.caisson-core` in the same library, documented in
+  [The caisson-core namespace](#the-caisson-core-namespace).
+  caisson-core is the library caisson is built from.
+- Several arguments of `mkLib` are functions of a library that is
+  still being built. In the `mkLib` of caisson-core, `libOverlays` and
+  `libOverlayImports` receive a library that holds only the
+  caisson-core names. `lib.caisson.mkLib` adds the names above, under
+  `lib.caisson`, to the library each of those functions receives.
+
+### Overlay imports
+
+An entry of `libOverlays` or `pkgOverlays` states what it imports as
+names or as entries, and both registries treat them the same way.
+
+- A name is looked up in the registry of the flake that registers the
+  importer. `imports = [ "base" ];` imports an entry of the same
+  flake, and `imports = [ "caisson/nixpkgs-lib" ];` imports an entry
+  of a consumed project.
+- When a project is consumed, its entries become `<project>/<name>`,
+  and the names in their imports are renamed the same way. An entry
+  that imports another entry of its project is therefore composed
+  once.
+- Registering under a name replaces that entry for everything that
+  imports it.
+- Two entries built from different files under one key are refused.
+
+### `pins`
 
 ```
-callConsumerFlake :
+lib.caisson.pins.flake        : inputs -> { sources; root; }
+lib.caisson.pins.flake-compat : path -> { sources; }
+lib.caisson.pins.npins        : path -> { sources; }
+lib.caisson.pins.gitRoot      : path -> root
+```
+
+`pins` holds a reader per pin system. Each reads the files of its pin
+system into `sources`: the pinned source trees, each as its pin system
+hands it over (a flake input keeps its outputs), with `pin`, the
+record of how it is pinned.
+
+- `pin.system` is `"flake"` from either flake reader and `"npins"`
+  from `pins.npins`. It says which tool moves the source.
+- `pin.files` is `{ refs; revisions; }`: the file that holds the ref
+  and the file that holds the revision, relative to `pin.dir` when
+  present and to the root of the flake otherwise.
+- `pin.dir` is the directory holding the pin files, for a reader given
+  a directory.
+- `pin.url` is the ref as the pin files write it.
+- `pin.rev`, `pin.narHash` and `pin.lastModified` identify the source
+  tree, where the pin system records them.
+- `pin.follows` is, for a flake input declared as a `follows`, the
+  path of input names it follows. Its source tree is that of the input
+  it lands on.
+- `pin.overridden` is set by `pins.flake` alone. It is true when an
+  `--override-input` replaced the input, in which case `pin.url`
+  describes the lock and not the source tree.
+
+`pins.flake inputs` reads the inputs Nix's flake evaluator resolved for
+the flake being evaluated, the `inputs` its `outputs` receives, and
+returns the `root` from `self`.
+
+`pins.flake-compat ./dir` resolves the `flake.lock` beside a
+`flake.nix` in that directory the way flake-compat does, stopping
+before the flake's `outputs`. Nix's flake evaluator does not see that
+pair of files, so no `--override-input` applies to it and it has no
+root. It stays valid under read-only evaluation (`nix flake check
+--no-build`). A flake-parts partition takes the inputs of its
+lockfile'd subflake from this reader.
+
+`pins.npins ./npins` reads `sources.json` format 8 and fetches each
+pin as npins' generated `default.nix` does. It refuses Container
+pins, which need nixpkgs.
+
+A root is `{ outPath; dirty; rev; shortRev; dirtyRev; dirtyShortRev;
+lastModified; lastModifiedDate; narHash; }`. It identifies the source
+tree being built, with the source-info fields a flake's `self` has,
+each null where the reader has no value for it. The names are fixed
+and the values lazy, since inside a flake's `outputs` asking which
+attributes `self` has forces the outputs being computed. The names of
+a flake input's `pin` are fixed for the same reason, and `pin.url` and
+`pin.follows` are null where they do not apply. A flakeless top in a
+git working tree reads its root with `pins.gitRoot ./.` under an
+impure evaluation. The result has the revision of a clean working
+tree, or `dirty = true` with `dirtyRev` for a dirty working tree.
+
+```nix
+# flake.nix outputs
+inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+
+# test-only pins beside the pins of the flake
+inherit (lib.caisson.pins.flake-compat ./tests/dependencies) sources;
+
+# a flakeless top pinned with npins
+inherit (lib.caisson.pins.npins ./npins) sources;
+root = lib.caisson.pins.gitRoot ./.;
+```
+
+### `callFlake`, `callConsumerFlake`
+
+```
+lib.caisson.callFlake : { src, inputs, sourceInfo ? { } } -> flakeOutputs
+
+lib.caisson.callConsumerFlake :
   { path       : path | string   # directory containing flake.nix
   , pool       ? { } : attrs     # inputs resolvable by name
   , overrides  ? { } : attrs     # highest-precedence injections
@@ -734,100 +874,19 @@ callConsumerFlake :
   } -> flakeOutputs              # self: inputs, outputs, outPath, _type
 ```
 
-Evaluates a consumer-style flake from source with explicitly supplied
-inputs: the heart of integration testing. The flake's declared inputs
-resolve by name: `overrides` first, then `follows` chains through the
-other resolved inputs, then `pool`; an unresolvable input throws an
-error naming it. The self fixpoint and decoration are handled by the
-shared `call-flake` kernel (also used by the eval-weight harness).
-Nothing is fetched: locks are not read, and `sourceInfo` attrs appear
-only if supplied. See [Testing](../testing.md).
+`callFlake` applies the outputs function of a flake to inputs given as
+values and fetches nothing. The flake-parts integration instantiates
+flake-parts with it.
 
-### `compose`, `resolve`, `callFlake`
-
-Keyed composition (`compose`), the layered ecosystem-source
-resolver (`resolve`, over `explicit`, `defaults` and `sources`) and
-the flake caller (`callFlake { src, inputs }`: a flake's outputs
-function applied to inputs given as values, fetching nothing; the
-flake-parts integration instantiates flake-parts through it),
-re-exposed from caisson-core. A flake-parts partition takes the
-inputs of its lockfile'd subflake from `pins.flake-compat` (below).
-See
-[How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
-the documentation of caisson-core.
-
-### `pins`
-
-```
-pins.flake        : inputs -> { sources; root; }
-pins.flake-compat : path -> { sources; }
-pins.npins        : path -> { sources; }
-pins.gitRoot      : path -> root
-```
-
-The pin readers, a reader per pin system. Each reads the pin system's
-files into `sources`: every pinned tree, as the pin system hands it
-over (a flake input keeps its outputs), plus `pin`, the record of how
-it is pinned.
-
-- `pin.system`: `"flake"` from either flake reader, `"npins"` from
-  `pins.npins`; the writer that moves the source follows from it.
-- `pin.files`: `{ refs; revisions; }`, the file that holds the ref and
-  the file that holds the revision, relative to `pin.dir` when present
-  and to the tree's root otherwise.
-- `pin.dir`: the directory holding the pin files, for a reader given a
-  directory.
-- `pin.url`: the ref as the pin files write it.
-- `pin.rev`, `pin.narHash`, `pin.lastModified`: the identity of the
-  tree, where the pin system records it.
-- `pin.follows`: for a flake input declared as a `follows`, the path of
-  input names it follows; its tree is that of the input it lands on.
-- `pin.overridden`: `pins.flake` only, true when an `--override-input`
-  replaced the input, so `pin.url` describes the lock rather than the
-  tree.
-
-`pins.flake inputs` reads the inputs Nix's flake evaluator resolved for
-the flake being evaluated, the `inputs` its `outputs` receives, and
-returns the `root` from `self`. `pins.flake-compat ./dir` resolves the
-`flake.lock` beside a `flake.nix` in that directory the way
-flake-compat does, stopping before the flake's `outputs`; Nix's flake
-evaluator never sees the pair, so no `--override-input` reaches it and
-it has no root. It stays valid under read-only evaluation (`nix flake
-check --no-build`). `pins.npins ./npins` reads `sources.json` format
-8 and fetches each pin as npins' generated `default.nix` does; it
-refuses Container pins, which need nixpkgs.
-
-A root is `{ outPath; dirty; rev; shortRev; dirtyRev; dirtyShortRev;
-lastModified; lastModifiedDate; narHash; }`, the identity of the tree
-being built: the source-info fields a flake's `self` carries, each
-null where the reader has none. The names are fixed and the values
-lazy, since inside a flake's `outputs` asking which attributes `self`
-has forces the outputs being computed; the names of a flake input's
-`pin` are fixed for the same reason, `pin.url` and `pin.follows` being
-null where they do not apply. A flakeless top in a git working
-tree reads it with `pins.gitRoot ./.` under an impure evaluation: the
-revision of a clean tree, or `dirty = true` with `dirtyRev` for a
-dirty tree.
-
-```nix
-# flake.nix outputs
-inherit (caisson-core.pins.flake inputs) sources root;
-
-# test-only pins beside the pins of the tree
-inherit (caisson-core.pins.flake-compat ./tests/dependencies) sources;
-
-# a flakeless top pinned with npins
-inherit (caisson-core.pins.npins ./npins) sources;
-root = caisson-core.pins.gitRoot ./.;
-```
-
-## The caisson namespace
-
-`lib.caisson` holds a namespace per integration target
-(`lib.caisson.flake-parts`, `lib.caisson.nixos`, and so on; see
-[Integration namespaces](#integration-namespaces)), plus the
-pkgs-dependent tooling documented at the end of this section.
-caisson's registered flake modules are listed here too.
+`callConsumerFlake` evaluates a consumer-style flake from source with
+inputs supplied by hand, which is how a flake checks the flakes under
+its `tests/`. The declared inputs of that flake resolve by name:
+`overrides` first, then `follows` chains through the other resolved
+inputs, then `pool`. An input that does not resolve throws an error
+naming it. `callFlake` handles the `self` fixpoint and its
+decoration, and the eval-weight harness uses it too. Nothing is
+fetched: locks are not read, and `sourceInfo` attributes appear only
+if supplied. See [Testing](../testing.md).
 
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 

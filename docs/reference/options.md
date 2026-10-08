@@ -49,7 +49,7 @@ The configurations of an integration declared beneath this configuration, by nam
 
 Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. An entry of an integration that evaluates a configuration at a system (nixos) reads back as its evaluations by system, `config.caisson.nixos.configurations.laptop.x86_64-linux`, a manifest for every system in force. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
 
-A configuration declared beneath sees this configuration without the configurations declared beneath it (the childless view). In that view an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson.evalManifest.childless`:
+A configuration declared inside this configuration sees its childless evaluation, which leaves out the configurations declared inside it. In the childless evaluation an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson.evalManifest.childless`:
 
 ```nix
 # an option of this configuration, defined from a configuration beneath it
@@ -98,7 +98,7 @@ publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A n
 - **Default:** `{ }`
 - **Source:** `modules/generic/core/caisson/forChildren.nix`
 
-Modules registered for the configurations beneath this configuration. An entry joins the registry of its class as those configurations see it (`lib.caisson.modules.<class>.<name>`), where a configuration selects it with `moduleImports`:
+Modules registered for the configurations declared inside this configuration. An entry joins the registry of its class as those configurations see it (`lib.caisson.modules.<class>.<name>`), where a configuration selects it with `moduleImports`:
 
 ```nix
 { lib, ... }:

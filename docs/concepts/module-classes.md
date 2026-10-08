@@ -11,10 +11,10 @@ This builds on flake-parts' `flake.modules` output, which publishes modules unde
 
 ## Registering a module
 
-A tree laid out as `modules/<class>/<name>/default.nix` registers its
-modules by naming the directory: `lib.caisson.mkModules` reads it
-into the class-keyed registration, and the same reader serves
-`configs/<class>/<name>`:
+A flake laid out as `modules/<class>/<name>/default.nix` registers its
+modules by naming the directory. `lib.caisson.mkModules` reads the
+directory into the class-keyed registration, and it reads
+`configs/<class>/<name>` the same way:
 
 ```nix
 modules = lib: lib.caisson.mkModules ./modules;
@@ -22,9 +22,8 @@ configs = lib: lib.caisson.mkModules ./configs;
 ```
 
 The first directory level is the class, whatever its name, and each
-entry registers through the class index of the composed library
-(`lib.caisson.classes.<class>`): the `mkModule` of the
-integration that declares the class. Every integration that owns a
+entry is registered with the `mkModule` of the integration that
+declares the class, which `lib.caisson.classes.<class>` holds. Every integration that owns a
 class declares it from its overlay, so composing the nixos integration
 is what makes `modules/nixos` register, and an integration that wraps
 another declares the same class again with the wrapper's `mkModule`, which
@@ -96,11 +95,12 @@ nested use of `mkModule` stays in that class.
 Modules enter the class-keyed registry (`lib.caisson.modules`)
 in these ways:
 
-- **Local registration**, `mkLib`'s `modules` hook: a function
-  `lib: { ... }` receiving the composed `lib` (whose helpers, like
-  `lib.caisson.flake-parts.mkModule`, build the entries) and returning the
-  class-keyed registration, which `lib.caisson.mkModules` derives
-  from the conventional layout. This is for the flake's modules.
+- **Local registration.** The `modules` argument of `mkLib` is a
+  function that receives the composed `lib` and returns the class-keyed
+  registration. `lib.caisson.mkModules` derives that registration from
+  the conventional layout, and helpers such as
+  `lib.caisson.flake-parts.mkModule` build entries by hand. This is
+  for the flake's modules.
 - **Overlay contribution**, for modules contributed by a library
   overlay: the overlay closure contains `mkModule` and
   `contributeModules`, and the overlay merges its entries into the

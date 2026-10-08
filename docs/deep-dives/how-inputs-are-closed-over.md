@@ -38,15 +38,15 @@ lib = caisson.lib.caisson.mkLib {
 `mkLib` builds registration helpers closed over the `sources` it was
 given, the flake's pinned inputs as the flake pin reader returns them,
 and hands them to the registration arguments inside the lib each
-receives: `libOverlays` receives the core lib, which carries the
+receives. `libOverlays` receives the core lib, which contains the
 closed `lib.caisson.mkLibOverlay`, and `modules` receives the
 bootstrap lib,
 whose helpers (`lib.caisson.flake-parts.mkModule`,
 `lib.caisson.nixos.mkModule`, and the `lib.caisson.mkModule` they
 are bound from) are closed the same way. There is no ambient lookup
 anywhere in this chain: the only sources a registration can see are
-those the registering flake passed to `mkLib`. They carry no
-`self`: a registration reads its flake's identity from
+those the registering flake passed to `mkLib`. They do not include
+`self`. A registration reads the identity of its flake from
 `closure-lib.caisson.libManifest.root` and a sibling module from
 `closure-lib.caisson.modules`.
 

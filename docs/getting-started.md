@@ -37,9 +37,10 @@ Create a directory with this `flake.nix`:
 }
 ```
 
-`lib.caisson.mkLib` composes a library: the lib of nixpkgs, the names
-you write to compose and register (under `lib.caisson`, beside the
-integrations), and the overlays you register. `name` is the
+`lib.caisson.mkLib` composes a library from the lib of nixpkgs, the
+functions and registries of caisson under `lib.caisson` (where each
+integration also has a namespace), and the overlays you register.
+`name` is the
 project's name: the flake configuration takes it as its name, and
 your overlays contribute to the composed library under it
 (`lib.my-flake`). `systems`, the platforms the flake builds for, is
@@ -57,11 +58,11 @@ caisson wraps: the integration calls that source with the composed
 library, so the evaluation runs on the same nixpkgs lib the rest of
 the composition does.
 
-The config module is the flake's top-level configuration, and it
-is registered rather than named by path: `lib.caisson.mkModules
-./configs`, the reader of the lib `configs` is handed, reads `configs/<class>/<name>/default.nix` into the `configs`
-registration, so the configuration comes back as
-`lib.caisson.configs.flake.my-flake`. Create
+The config module is the top-level configuration of the flake, and it
+is registered. `lib.caisson.mkModules ./configs` reads
+`configs/<class>/<name>/default.nix` into the `configs` registration,
+and the configuration is then `lib.caisson.configs.flake.my-flake`.
+Create
 `configs/flake/my-flake/default.nix`:
 
 ```nix
@@ -143,7 +144,7 @@ Modules are class-keyed: `flake` modules feed flake-parts, and
 integration classes (`nixos`, `homeManager`, ...) feed their module
 systems. `lib.caisson.mkModules ./modules` reads
 `modules/<class>/<name>/default.nix` into the registration, the
-first directory level being the class; register a flake-class module
+first directory level being the class. Register a flake-class module
 by creating its directory:
 
 ```nix

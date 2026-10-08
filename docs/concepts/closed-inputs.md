@@ -19,10 +19,10 @@ None of these compose well when modules are re-exported for downstream consumpti
 
 ### mkModule
 
-A tree registers a module with the `mkModule` of the integration that
+A flake registers a module with the `mkModule` of the integration that
 owns its class (`lib.caisson.nixos.mkModule`,
 `lib.caisson.flake-parts.mkModule`, and so on). Each is
-`lib.caisson.mkModule`, a factory over the class, bound to that
+`lib.caisson.mkModule`, a function of the class, applied to that
 integration's class:
 
 ```nix

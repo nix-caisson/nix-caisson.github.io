@@ -59,12 +59,13 @@ mkLib :
 
 Builds a composed library over the seed, the empty attribute set: the
 `caisson-core` entry (registered under that name, so a registration
-under the same name replaces it), the selected registered overlays
-(among them, in a flake that uses caisson, the `nixpkgs-lib` entry
-that every integration overlay imports: the `lib` of nixpkgs, loaded
-from the source `defaultEcosystemSrc` declares), then the synthetic overlays: the local module
-registrations (so local names win over overlay-borne contributions)
-and the manifest. Every source arrives as an argument or a
+under the same name replaces it), the selected registered overlays,
+then the synthetic overlays: the local module registrations (so local
+names win over overlay-borne contributions) and the manifest. In a
+flake that uses caisson, the selected overlays include the
+`nixpkgs-lib` entry, which is the `lib` of nixpkgs loaded from the
+source that `defaultEcosystemSrc` declares. The caisson integration
+overlays import it. Every source arrives as an argument or a
 declaration; the exact-name fallback over `sources` applies to
 ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
@@ -144,10 +145,11 @@ naming `mkLib` and pointing at the pattern.
   package sets from there.
 - `libOverlayImports` selects which registered overlays apply to the
   `lib` of this flake. It receives the core lib and names entries from
-  the registry it carries, `libOverlays` below
-  (`lib: [ lib.caisson-core.libOverlays.my-overlay ]`);
-  the default selects every project and local registration, and a
-  selection given here replaces it.
+  the `libOverlays` registry described below.
+  `libOverlayImports = lib: [ lib.caisson-core.libOverlays.my-overlay ];`
+  selects the entry registered as `my-overlay`. The default selects
+  the project and local registrations, and a selection given here
+  replaces it.
 - `extraLibOverlayImports` has the same form and adds to the
   selection, whichever it is: a flake that names a further entry with
   it keeps the default.
@@ -488,7 +490,8 @@ lib.caisson-core.libOverlays : attrsOf libOverlay
 lib.caisson-core.pkgOverlays : attrsOf pkgOverlay
 ```
 
-The registries visible at the library they are read from, by registry
+These attributes are the lib overlay registry and the package overlay
+registry of the composition that built the library, keyed by registry
 name. Each has the name of the `mkLib` argument that fills it and of
 the manifest field it is a view of.
 
@@ -496,11 +499,12 @@ the manifest field it is a view of.
   consumed projects contributed under `<project>/<name>`, and the
   `caisson-core/<name>` entries. A `libOverlayImports` selection
   refers into it.
-- `pkgOverlays` holds the package overlay registry, local and project
-  entries alike. A package config selects from it:
+- `pkgOverlays` holds the package overlay entries: those `mkLib`
+  registered and those consumed projects contributed. A package config
+  selects from it:
   `caisson.nixpkgs.overlays = [ lib.caisson-core.pkgOverlays.default ];`.
 
-In a library no `mkLib` built both are empty.
+Both are empty in a library that no `mkLib` call built.
 
 ### `ecosystemSrc`
 
@@ -508,14 +512,17 @@ In a library no `mkLib` built both are empty.
 lib.caisson-core.ecosystemSrc : name -> source | null
 ```
 
-The source the composition supplies for an ecosystem, by exact name:
-the `defaultEcosystemSrc.<name>` it declares, else the source it pins
-under that name, else null. It is fixed by the arguments of the
-`mkLib` call. An overlay whose added names come from a source reads it
-from `prev` (`prev.caisson-core.ecosystemSrc "<name>"`), and so loads
-the source of the composition it is composed into, whichever tree
-registered the overlay. The `nixpkgs-lib` integration of caisson does
-this.
+`ecosystemSrc` takes an ecosystem name and returns the source the
+composition supplies for exactly that name. That is the
+`defaultEcosystemSrc.<name>` the composition declares, or else the
+source it pins under that name, or else null. The result is fixed by
+the arguments of the `mkLib` call.
+
+An overlay whose added names come from a source calls it on `prev`.
+`prev.caisson-core.ecosystemSrc "nixpkgs-lib"` returns the nixpkgs
+library source of the flake whose `mkLib` call composes the overlay,
+whichever flake registered the overlay. The `nixpkgs-lib` integration
+of caisson finds its source this way.
 
 ### `withManifests`
 
@@ -593,15 +600,19 @@ A configuration with children is evaluated in both views, and a
 configuration with none is evaluated once.
 
 `forChildren` is what the evaluation registers for the configurations
-beneath it: `modules`, by class and then name, and
-`defaultModuleImports`, by class a list of selections, each a function
-of a lib returning modules, `defaultPkgs`, a selection of the
-package set in force beneath, null when it makes none, and `systems`,
-the list of systems in force beneath, null when it states none. They
-are read from the childless view and
-recorded on the manifest as `forChildren`. A configuration beneath
-inherits the registry and the selections of its parent extended by
-them. Its manifest holds the registry it sees as `modules`, where a
+declared inside it. It has four fields:
+
+- `modules`, by class and then name.
+- `defaultModuleImports`, by class a list of selections, each a
+  function of a lib returning modules.
+- `defaultPkgs`, which selects the package set its children run on by
+  default. It is null when the configuration selects no set.
+- `systems`, the systems its children are evaluated for. It is null
+  when the configuration lists no systems.
+
+They are read from the childless evaluation and recorded on the
+manifest as `forChildren`. A configuration declared inside inherits
+the registry and the selections of its parent, extended by them. Its manifest holds the registry it sees as `modules`, where a
 registration under a name already there replaces the entry, and the
 selections added above it as `defaultModuleImports`, those from the
 top first. The lib it runs on shows that registry as
@@ -643,8 +654,8 @@ configurations evaluated once for every system, which stay under
 Where a configuration that is evaluated per system is declared inside
 another, the system of its parent is the default. A home declared
 inside a NixOS configuration has, by default, one evaluation per
-evaluation of the machine, for the same system; the manifest of each
-machine evaluation holds that one system as `systems`.
+evaluation of the machine, for the same system. The manifest of each
+evaluation of the machine holds that system as `systems`.
 
 A parent changes this by returning `forChildren.systems`, the systems
 its per-system children are evaluated for: a machine that holds an
@@ -1020,17 +1031,22 @@ selection the configuration was constructed with, which the builder
 records on the manifest (`pkgSetOf` below).
 
 `exportsTo` says how the configuration is published, and the builder
-records it on the manifest too. `attrset` is the output attribute set
-(`nixosConfigurations`), and `value` takes the manifest of the
-configuration to what is published. `name` is for an integration
-whose configurations are known by a name other than the one they are
-declared under: it takes the name the configuration is passed up
-under and its manifest, and returns `value`, the name to publish it
-under, and optionally `description`, a sentence saying what it did.
-The home-manager integration names a home beneath a NixOS
-configuration `<user>@<host>` with it. A configuration built with no
-`exportsTo` (structural, flake-parts) is not published under a name;
-what lies beneath it is published, with its segment on the path.
+records it on the manifest too. `attrset` is the output attribute
+set; a NixOS configuration records `nixosConfigurations`. `value`
+takes the manifest of the configuration to what is published.
+
+`name` is for an integration whose configurations are known by a name
+other than the name they are declared under. It takes the name the
+configuration is passed up under and its manifest. It returns `value`,
+the name to publish the configuration under, and optionally
+`description`, a sentence describing how the name was formed. The
+home-manager integration uses it to name a home declared inside a
+NixOS configuration: the name of the home, `@`, and the name of the
+NixOS configuration.
+
+A structural or flake-parts configuration is built with no `exportsTo`
+and is not published under a name. The configurations declared inside
+it are published, with its segment on their paths.
 
 The configuration holds configurations of any integration beneath
 it: those its modules declare under
@@ -1135,23 +1151,26 @@ topValue    : attrsOf manifest -> value | attrsOf value
 
 How the configurations in a tree are named and published.
 
-`entriesOf` gives the entries a configuration passes up, one for each
-configuration declared beneath it, nested ones included, whose
+`entriesOf` gives the entries a configuration passes up: an entry for
+each configuration declared inside it, directly or deeper, whose
 manifest records `exportsTo`. Its argument is what each integration's
-`exported` selected, by integration and then name. An entry is made
-by the level that passes the configuration up, where the name it is
-passed up under is known, from what the manifest records: the output
-attribute set, the value, and the path from there, whose last segment
-holds the name `exportsTo.name` returns where there is one. A name
-that contains `/` is refused. The structural, flake-parts and system
-levels on the way are segments of the path. caisson's core module
-defines `caisson.exports.configurations` with it.
+`exported` selected, by integration and then name.
 
-`publish` is what a top does with the entries, and the entries are
-all it reads: it groups them by the output attribute set each
-carries, computes the names in each from `lib.caisson-core.elide`
-over the paths, and returns the values by attribute set and name.
-Entries that still share a name are refused, with their paths. The flake-parts top writes the
+The configuration that passes a child up makes the entry, because it
+knows the name the child is declared under. The entry holds the
+output attribute set and the value the manifest records, and the path
+from that configuration to the child. The last segment of the path is
+the name `exportsTo.name` returns, when the integration defines
+`name`. A name that contains `/` is refused. The structural,
+flake-parts and system levels on the way are segments of the path.
+caisson's core module defines `caisson.exports.configurations` with
+`entriesOf`.
+
+`publish` is what a top does with the entries. It groups them by the
+output attribute set named in each entry, computes the names in each
+group from `lib.caisson-core.elide` over the paths, and returns the
+values by attribute set and name. Entries that still share a name are
+refused, with their paths. The flake-parts top writes the
 result into the flake outputs, and the structural top into what it
 returns.
 
@@ -1311,13 +1330,13 @@ Common conventions:
 - `specialArgs`: extra module arguments; the same name on every entry
   point, translated to the evaluator's spelling where it differs
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
-- `defaultPkgs`: on the nixos, nixos-minimal, home-manager,
-  home-manager-minimal, flake-parts and structural entry points, the
-  package set the configuration runs on, selected from the package
+- `defaultPkgs` is accepted by the nixos, nixos-minimal, home-manager,
+  home-manager-minimal, flake-parts and structural entry points. It
+  selects the package set the configuration runs on from the package
   configs the composition declares (see
-  `caisson.integrations.pkgSetOf`). The nixos and home-manager entry
-  points take no `pkgSets`: the sets reach their modules by config
-  name, as the `pkgSets` special argument.
+  `caisson.integrations.pkgSetOf`). In a nixos or home-manager
+  configuration, the modules get the package sets by config name as
+  the `pkgSets` special argument.
 - `pkgSets`: on the colmena, terranix and system-manager entry
   points, an attrset of package sets passed through as the `pkgSets`
   special argument, where `pkgSets.pkgs` is what the evaluator gets:
@@ -1600,43 +1619,53 @@ what is declared beneath it.
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
   moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check?,
   sourceMeta? } -> configuration`
-  (`mkConfigurationWithEcosystemArgs` is the twin with `ecosystemArgs`;
-  home-manager's `lib` argument is reachable that way): a home, a
-  configuration evaluated with home-manager's evaluator
-  (`<ecosystemSrc>/modules`). It is declared under
+
+  `mkConfiguration` builds a home: a configuration evaluated with
+  home-manager's evaluator, the modules under `<ecosystemSrc>/modules`.
+  A home is declared under
   `caisson.home-manager.configurations.<name>` in a module of any
   configuration, or finalized as a top.
+  `mkConfigurationWithEcosystemArgs` takes `ecosystemArgs` as well,
+  which is how to pass home-manager's `lib` argument.
 
-  A home is evaluated at every system in force where it is declared;
-  beneath a NixOS configuration that is the system of that
-  configuration. `configModule` defaults to the configuration
-  registered under the name of the home
-  (`configs/homeManager/<name>`). `home.username` defaults to the name
-  the home is declared under, and a module of the home may set
-  another.
+  A home is evaluated per system. A home declared inside a NixOS
+  configuration is evaluated for the system of that configuration by
+  default, and the NixOS configuration can list other systems with
+  `caisson.forChildren.systems`. A home declared anywhere else is
+  evaluated for each system the composition declares on `mkLib`,
+  unless a configuration it is declared inside lists others the same
+  way.
 
-  The home runs on the package set in force where it is declared,
-  which `defaultPkgs` selects (see `caisson.integrations.pkgSetOf`).
-  Beneath a NixOS configuration that selects nothing itself, that is
-  the set of the NixOS configuration. `pkgs` in the home is that set:
-  the evaluation leaves out home-manager's nixpkgs module, as
+  `configModule` defaults to the configuration registered as
+  `configs/homeManager/<name>`, where `<name>` is the name of the
+  home. `home.username` defaults to the name the home is declared
+  under, and a module of the home may set a different username.
+
+  The home runs on the package set `defaultPkgs` selects (see
+  `caisson.integrations.pkgSetOf`). A home constructed with no
+  `defaultPkgs` and declared inside a NixOS configuration runs on the
+  set of that NixOS configuration, unless the NixOS configuration sets
+  `caisson.forChildren.defaultPkgs`. `pkgs` in the home is that set.
+  The evaluation leaves out home-manager's nixpkgs module, as
   home-manager's NixOS module does under `useGlobalPkgs`, so
   `nixpkgs.config` and `nixpkgs.overlays` belong in the package
-  config and not in a home. The modules can also use any set at that
-  system by config name, through the `pkgSets` special argument.
+  config. The modules can also use any package set for that system by
+  config name, through the `pkgSets` special argument.
 
-  Source metadata defaults derive from what composes:
-  `homeManagerOutPath` from `ecosystemSrc` and `nixpkgsOutPath` from
-  the path of the package set (`schemaVersion` 3).
-- `mkTopConfiguration`: the same arguments; finalizes the home at a
-  top and returns what the home-manager CLI reads, the evaluated home
-  with its `activationPackage`.
-- A top publishes homes as `homeConfigurations.<name>`. A home beneath
-  a NixOS configuration is published as `<user>@<host>`: the name the
-  home is declared under and the name the NixOS configuration is
-  declared under, which is where the CLI looks
-  (`$USER@$(hostname)`). A home with no NixOS configuration above it
-  is published under its name.
+  The defaults of the source metadata come from the sources the
+  evaluation uses: `homeManagerOutPath` from `ecosystemSrc`, and
+  `nixpkgsOutPath` from the path of the package set. The schema
+  version is 3.
+- `mkTopConfiguration` takes the same arguments. It finalizes the home
+  at a top and returns the evaluated home with its
+  `activationPackage`, which is what the home-manager CLI reads.
+- A top publishes homes as `homeConfigurations.<name>`. A home
+  declared inside a NixOS configuration is published under the name
+  the home is declared under, `@`, and the name the NixOS
+  configuration is declared under. The home-manager CLI looks up
+  `$USER@$(hostname)`, so that is the name it finds when the two
+  names are the user and the hostname. A home with no NixOS
+  configuration above it is published under its name.
 - `mkStandaloneAdapter : { moduleImports?, extraModuleImports?, ... } -> { homeModules,
   buildHome }`: the selected class modules as a list plus a
   `buildHome` closure over the same arguments, which returns a home
@@ -1647,10 +1676,10 @@ what is declared beneath it.
   specialArgs?, ... } -> module (nixos class)`: embeds
   home-manager in a NixOS generation. `activationMode = "upstream"`
   uses home-manager's NixOS module; `"user-service"` builds each home
-  as `mkConfiguration` does, finalized beneath the NixOS evaluation
-  the module is in, and runs its activation package from a
+  as `mkConfiguration` does, as a child of the NixOS configuration
+  that imports the module, and runs its activation package from a
   `ConditionUser` user unit. That mode leaves `users.users`
-  untouched, which keeps it safe for a host whose user is managed by
+  untouched, so it works on a machine whose user is managed by
   systemd-homed. Both write `/etc/caisson-home-manager/source.json`
   for the drift check.
 - `mkSourceMeta`, `assertSourceCoherence`: source-provenance records
@@ -1672,12 +1701,13 @@ default default belong to the home-manager integration, and the
 configuration it builds comes from `caisson.home-manager.configuration`;
 composing it needs the home-manager integration composed beside it.
 
-- `mkConfiguration`: the arguments of
-  `caisson.home-manager.mkConfiguration`, and the same result. In the
-  tree it is a home: declared under
+- `mkConfiguration` takes the arguments of
+  `caisson.home-manager.mkConfiguration` and returns the same result.
+  The configuration is a home: it is declared under
   `caisson.home-manager.configurations` and published under
   `homeConfigurations`.
-- `mkTopConfiguration`: the same arguments; the evaluated home.
+- `mkTopConfiguration` takes the same arguments and returns the
+  evaluated home.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
 ### `caisson.nixpkgs` (module class `nixpkgsConfig`)
@@ -1791,9 +1821,8 @@ whose parent is the config, so nothing else is added to it.
 lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by name
 ```
 
-A view of the manifest: the package configs `mkLib` recorded. The
-package overlay registry a config module selects from is
-`lib.caisson-core.pkgOverlays`.
+`pkgSets` is a view of the manifest. It holds the package configs
+`mkLib` recorded, by name.
 
 #### Overlay constructors and types
 

@@ -1197,17 +1197,9 @@ is activated on.
 `nixos` class imports this module. A NixOS configuration therefore
 has the module unless the NixOS configuration passes `moduleImports`.
 
-The file has these fields:
-
-| Field | Value |
-| --- | --- |
-| `baseSystemOutPath` | the store path of the system of the NixOS configuration, as its childless evaluation builds it |
-| `hostName` | the name of the NixOS configuration |
-| `hostKind` | `"nixos"` |
-| `selfOutPath` | the source tree of the flake |
-| `nixpkgsOutPath` | the nixpkgs of the package set of the NixOS configuration |
-| `schemaVersion` | `3` |
-| `fingerprint` | a hash of the other fields |
+The file has one field, `baseSystemOutPath`. It is the store path of
+the system of the NixOS configuration, as its childless evaluation
+builds it.
 
 The childless evaluation is the evaluation of the NixOS configuration
 that leaves out the configurations declared inside the NixOS

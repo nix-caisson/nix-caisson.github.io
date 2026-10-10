@@ -755,14 +755,14 @@ lib = caisson.lib.caisson.mkLib {
 
 | Group | Names under `lib.caisson` |
 | --- | --- |
-| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake` |
+| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake`, `realizeInputs` |
 | making and reading entries | `mkModule`, `mkModules`, `mkLibOverlay`, `mkLibOverlays`, `mkPkgOverlay`, `mkPkgOverlays`, `importApply` |
 | registries | `modules`, `configs`, `classes`, `libOverlays`, `pkgOverlays`, `pkgOverlaysFor` |
 | manifests | `libManifest`, `pkgsManifest`, `evalManifest`, `manifestOf` |
 | for an integration written outside caisson | `contributeClasses`, `contributeModules`, `finalizeTop`, `elide`, `ecosystemSrc` |
 
-- `pins`, `callFlake` and `callConsumerFlake` are defined in caisson
-  and documented below.
+- `pins`, `callFlake`, `callConsumerFlake` and `realizeInputs` are
+  defined in caisson and documented below.
 - Every other name is the value of the same name under
   `lib.caisson-core` in the same library, documented in
   [The caisson-core namespace](#the-caisson-core-namespace).
@@ -887,6 +887,104 @@ naming it. `callFlake` handles the `self` fixpoint and its
 decoration, and the eval-weight harness uses it too. Nothing is
 fetched: locks are not read, and `sourceInfo` attributes appear only
 if supplied. See [Testing](../testing.md).
+
+### `realizeInputs`
+
+```
+lib.caisson.realizeInputs : inputs -> { "<name>/<name>/…" = storePath; }
+```
+
+`realizeInputs` takes flake inputs that Nix has already resolved. It
+makes sure that each input is present in the Nix store, and it returns
+the store path of each input. It does the same for the inputs of each
+input, and for the inputs of those, to any depth. "Realize" is the
+word Nix uses for making sure a store path is present, as in
+`nix-store --realise`.
+
+The name of each input in the result is the list of input names that
+leads to it, joined with `/`. That is the form of name that the Nix
+flag `--override-input` takes:
+
+```nix
+lib.caisson.realizeInputs { inherit (inputs) caisson; }
+# => {
+#   "caisson" = "/nix/store/…-source";
+#   "caisson/caisson-core" = "/nix/store/…-source";
+#   "caisson/flake-parts" = "/nix/store/…-source";
+#   "caisson/flake-parts/nixpkgs-lib" = "/nix/store/…-source";
+#   "caisson/nixpkgs-lib" = "/nix/store/…-source";
+# }
+```
+
+When two inputs both follow a third input, the third input appears in
+the result twice, once under each name that leads to it. The function
+leaves out `self`. An input that is a plain source tree has no inputs,
+and neither has a store path that the caller writes directly as a
+value.
+
+**The problem the function solves.** Some tools evaluate a flake from
+inside a Nix build. nix-unit does this when it runs as a flake check.
+The check is a derivation. The builder of that derivation runs
+nix-unit, and nix-unit evaluates the flake that holds the tests.
+
+Nix runs every builder in a sandbox. Inside the sandbox, the builder
+can see a path in the Nix store only when the derivation names that
+path as a dependency. The rest of the store is hidden from the
+builder. The builder also has no network access.
+
+So when nix-unit evaluates the flake and the evaluation needs a flake
+input, two things go wrong. Nix looks for the input in the store and
+does not see it, because the derivation did not name it. Nix then
+tries to download the input and cannot, because the builder has no
+network access. The check fails with the message `unable to download`.
+
+The lock file of the flake does not change this. The lock file tells
+Nix which revision of the input to use. It does not put a copy of that
+revision where the builder can see it.
+
+**How the problem is solved by hand.** nix-unit accepts the flag
+`--override-input <name> <store path>` for each input. The flag does
+two things. It tells nix-unit to read the input from that store path
+and not to fetch it. And the store path is now written in the command
+that the builder runs, so the derivation names the store path as a
+dependency, and the builder can see it. The flake-parts module of
+nix-unit writes these flags from the option `nix-unit.inputs`, which
+is an attribute set of names and store paths.
+
+The inputs of an input need the same flag. Suppose a test composes
+caisson as a project. To do that, nix-unit has to evaluate the caisson
+flake. The caisson flake has inputs too, and caisson-core is one of
+them. Nix looks for caisson-core, does not see it, and the check fails
+in the way described above. The flag for an input of an input names
+both of them: `--override-input caisson/caisson-core <store path>`.
+
+Writing these flags by hand means copying the list of inputs out of
+the lock file of the caisson flake, and keeping that copy up to date.
+If a name is missing from the copy, nothing reports it until the check
+runs and fails inside the sandbox. `realizeInputs` builds the whole
+set from the resolved inputs.
+
+**Which inputs to give the function.** To return the store path of an
+input, Nix has to fetch that input. The function therefore fetches
+every input it is given, and every input of those inputs, to any
+depth. It fetches an input even when no test reads it.
+
+For that reason, give the function only the inputs that the tests
+evaluate as flakes, and list the other inputs of the test flake
+directly:
+
+```nix
+nix-unit.inputs = inputs // lib.caisson.realizeInputs { inherit (inputs) caisson; };
+```
+
+In this line, `inputs` gives nix-unit each input of the test flake
+under its name. The call to `realizeInputs` adds the inputs of the
+caisson flake.
+
+Do not give the function all of `inputs`. It would then also fetch the
+inputs of nix-unit, the inputs of nixpkgs, and the inputs of every
+other input of the test flake. Most of those are inputs that no test
+reads. See also [Testing](../testing.md#unit-tests).
 
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 

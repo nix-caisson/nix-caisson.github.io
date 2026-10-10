@@ -28,12 +28,17 @@ flake input that the tests read has to be in the set.
 
 A flake that the tests compose as a project has inputs too. Those
 inputs also have to be in the set, under names such as
-`caisson/caisson-core`. `lib.caisson.realizeInputs` adds them:
+`caisson/caisson-core`. `lib.caisson.realizeInputs` builds the whole
+set from the inputs of the test flake:
 
 ```nix
-perSystem.nix-unit.inputs =
-  inputs // lib.caisson.realizeInputs { inherit (inputs) caisson; };
+perSystem.nix-unit.inputs = lib.caisson.realizeInputs inputs;
 ```
+
+With this, the test flake does not need `follows` to point the inputs
+of its inputs back at inputs it already lists. The
+[reference entry](reference/lib.md#realizeinputs) says when to give
+the function fewer inputs.
 
 ## Integration tests: consumption from the outside
 

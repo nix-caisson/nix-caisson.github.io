@@ -755,14 +755,14 @@ lib = caisson.lib.caisson.mkLib {
 
 | Group | Names under `lib.caisson` |
 | --- | --- |
-| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake` |
+| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake`, `inputOverrides` |
 | making and reading entries | `mkModule`, `mkModules`, `mkLibOverlay`, `mkLibOverlays`, `mkPkgOverlay`, `mkPkgOverlays`, `importApply` |
 | registries | `modules`, `configs`, `classes`, `libOverlays`, `pkgOverlays`, `pkgOverlaysFor` |
 | manifests | `libManifest`, `pkgsManifest`, `evalManifest`, `manifestOf` |
 | for an integration written outside caisson | `contributeClasses`, `contributeModules`, `finalizeTop`, `elide`, `ecosystemSrc` |
 
-- `pins`, `callFlake` and `callConsumerFlake` are defined in caisson
-  and documented below.
+- `pins`, `callFlake`, `callConsumerFlake` and `inputOverrides` are
+  defined in caisson and documented below.
 - Every other name is the value of the same name under
   `lib.caisson-core` in the same library, documented in
   [The caisson-core namespace](#the-caisson-core-namespace).
@@ -887,6 +887,42 @@ naming it. `callFlake` handles the `self` fixpoint and its
 decoration, and the eval-weight harness uses it too. Nothing is
 fetched: locks are not read, and `sourceInfo` attributes appear only
 if supplied. See [Testing](../testing.md).
+
+### `inputOverrides`
+
+```
+lib.caisson.inputOverrides : inputs -> { "<name>/<name>/…" = storePath; }
+```
+
+Turns resolved flake inputs into the input overrides a second
+evaluation of the flake has to be handed. Each name is the path of
+input names that `--override-input` takes, and each value is the
+store path of that input:
+
+```nix
+lib.caisson.inputOverrides { inherit (inputs) caisson; }
+# => {
+#   "caisson" = "/nix/store/…-source";
+#   "caisson/caisson-core" = "/nix/store/…-source";
+#   "caisson/flake-parts" = "/nix/store/…-source";
+#   "caisson/flake-parts/nixpkgs-lib" = "/nix/store/…-source";
+#   "caisson/nixpkgs-lib" = "/nix/store/…-source";
+# }
+```
+
+`self` is left out at every level. A source tree and a bare path have
+no inputs.
+
+A command that evaluates a flake again inside a build finds only the
+store paths the build was handed, and has no network. nix-unit run as
+a check is such a command. An input is found there only if it was
+handed over, although the lock records its hash, and when the tests
+evaluate an input as a flake, the inputs that flake pins are read too.
+
+Producing the result fetches every input in the tree it is given,
+because each override is a store path. Pass the inputs the second
+evaluation evaluates as flakes, and hand over the other inputs as they
+are. See [Testing](../testing.md#unit-tests).
 
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 

@@ -10,6 +10,18 @@ of it).
 repository runs them with nix-unit. Anything that can be asserted by
 evaluating `lib` belongs here.
 
+nix-unit, run as a check, evaluates the test flake again inside a
+build. The build sees only the store paths it is handed and has no
+network, so every input the tests read has to be listed in
+`nix-unit.inputs`. A missing input fails with `unable to download`.
+When the tests compose a flake as a project, the inputs that flake
+pins are read as well. `lib.caisson.inputOverrides` lists them:
+
+```nix
+perSystem.nix-unit.inputs =
+  inputs // lib.caisson.inputOverrides { inherit (inputs) caisson; };
+```
+
 ## Integration tests: consumption from the outside
 
 The strongest test of a flake framework is what a consumer experiences,

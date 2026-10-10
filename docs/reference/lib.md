@@ -915,16 +915,30 @@ An input that several others follow is listed once for each path to
 it. `self` is left out at every level. A source tree and a bare path
 have no inputs.
 
-A command that evaluates a flake again inside a build finds only the
-store paths the build was handed, and has no network. nix-unit run as
-a check is such a command. An input is found there only if it was
-realized and handed over, although the lock records its hash, and when
-the tests evaluate an input as a flake, the inputs that flake pins are
-read too.
+The function exists for tools that evaluate a flake from inside a Nix
+build. nix-unit is such a tool when it runs as a flake check: the
+check is a derivation, and its builder runs nix-unit on the flake that
+holds the tests.
 
-Realizing an input fetches it. Pass the inputs the second evaluation
-evaluates as flakes, and hand over the other inputs as they are. See
-[Testing](../testing.md#unit-tests).
+A builder runs in a sandbox. It can read only the store paths that are
+inputs of its derivation, and it has no network. When the evaluation
+inside the builder comes to a flake input, Nix can neither find it in
+the store nor download it, and the check fails with `unable to
+download`. The lock file does not help. It says which revision the
+input is, and the sandbox still has no copy of that revision and no
+way to fetch one.
+
+Passing an input to the tool as `--override-input <name> <store path>`
+solves both halves: the tool reads the input from that store path, and
+the store path becomes an input of the derivation. An input that the
+tests use as a flake has inputs too, and each of those needs an
+override under a name such as `caisson/caisson-core`. This function
+produces all of them from the inputs Nix has already resolved.
+
+Realizing an input fetches it, so the function fetches every input in
+the tree it is given, whether a test reads it or not. Give it the
+inputs that the tests use as flakes, and list the other inputs of the
+test flake directly. See [Testing](../testing.md#unit-tests).
 
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 

@@ -755,13 +755,13 @@ lib = caisson.lib.caisson.mkLib {
 
 | Group | Names under `lib.caisson` |
 | --- | --- |
-| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake`, `inputOverrides` |
+| composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake`, `realizeInputs` |
 | making and reading entries | `mkModule`, `mkModules`, `mkLibOverlay`, `mkLibOverlays`, `mkPkgOverlay`, `mkPkgOverlays`, `importApply` |
 | registries | `modules`, `configs`, `classes`, `libOverlays`, `pkgOverlays`, `pkgOverlaysFor` |
 | manifests | `libManifest`, `pkgsManifest`, `evalManifest`, `manifestOf` |
 | for an integration written outside caisson | `contributeClasses`, `contributeModules`, `finalizeTop`, `elide`, `ecosystemSrc` |
 
-- `pins`, `callFlake`, `callConsumerFlake` and `inputOverrides` are
+- `pins`, `callFlake`, `callConsumerFlake` and `realizeInputs` are
   defined in caisson and documented below.
 - Every other name is the value of the same name under
   `lib.caisson-core` in the same library, documented in
@@ -888,19 +888,20 @@ decoration, and the eval-weight harness uses it too. Nothing is
 fetched: locks are not read, and `sourceInfo` attributes appear only
 if supplied. See [Testing](../testing.md).
 
-### `inputOverrides`
+### `realizeInputs`
 
 ```
-lib.caisson.inputOverrides : inputs -> { "<name>/<name>/…" = storePath; }
+lib.caisson.realizeInputs : inputs -> { "<name>/<name>/…" = storePath; }
 ```
 
-Turns resolved flake inputs into the input overrides a second
-evaluation of the flake has to be handed. Each name is the path of
-input names that `--override-input` takes, and each value is the
-store path of that input:
+Realizes resolved flake inputs, in the sense of `nix-store --realise`:
+it makes sure each is in the store and returns the store path of each.
+The inputs of an input are realized too, to any depth. Each input is
+named by the path of input names that leads to it, which is the name
+`--override-input` takes:
 
 ```nix
-lib.caisson.inputOverrides { inherit (inputs) caisson; }
+lib.caisson.realizeInputs { inherit (inputs) caisson; }
 # => {
 #   "caisson" = "/nix/store/…-source";
 #   "caisson/caisson-core" = "/nix/store/…-source";
@@ -910,19 +911,20 @@ lib.caisson.inputOverrides { inherit (inputs) caisson; }
 # }
 ```
 
-`self` is left out at every level. A source tree and a bare path have
-no inputs.
+An input that several others follow is listed once for each path to
+it. `self` is left out at every level. A source tree and a bare path
+have no inputs.
 
 A command that evaluates a flake again inside a build finds only the
 store paths the build was handed, and has no network. nix-unit run as
 a check is such a command. An input is found there only if it was
-handed over, although the lock records its hash, and when the tests
-evaluate an input as a flake, the inputs that flake pins are read too.
+realized and handed over, although the lock records its hash, and when
+the tests evaluate an input as a flake, the inputs that flake pins are
+read too.
 
-Producing the result fetches every input in the tree it is given,
-because each override is a store path. Pass the inputs the second
-evaluation evaluates as flakes, and hand over the other inputs as they
-are. See [Testing](../testing.md#unit-tests).
+Realizing an input fetches it. Pass the inputs the second evaluation
+evaluates as flakes, and hand over the other inputs as they are. See
+[Testing](../testing.md#unit-tests).
 
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 

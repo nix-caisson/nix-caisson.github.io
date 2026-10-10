@@ -15,11 +15,12 @@ build. The build sees only the store paths it is handed and has no
 network, so every input the tests read has to be listed in
 `nix-unit.inputs`. A missing input fails with `unable to download`.
 When the tests compose a flake as a project, the inputs that flake
-pins are read as well. `lib.caisson.inputOverrides` lists them:
+pins are read as well. `lib.caisson.realizeInputs` realizes them and
+returns their store paths:
 
 ```nix
 perSystem.nix-unit.inputs =
-  inputs // lib.caisson.inputOverrides { inherit (inputs) caisson; };
+  inputs // lib.caisson.realizeInputs { inherit (inputs) caisson; };
 ```
 
 ## Integration tests: consumption from the outside

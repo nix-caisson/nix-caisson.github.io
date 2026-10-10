@@ -1967,8 +1967,8 @@ what is declared beneath it.
 - **Source:** `lib-overlays/home-manager/default.nix`
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
-  moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check?,
-  sourceMeta? } -> configuration`
+  moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check? }
+  -> configuration`
 
   `mkConfiguration` builds a home: a configuration evaluated with
   home-manager's evaluator, the modules under `<ecosystemSrc>/modules`.
@@ -2014,20 +2014,24 @@ what is declared beneath it.
   passed to `mkConfiguration` takes the place of the configuration of
   the machine.
 
-  Such a home also imports a home-manager module, `nixos-parent`, by
-  default. The NixOS configuration adds it, and it sets the options
-  of the home that come from the machine. See
+  Such a home also imports two home-manager modules by default, which
+  the NixOS configuration adds. `nixos-parent` sets the options of
+  the home that come from the machine. `nixos-source-marker` makes the
+  home print a warning when it is activated on a machine it was not
+  built for. The machine activates the home with the NixOS module
+  `home-manager-activation`. See
   [`modules.nixos."caisson/default"`](#modulesnixoscaissondefault-moduleshomemanagercaissonnixos-parent).
+
+  A home that passes `moduleImports` selects all of its modules
+  itself. Such a home gets neither of the two modules unless its list
+  names them, as `modules."caisson/nixos-parent"` and
+  `modules."caisson/nixos-source-marker"`. `extraModuleImports` adds
+  to the default selection and keeps both.
 
   home-manager's legacy argument `nixosConfig` stays null. Its
   fontconfig module reads `nixosConfig.home-manager.useUserPackages`,
   an option that only home-manager's NixOS module declares, and
   caisson does not use that module.
-
-  The defaults of the source metadata come from the sources the
-  evaluation uses: `homeManagerOutPath` from `ecosystemSrc`, and
-  `nixpkgsOutPath` from the path of the package set. The schema
-  version is 3.
 - `mkTopConfiguration` takes the same arguments. It finalizes the home
   at a top and returns the evaluated home with its
   `activationPackage`, which is what the home-manager CLI reads.
@@ -2038,27 +2042,6 @@ what is declared beneath it.
   `$USER@$(hostname)`, so that is the name it finds when the two
   names are the user and the hostname. A home with no NixOS
   configuration above it is published under its name.
-- `mkStandaloneAdapter : { moduleImports?, extraModuleImports?, ... } -> { homeModules,
-  buildHome }`: the selected class modules as a list plus a
-  `buildHome` closure over the same arguments, which returns a home
-  as `mkConfiguration` does.
-- `mkNixosAdapter : { users, ecosystemSrc, hostName?, hostKind?,
-  baseSystem?, sourceMeta?, defaultPkgs?, moduleImports?, extraModuleImports?,
-  sharedModules?, useGlobalPkgs?, useUserPackages?, activationMode?,
-  specialArgs?, ... } -> module (nixos class)`: embeds
-  home-manager in a NixOS generation. `activationMode = "upstream"`
-  uses home-manager's NixOS module; `"user-service"` builds each home
-  as `mkConfiguration` does, as a child of the NixOS configuration
-  that imports the module, and runs its activation package from a
-  `ConditionUser` user unit. That mode leaves `users.users`
-  untouched, so it works on a machine whose user is managed by
-  systemd-homed. Both write `/etc/caisson-home-manager/source.json`
-  for the drift check.
-- `mkSourceMeta`, `assertSourceCoherence`: source-provenance records
-  and the fingerprint comparison used by the drift machinery.
-  `mkSourceMeta` takes the building tree as `root`
-  (`lib.caisson-core.libManifest.root`) and records its out path as
-  `selfOutPath`.
 
 ### `caisson.home-manager-minimal` (module class `homeManager`, owned by `caisson.home-manager`)
 

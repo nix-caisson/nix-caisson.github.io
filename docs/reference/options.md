@@ -126,6 +126,30 @@ A user that is listed here and also declared in `users.users` is refused, becaus
 
 See [`modules.nixos."caisson/home-manager-activation"`](./lib.md#modulesnixoscaissonhome-manager-activation) for the units.
 
+### `caisson.home-manager.machineDrift.warn`
+
+- **Type:** `bool`
+- **Default:** `true`
+- **Source:** `modules/homeManager/nixos-source-marker/`
+- **Declared in:** a home that imports `caisson/nixos-source-marker`, which a home declared inside a NixOS configuration does by default
+
+Whether the activation of this home prints a warning when the home was built for a NixOS configuration that differs from the machine that is running.
+
+The file `/etc/caisson-home-manager/source.json` on the machine names the NixOS configuration the machine is running. The activation of the home compares the file with the NixOS configuration in the source the home was built from.
+
+The comparison leaves the homes out. A change to a home does not cause a warning. The warning does not stop the activation.
+
+```nix
+{ ... }:
+{
+  caisson.home-manager.machineDrift.warn = false;
+}
+```
+
+Here the home is activated with no comparison.
+
+See [`modules.nixos."caisson/home-manager-source-marker"`](./lib.md#modulesnixoscaissonhome-manager-source-marker-moduleshomemanagercaissonnixos-source-marker) for what the file holds and what is compared.
+
 ### `caisson.forChildren.modules`
 
 - **Type:** `attrsOf (attrsOf deferredModule)`, by class and then name

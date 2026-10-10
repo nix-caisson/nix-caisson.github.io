@@ -1025,24 +1025,29 @@ outputs are `libOverlays`, `modules` (and `flakeModules`),
 `caisson/default` for the `flake` class is caisson's contribution to
 the default default: it imports `caisson/nixpkgs` below.
 
-### `modules.homeManager."caisson/default"`, `modules.homeManager."caisson/nixos-parent"`
+### `modules.nixos."caisson/default"`, `modules.homeManager."caisson/nixos-parent"`
 
-- **Source:** `modules/homeManager/default/`,
+- **Source:** `modules/nixos/default/`,
   `modules/homeManager/nixos-parent/`
 
-`caisson/default` is the `default` home-manager module caisson
-registers. A home imports every registered module named `default`
-unless it passes `moduleImports`, so this is what a home gets from
-caisson when it does not select its modules itself. It imports
-`caisson/nixos-parent` in a home that is declared inside a NixOS
-configuration, and nothing in any other home.
+These two modules are what a NixOS configuration gives the homes
+declared inside it.
 
 home-manager has a NixOS module that embeds homes in a machine. For
 each home, that module sets a few options of the home from the
 machine. caisson does not use that NixOS module. A home declared
-inside a NixOS configuration is a caisson configuration, and
-`caisson/nixos-parent` gives it the same settings. It sets these
-options of the home:
+inside a NixOS configuration is a caisson configuration, and it gets
+the same settings from the home-manager module
+`caisson/nixos-parent`.
+
+`caisson/default` is the `default` NixOS module caisson registers. A
+NixOS configuration imports every registered module named `default`
+unless it passes `moduleImports`. This module sets
+`caisson.forChildren.defaultModuleImports.homeManager`, which adds
+`caisson/nixos-parent` to the modules that the homes declared inside
+the machine import by default.
+
+`caisson/nixos-parent` sets these options of the home:
 
 | Option of the home | Value |
 | --- | --- |
@@ -1064,18 +1069,23 @@ home-manager leaves its command-line program out of a home that has
 `submoduleSupport.enable` set. `nixos-parent` puts it back, because
 the program is how the user runs `home-manager switch`.
 
-A home that passes `moduleImports` selects its modules itself, as for
-every default selection. It then gets `nixos-parent` only if it lists
-`caisson/nixos-parent`, or `caisson/default`, which imports it. A home
-that wants different settings from its machine leaves both out and
-sets those options another way.
+There are two ways to take `nixos-parent` out:
+
+- A NixOS configuration that passes `moduleImports` selects its
+  modules itself. It does not import `caisson/default`, and then no
+  home inside it gets `nixos-parent` from caisson.
+- A home that passes `moduleImports` selects its modules itself, and
+  then that home does not get `nixos-parent`.
+
+Either one can list `caisson/default` or `caisson/nixos-parent` in its
+selection to keep it.
 
 `nixos-parent` reads the machine through the manifest of the home, so
 only a home with a NixOS configuration above it can import it.
-`caisson/default` checks for that before importing it. In a home
-whose library is not a caisson composition, `caisson/default` imports
-nothing. home-manager's NixOS module evaluates the homes it embeds on
-such a library.
+
+In a NixOS evaluation whose library is not a caisson composition,
+`caisson/default` defines nothing, as the core module declares
+nothing there.
 
 ### `modules.flake."caisson/nixpkgs"`
 
@@ -1833,9 +1843,9 @@ what is declared beneath it.
   the machine.
 
   Such a home also imports a home-manager module, `nixos-parent`, by
-  default. It sets the options of the home that come from the
-  machine. See
-  [`modules.homeManager."caisson/default"`](#moduleshomemanagercaissondefault-moduleshomemanagercaissonnixos-parent).
+  default. The NixOS configuration adds it, and it sets the options
+  of the home that come from the machine. See
+  [`modules.nixos."caisson/default"`](#modulesnixoscaissondefault-moduleshomemanagercaissonnixos-parent).
 
   home-manager's legacy argument `nixosConfig` stays null. Its
   fontconfig module reads `nixosConfig.home-manager.useUserPackages`,

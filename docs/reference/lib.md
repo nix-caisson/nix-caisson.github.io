@@ -1000,7 +1000,8 @@ nothing. See also [Testing](../testing.md#unit-tests).
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 
 - **Source:** `modules/generic/core/` (the core module; `caisson.*`
-  options under `caisson/`), `modules/structural/core` (a symlink to
+  options under `caisson/`), `modules/structural/core`,
+  `modules/nixos/core` and `modules/homeManager/core` (symlinks to
   it), `modules/flake/core/` (imports it and adds the flake
   mechanics), `modules/flake/default/`
 
@@ -1023,6 +1024,70 @@ outputs are `libOverlays`, `modules` (and `flakeModules`),
 `pkgOverlays` when the selection holds any, and `overlays`.
 `caisson/default` for the `flake` class is caisson's contribution to
 the default default: it imports `caisson/nixpkgs` below.
+
+### `modules.nixos."caisson/default"`, `modules.homeManager."caisson/nixos-parent"`
+
+- **Source:** `modules/nixos/default/`,
+  `modules/homeManager/nixos-parent/`
+
+These two modules are what a NixOS configuration gives the homes
+declared inside it.
+
+home-manager has a NixOS module that embeds homes in a machine. For
+each home, that module sets a few options of the home from the
+machine. caisson does not use that NixOS module. A home declared
+inside a NixOS configuration is a caisson configuration, and it gets
+the same settings from the home-manager module
+`caisson/nixos-parent`.
+
+`caisson/default` is the `default` NixOS module caisson registers. A
+NixOS configuration imports every registered module named `default`
+unless it passes `moduleImports`. This module sets
+`caisson.forChildren.defaultModuleImports.homeManager`, which adds
+`caisson/nixos-parent` to the modules that the homes declared inside
+the machine import by default.
+
+`caisson/nixos-parent` sets these options of the home:
+
+| Option of the home | Value |
+| --- | --- |
+| `home.homeDirectory` | `users.users.<user>.home` of the machine, when the machine declares that account |
+| `home.uid` | `users.users.<user>.uid` of the machine, when the machine declares that account and its `uid` is set |
+| `nix.enable` | `nix.enable` of the machine |
+| `nix.package` | `nix.package` of the machine, when the machine has Nix enabled |
+| `submoduleSupport.enable` | `true`, which home-manager reads to tell that a machine activates the home |
+| `home.packages` | home-manager's command-line program, when the home sets `programs.home-manager.enable` |
+
+`<user>` is `home.username` of the home.
+
+A machine whose user is managed by systemd-homed has no entry for
+that user in `users.users`. For such a home, `nixos-parent` leaves
+`home.homeDirectory` and `home.uid` alone, and the home sets its home
+directory itself.
+
+home-manager leaves its command-line program out of a home that has
+`submoduleSupport.enable` set. `nixos-parent` puts it back, because
+the program is how the user runs `home-manager switch`.
+
+There are two ways to take `nixos-parent` out:
+
+- A NixOS configuration that passes `moduleImports` selects its
+  modules itself. It does not import `caisson/default`, and then no
+  home inside it gets `nixos-parent` from caisson.
+- A home that passes `moduleImports` selects its modules itself, and
+  then that home does not get `nixos-parent`.
+
+Each can keep it while selecting its other modules. The NixOS
+configuration lists `caisson/default`, which is a NixOS module, in its
+selection. The home lists `caisson/nixos-parent`, which is a
+home-manager module, in its selection.
+
+`nixos-parent` reads the machine through the manifest of the home, so
+only a home with a NixOS configuration above it can import it.
+
+In a NixOS evaluation whose library is not a caisson composition,
+`caisson/default` defines nothing, as the core module declares
+nothing there.
 
 ### `modules.flake."caisson/nixpkgs"`
 
@@ -1766,6 +1831,28 @@ what is declared beneath it.
   `nixpkgs.config` and `nixpkgs.overlays` belong in the package
   config. The modules can also use any package set for that system by
   config name, through the `pkgSets` special argument.
+
+  A home declared inside a NixOS configuration is given that machine.
+  The integration hands the home the configuration of the machine as
+  the module argument `osConfig`, and the class of the machine as
+  `osClass`. These are the arguments home-manager's NixOS module
+  passes to a home it embeds. The configuration is the childless
+  evaluation of the NixOS configuration, which leaves out the
+  configurations declared inside it, because the home is one of them.
+  A home with no NixOS configuration above it gets `osConfig = null`,
+  as a home evaluated by home-manager alone does. An `osConfig`
+  passed to `mkConfiguration` takes the place of the configuration of
+  the machine.
+
+  Such a home also imports a home-manager module, `nixos-parent`, by
+  default. The NixOS configuration adds it, and it sets the options
+  of the home that come from the machine. See
+  [`modules.nixos."caisson/default"`](#modulesnixoscaissondefault-moduleshomemanagercaissonnixos-parent).
+
+  home-manager's legacy argument `nixosConfig` stays null. Its
+  fontconfig module reads `nixosConfig.home-manager.useUserPackages`,
+  an option that only home-manager's NixOS module declares, and
+  caisson does not use that module.
 
   The defaults of the source metadata come from the sources the
   evaluation uses: `homeManagerOutPath` from `ecosystemSrc`, and

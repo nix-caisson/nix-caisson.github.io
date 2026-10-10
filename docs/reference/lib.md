@@ -1117,10 +1117,23 @@ out:
 - A home evaluated for a system other than the system of this
   machine.
 
-**Which unit.** The unit depends on whether the machine declares the
-account of the user of the home in `users.users`.
+**The account of the user.** The module expects the machine to declare
+the account of the user of each home in `users.users`. A home whose
+user has no account there is refused, with an assertion that names the
+home and the user. On most machines such a home is a mistake: a
+misspelled user name, or a home declared on the wrong machine.
 
-| | Account declared | Account not declared |
+Some accounts are provided by something other than `users.users`. An
+account that systemd-homed manages is one. systemd-homed keeps the
+record of it, the machine must not declare it a second time, and its
+home directory is mounted only at login. The option
+[`caisson.home-manager.activation.usersDeclaredElsewhere`](./options.md#caissonhome-manageractivationusersdeclaredelsewhere)
+lists the users that have such an account on the machine. The home of
+a listed user is not refused.
+
+**Which unit.** The unit depends on which of the two the user is.
+
+| | Account in `users.users` | User listed as declared elsewhere |
 | --- | --- | --- |
 | Unit | system unit `home-manager-<user>` | user unit `home-manager-<user>` |
 | Runs | during boot, as that user, before users can log in | when the service manager of that user starts, at login |
@@ -1129,10 +1142,7 @@ account of the user of the home in `users.users`.
 
 `<user>` is `home.username` of the home.
 
-The system unit is the unit home-manager's NixOS module writes. The
-user unit is for an account that systemd-homed manages. The machine
-must not declare such an account, and its home directory is mounted
-only at login.
+The system unit is the unit home-manager's NixOS module writes.
 
 **The profile of the home.** Both units run `activate` with no driver
 version. home-manager calls that the legacy behavior: the script also

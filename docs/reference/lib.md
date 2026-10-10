@@ -1047,7 +1047,11 @@ unless it passes `moduleImports`. This module sets
 `caisson/nixos-parent` to the modules that the homes declared inside
 the machine import by default. It also imports
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation),
-which runs those homes on the machine.
+which runs those homes on the machine, and the pair of modules
+described under
+[`caisson/home-manager-source-marker`](#modulesnixoscaissonhome-manager-source-marker-moduleshomemanagercaissonnixos-source-marker),
+which make a home warn when it is activated on a machine it was not
+built for.
 
 `caisson/nixos-parent` sets these options of the home:
 
@@ -1163,6 +1167,81 @@ in the childless evaluation. It also defines nothing in a NixOS
 evaluation that declares no systemd options. The nixos-minimal
 integration produces such an evaluation, and a machine of that kind
 cannot run units.
+
+### `modules.nixos."caisson/home-manager-source-marker"`, `modules.homeManager."caisson/nixos-source-marker"`
+
+- **Source:** `modules/nixos/home-manager-source-marker/`,
+  `modules/homeManager/nixos-source-marker/`
+
+These two modules make a home warn, when it is activated, if it was
+built for a NixOS configuration that differs from the machine that is
+running.
+
+A home declared inside a NixOS configuration is activated by the
+machine. The user can also activate it by hand with
+`home-manager switch`, which builds the home from whatever source is
+checked out. That source may describe a machine that differs from the
+machine that is running: the NixOS configuration was changed and the
+machine was not switched yet, or the checkout is older than the
+machine. A home reads settings of its machine, so a home built from
+such a source can disagree with the machine it is activated on.
+
+**The record on the machine.** The NixOS module
+`caisson/home-manager-source-marker` writes
+`/etc/caisson-home-manager/source.json`. `caisson/default` for the
+`nixos` class imports it, so a NixOS configuration has it unless it
+passes `moduleImports`.
+
+| Field | Value |
+| --- | --- |
+| `baseSystemOutPath` | the store path of the system of the NixOS configuration, as its childless evaluation builds it |
+| `hostName` | the name of the NixOS configuration |
+| `hostKind` | `"nixos"` |
+| `selfOutPath` | the source tree of the flake |
+| `nixpkgsOutPath` | the nixpkgs of the package set of the NixOS configuration |
+| `schemaVersion` | `3` |
+| `fingerprint` | a hash of the other fields |
+
+The childless evaluation leaves out the configurations declared
+inside the NixOS configuration, the homes among them. So
+`baseSystemOutPath` identifies the machine apart from its homes, and
+a change to a home does not change it.
+
+The module writes the file only when at least one home is declared
+inside the NixOS configuration. A home inside a NixOS configuration
+that is itself inside this one belongs to the inner machine, and does
+not count.
+
+**The comparison in the home.** The home-manager module
+`caisson/nixos-source-marker` computes the same path from the side of
+the home. It reads the childless evaluation of the NixOS
+configuration through the manifest of the home. The activation of the
+home compares that path with `baseSystemOutPath` in the file. It
+prints a warning when they differ, or when the file does not exist.
+It does not stop the activation.
+
+`caisson/default` for the `nixos` class adds this module to the
+modules that the homes declared inside the machine import by default,
+through `caisson.forChildren.defaultModuleImports.homeManager`. A
+home that passes `moduleImports` gets it only if it lists it.
+
+The option
+[`caisson.home-manager.machineDrift.warn`](./options.md#caissonhome-managermachinedriftwarn)
+of the home turns the warning off.
+
+**When the machine activates the home.** The file then belongs to the
+generation that is being activated, so the paths are equal and
+nothing is printed.
+
+**Cost.** Both modules evaluate the system of the childless
+evaluation, which is a second evaluation of the whole NixOS
+configuration. A NixOS configuration with no homes writes no file and
+does not pay for it.
+
+**Where the NixOS module defines nothing.** It defines nothing in the
+childless evaluation, which has no homes. It also defines nothing in
+a NixOS evaluation that has no `environment.etc` option, which the
+nixos-minimal integration can produce.
 
 ### `modules.flake."caisson/nixpkgs"`
 

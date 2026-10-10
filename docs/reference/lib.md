@@ -1077,8 +1077,10 @@ There are two ways to take `nixos-parent` out:
 - A home that passes `moduleImports` selects its modules itself, and
   then that home does not get `nixos-parent`.
 
-Either one can list `caisson/default` or `caisson/nixos-parent` in its
-selection to keep it.
+Each can keep it while selecting its other modules. The NixOS
+configuration lists `caisson/default`, which is a NixOS module, in its
+selection. The home lists `caisson/nixos-parent`, which is a
+home-manager module, in its selection.
 
 `nixos-parent` reads the machine through the manifest of the home, so
 only a home with a NixOS configuration above it can import it.

@@ -92,6 +92,40 @@ publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A n
 
 `caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the evaluation that holds the configurations: it is absent from the childless view, and from an evaluation that carries no manifest.
 
+### `caisson.home-manager.activation.usersDeclaredElsewhere`
+
+- **Type:** `listOf str`
+- **Default:** `[ ]`
+- **Source:** `modules/nixos/home-manager-activation/`
+- **Declared in:** a NixOS configuration that imports `caisson/home-manager-activation`, which `caisson/default` for the `nixos` class does
+
+The users that have an account on this machine although `users.users` does not declare it.
+
+A NixOS configuration activates the homes declared inside it. It expects the account of the user of each home in `users.users`, and it refuses a home whose user has no account there. Such a home is usually a mistake: a misspelled user name, or a home declared on the wrong machine.
+
+An account that systemd-homed manages is not in `users.users`. systemd-homed keeps the record of the account, and the machine must not declare it a second time. List the user here:
+
+```nix
+{ lib, ... }:
+{
+  services.homed.enable = true;
+
+  caisson.home-manager.activation.usersDeclaredElsewhere = [ "chris" ];
+
+  caisson.home-manager.configurations.chris = lib.caisson.home-manager.mkConfiguration {
+    configModule = {
+      home.homeDirectory = "/home/chris";
+    };
+  };
+}
+```
+
+The home of a listed user is not refused. It is activated by a user unit that runs when the user logs in, which is when systemd-homed mounts the home directory. The home sets its home directory itself, because the machine has no account to read it from.
+
+A user that is listed here and also declared in `users.users` is refused, because the two statements contradict each other.
+
+See [`modules.nixos."caisson/home-manager-activation"`](./lib.md#modulesnixoscaissonhome-manager-activation) for the units.
+
 ### `caisson.forChildren.modules`
 
 - **Type:** `attrsOf (attrsOf deferredModule)`, by class and then name

@@ -10,17 +10,25 @@ of it).
 repository runs them with nix-unit. Anything that can be asserted by
 evaluating `lib` belongs here.
 
-As a flake check, nix-unit runs inside a Nix build: the check is a
-derivation, and its builder runs nix-unit on the flake that holds the
-tests. A builder can read only the store paths that are inputs of its
-derivation, and it has no network. Every flake input the tests read
-therefore has to be listed in `nix-unit.inputs`, which passes each to
-nix-unit as a store path. An input that is not listed fails with
-`unable to download`.
+When nix-unit runs as a flake check, it runs inside a Nix build. The
+check is a derivation. The builder of that derivation runs nix-unit,
+and nix-unit evaluates the flake that holds the tests.
 
-A flake that the tests compose as a project has inputs too, and those
-have to be listed as well. `lib.caisson.realizeInputs` produces them
-from the inputs Nix has already resolved:
+Nix runs every builder in a sandbox. Inside the sandbox, the builder
+can see a path in the Nix store only when the derivation names that
+path as a dependency, and the builder has no network access. So Nix
+cannot find a flake input that the tests need, and it cannot download
+the input either. The check fails with the message `unable to
+download`.
+
+The option `nix-unit.inputs` prevents that. It is an attribute set of
+input names and store paths. nix-unit reads each input it lists from
+the store path given, and the builder can see those store paths. Every
+flake input that the tests read has to be in the set.
+
+A flake that the tests compose as a project has inputs too. Those
+inputs also have to be in the set, under names such as
+`caisson/caisson-core`. `lib.caisson.realizeInputs` adds them:
 
 ```nix
 perSystem.nix-unit.inputs =

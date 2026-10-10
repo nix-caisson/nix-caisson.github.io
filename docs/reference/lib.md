@@ -894,11 +894,16 @@ if supplied. See [Testing](../testing.md).
 lib.caisson.realizeInputs : inputs -> { "<name>/<name>/…" = storePath; }
 ```
 
-Realizes resolved flake inputs, in the sense of `nix-store --realise`:
-it makes sure each is in the store and returns the store path of each.
-The inputs of an input are realized too, to any depth. Each input is
-named by the path of input names that leads to it, which is the name
-`--override-input` takes:
+`realizeInputs` takes flake inputs that Nix has already resolved. It
+makes sure that each input is present in the Nix store, and it returns
+the store path of each input. It does the same for the inputs of each
+input, and for the inputs of those, to any depth. "Realize" is the
+word Nix uses for making sure a store path is present, as in
+`nix-store --realise`.
+
+The name of each input in the result is the list of input names that
+leads to it, joined with `/`. That is the form of name that the Nix
+flag `--override-input` takes:
 
 ```nix
 lib.caisson.realizeInputs { inherit (inputs) caisson; }
@@ -911,34 +916,75 @@ lib.caisson.realizeInputs { inherit (inputs) caisson; }
 # }
 ```
 
-An input that several others follow is listed once for each path to
-it. `self` is left out at every level. A source tree and a bare path
-have no inputs.
+When two inputs both follow a third input, the third input appears in
+the result twice, once under each name that leads to it. The function
+leaves out `self`. An input that is a plain source tree has no inputs,
+and neither has a store path that the caller writes directly as a
+value.
 
-The function exists for tools that evaluate a flake from inside a Nix
-build. nix-unit is such a tool when it runs as a flake check: the
-check is a derivation, and its builder runs nix-unit on the flake that
-holds the tests.
+**The problem the function solves.** Some tools evaluate a flake from
+inside a Nix build. nix-unit does this when it runs as a flake check.
+The check is a derivation. The builder of that derivation runs
+nix-unit, and nix-unit evaluates the flake that holds the tests.
 
-A builder runs in a sandbox. It can read only the store paths that are
-inputs of its derivation, and it has no network. When the evaluation
-inside the builder comes to a flake input, Nix can neither find it in
-the store nor download it, and the check fails with `unable to
-download`. The lock file does not help. It says which revision the
-input is, and the sandbox still has no copy of that revision and no
-way to fetch one.
+Nix runs every builder in a sandbox. Inside the sandbox, the builder
+can see a path in the Nix store only when the derivation names that
+path as a dependency. The rest of the store is hidden from the
+builder. The builder also has no network access.
 
-Passing an input to the tool as `--override-input <name> <store path>`
-solves both halves: the tool reads the input from that store path, and
-the store path becomes an input of the derivation. An input that the
-tests use as a flake has inputs too, and each of those needs an
-override under a name such as `caisson/caisson-core`. This function
-produces all of them from the inputs Nix has already resolved.
+So when nix-unit evaluates the flake and the evaluation needs a flake
+input, two things go wrong. Nix looks for the input in the store and
+does not see it, because the derivation did not name it. Nix then
+tries to download the input and cannot, because the builder has no
+network access. The check fails with the message `unable to download`.
 
-Realizing an input fetches it, so the function fetches every input in
-the tree it is given, whether a test reads it or not. Give it the
-inputs that the tests use as flakes, and list the other inputs of the
-test flake directly. See [Testing](../testing.md#unit-tests).
+The lock file of the flake does not change this. The lock file tells
+Nix which revision of the input to use. It does not put a copy of that
+revision where the builder can see it.
+
+**How the problem is solved by hand.** nix-unit accepts the flag
+`--override-input <name> <store path>` for each input. The flag does
+two things. It tells nix-unit to read the input from that store path
+and not to fetch it. And the store path is now written in the command
+that the builder runs, so the derivation names the store path as a
+dependency, and the builder can see it. The flake-parts module of
+nix-unit writes these flags from the option `nix-unit.inputs`, which
+is an attribute set of names and store paths.
+
+The inputs of an input need the same flag. Suppose a test composes
+caisson as a project. To do that, nix-unit has to evaluate the caisson
+flake. The caisson flake has inputs too, and caisson-core is one of
+them. Nix looks for caisson-core, does not see it, and the check fails
+in the way described above. The flag for an input of an input names
+both of them: `--override-input caisson/caisson-core <store path>`.
+
+Writing these flags by hand means copying the list of inputs out of
+the lock file of the caisson flake, and keeping that copy up to date.
+If a name is missing from the copy, nothing reports it until the check
+runs and fails inside the sandbox. `realizeInputs` builds the whole
+set from the resolved inputs.
+
+**Which inputs to give the function.** To return the store path of an
+input, Nix has to fetch that input. The function therefore fetches
+every input it is given, and every input of those inputs, to any
+depth. It fetches an input even when no test reads it.
+
+For that reason, give the function only the inputs that the tests
+evaluate as flakes, and list the other inputs of the test flake
+directly:
+
+```nix
+nix-unit.inputs = inputs // lib.caisson.realizeInputs { inherit (inputs) caisson; };
+```
+
+In this line, `inputs` gives nix-unit each input of the test flake
+under its name. The call to `realizeInputs` adds the inputs of the
+caisson flake.
+
+Do not give the function all of `inputs`. It would then also fetch the
+inputs of nix-unit, the inputs of nixpkgs, and the inputs of every
+other input of the test flake. Most of those are inputs that no test
+reads. See also [Testing](../testing.md#unit-tests).
 
 ### `modules.<class>."caisson/core"`, `modules.flake."caisson/default"`
 

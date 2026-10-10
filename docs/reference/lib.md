@@ -1045,7 +1045,9 @@ NixOS configuration imports every registered module named `default`
 unless it passes `moduleImports`. This module sets
 `caisson.forChildren.defaultModuleImports.homeManager`, which adds
 `caisson/nixos-parent` to the modules that the homes declared inside
-the machine import by default.
+the machine import by default. It also imports
+[`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation),
+which runs those homes on the machine.
 
 `caisson/nixos-parent` sets these options of the home:
 
@@ -1088,6 +1090,69 @@ only a home with a NixOS configuration above it can import it.
 In a NixOS evaluation whose library is not a caisson composition,
 `caisson/default` defines nothing, as the core module declares
 nothing there.
+
+### `modules.nixos."caisson/home-manager-activation"`
+
+- **Source:** `modules/nixos/home-manager-activation/`
+
+The NixOS module with which a machine activates the homes declared
+inside it. `caisson/default` for the `nixos` class imports it, so a
+NixOS configuration has it unless it passes `moduleImports`.
+
+Activating a home means running the `activate` script of its
+activation package as the user of the home. The script links the
+files of the home into the home directory and installs its packages.
+This module writes a systemd unit for each home, so that switching
+the machine to a new generation also applies its homes. caisson does
+not use home-manager's NixOS module for this.
+
+**Which homes.** The module activates the home-manager configurations
+that the NixOS configuration passes up. Those are the homes declared
+inside it, also through a structural configuration, that its
+`caisson.home-manager.exported` selector selects. Two kinds are left
+out:
+
+- A home declared inside a NixOS configuration that is itself inside
+  this one. That home belongs to the inner machine.
+- A home evaluated for a system other than the system of this
+  machine.
+
+**Which unit.** The unit depends on whether the machine declares the
+account of the user of the home in `users.users`.
+
+| | Account declared | Account not declared |
+| --- | --- | --- |
+| Unit | system unit `home-manager-<user>` | user unit `home-manager-<user>` |
+| Runs | during boot, as that user, before users can log in | when the service manager of that user starts, at login |
+| Restricted by | `User=<user>` | `ConditionUser=<user>` |
+| Waits for | the home directory, and the Nix daemon socket | the home directory |
+
+`<user>` is `home.username` of the home.
+
+The system unit is the unit home-manager's NixOS module writes. The
+user unit is for an account that systemd-homed manages. The machine
+must not declare such an account, and its home directory is mounted
+only at login.
+
+**The profile of the home.** Both units run `activate` with no driver
+version. home-manager calls that the legacy behavior: the script also
+updates the home-manager profile of the user. The user can then run
+`home-manager switch` and `home-manager generations` on the same
+profile. home-manager's NixOS module passes `--driver-version 1`,
+which leaves the profile alone.
+
+**Two homes for one user.** A machine that would activate two homes
+with the same `home.username` fails an assertion. The message names
+the user and both homes. Give one of the homes a different
+`home.username`, or leave one out with
+`caisson.home-manager.exported`.
+
+**Where the module defines nothing.** The module reads the homes from
+the full evaluation of the NixOS configuration, so it defines nothing
+in the childless evaluation. It also defines nothing in a NixOS
+evaluation that declares no systemd options. The nixos-minimal
+integration produces such an evaluation, and a machine of that kind
+cannot run units.
 
 ### `modules.flake."caisson/nixpkgs"`
 

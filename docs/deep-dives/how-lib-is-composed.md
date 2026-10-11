@@ -205,8 +205,8 @@ integrations and tooling, each importing `caisson-lib`.
 argument.
 
 The `lib` output of the flake is the composed library, whole. `lib` is
-the one flake output that can hold values of any shape, so everything
-a flake publishes that has no output of its own is published there.
+the one flake output that can hold values of any shape. A value that
+fits no other flake output is published there.
 The namespace of a flake named `my-flake` is at `lib.my-flake` in the
 output.
 
@@ -217,8 +217,8 @@ modules that the `exported` selectors of the flake chose. A flake that
 lists this flake in `projects` reads those from the manifest, and
 ignores the flake outputs of this flake.
 
-A flake that lists this flake in `projects` composes a library of its
-own from those lib overlays, against its own inputs.
+A flake that lists this flake in `projects` composes a separate
+library from those lib overlays, against the inputs of that flake.
 
 ## Inspecting the result
 

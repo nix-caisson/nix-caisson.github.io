@@ -204,14 +204,13 @@ integrations and tooling, each importing `caisson-lib`.
 `specialArgs.lib`, so modules receive it as their ordinary `lib`
 argument.
 
-The `lib` output of the flake is the composed library. Only the
-`lib` flake output can hold values of any shape. A value that fits no
-other flake output is published there.
-The namespace of a flake named `my-flake` is at `lib.my-flake` in the
-output.
+The `lib` output of the flake is the composed library. The namespace
+of a flake named `my-flake` is at `lib.my-flake` in the output.
 
 The manifest of the flake is in the output too, at
-`lib.caisson-core.evalManifest`. The manifest holds what the flake
+`lib.caisson-core.evalManifest`. The manifest is published in `lib`
+because the other flake outputs each have a fixed shape. The manifest
+holds what the flake
 exports, as `outputs.exports`: the lib overlays, package overlays and
 modules that the `exported` selectors of the flake chose. A flake that
 lists this flake in `projects` reads those from the manifest, and

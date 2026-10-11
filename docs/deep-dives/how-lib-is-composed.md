@@ -202,12 +202,23 @@ integrations and tooling, each importing `caisson-lib`.
 
 `lib.caisson.flake-parts.mkTopConfiguration` passes the composed library to flake-parts as
 `specialArgs.lib`, so modules receive it as their ordinary `lib`
-argument. `flake.lib` publishes a selection of it when
-`caisson.lib.export.enabled` is set; the default selection is the
-flake's namespace only, and that is the convention: exporting
-the full composed library would make all of nixpkgs-lib, at your
-pin, part of your public contract. Consumers build their
-composed library against their inputs instead.
+argument.
+
+The `lib` output of the flake is the composed library, whole. `lib` is
+the one flake output that can hold values of any shape, so everything
+a flake publishes that has no output of its own is published there.
+The namespace of a flake named `my-flake` is at `lib.my-flake` in the
+output.
+
+The manifest of the flake is in the output too, at
+`lib.caisson-core.evalManifest`. The manifest holds what the flake
+exports, as `outputs.exports`: the lib overlays, package overlays and
+modules that the `exported` selectors of the flake chose. A flake that
+lists this flake in `projects` reads those from the manifest, and
+ignores the flake outputs of this flake.
+
+A flake that lists this flake in `projects` composes a library of its
+own from those lib overlays, against its own inputs.
 
 ## Inspecting the result
 

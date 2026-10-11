@@ -126,13 +126,13 @@ in the config module. `lib.caisson.mkLibOverlays ./lib-overlays` reads
 ```nix
   caisson = {
     libOverlays.exported = libOverlays: { inherit (libOverlays) default; };
-    lib.export.enabled = true;
   };
 ```
 
 Now `lib.my-flake.greet` is available everywhere the composed library
-flows: in the config module, in registered modules, and (with the
-export enabled) to consumers as `flake.lib`. Use it in `perSystem`:
+flows: in the config module, in registered modules, and to consumers
+in the `lib` output of the flake, which is the composed library. Use
+it in `perSystem`:
 
 ```nix
       packages.default = pkgs.writeText "greeting" (lib.my-flake.greet "Nix");

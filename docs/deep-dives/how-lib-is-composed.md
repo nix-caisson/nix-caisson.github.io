@@ -216,8 +216,11 @@ modules that the `exported` selectors of the flake chose. A flake that
 lists this flake in `projects` reads those from the manifest, and
 ignores the flake outputs of this flake.
 
-A flake that lists this flake in `projects` composes a separate
-library from those lib overlays, against the inputs of that flake.
+A flake that lists this flake in `projects` adds those lib overlays to
+the library it composes. Each lib overlay keeps the pinned sources and
+the composed library of the flake that defined it. The overlay received
+them as `closure-inputs` and `closure-lib` when that flake built it
+with `mkLibOverlay`.
 
 ## Inspecting the result
 

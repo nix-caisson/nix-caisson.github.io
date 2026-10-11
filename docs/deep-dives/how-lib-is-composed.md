@@ -210,17 +210,32 @@ of a flake named `my-flake` is at `lib.my-flake` in the output.
 The manifest of the flake is in the output too, at
 `lib.caisson-core.evalManifest`. The manifest is published in `lib`
 because the other flake outputs each have a fixed shape. The manifest
-holds what the flake
-exports, as `outputs.exports`: the lib overlays, package overlays and
-modules that the `exported` selectors of the flake chose. A flake that
-lists this flake in `projects` reads those from the manifest, and
-ignores the flake outputs of this flake.
+holds what the flake exports, as `outputs.exports`: the lib overlays,
+package overlays and modules that the `exported` selectors of the
+flake chose.
 
-A flake that lists this flake in `projects` adds those lib overlays to
-the library it composes. Each lib overlay keeps the pinned sources and
-the composed library of the flake that defined it. The overlay received
-them as `closure-inputs` and `closure-lib` when that flake built it
-with `mkLibOverlay`.
+Take two flakes. `producer` exports a lib overlay. `consumer` lists
+`producer` in `projects`.
+
+`consumer` reads what `producer` exports from the manifest of
+`producer`, and ignores the flake outputs of `producer`. `consumer`
+adds the lib overlay to the library that `consumer` composes.
+
+The lib overlay was built with `mkLibOverlay`, in the flake whose
+source holds the overlay. `mkLibOverlay` gave the overlay
+`closure-inputs` and `closure-lib`: the pinned sources and the composed
+library of the flake that called `mkLibOverlay`. The overlay keeps
+both in the library of `consumer`.
+
+By default, `producer` exports the lib overlays that `producer`
+registers itself. For those, the flake that called `mkLibOverlay` is
+`producer`.
+
+`producer` can also list a flake `upstream` in `projects`, and name a
+lib overlay of `upstream` in the `exported` selector of `producer`.
+For that lib overlay, the flake that called `mkLibOverlay` is
+`upstream`. In the library of `consumer`, the overlay keeps the pinned
+sources and the composed library of `upstream`.
 
 ## Inspecting the result
 

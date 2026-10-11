@@ -204,7 +204,7 @@ integrations and tooling, each importing `caisson-lib`.
 `specialArgs.lib`, so modules receive it as their ordinary `lib`
 argument.
 
-The `lib` output of the flake is the composed library, whole. Only the
+The `lib` output of the flake is the composed library. Only the
 `lib` flake output can hold values of any shape. A value that fits no
 other flake output is published there.
 The namespace of a flake named `my-flake` is at `lib.my-flake` in the

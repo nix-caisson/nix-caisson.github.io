@@ -1026,12 +1026,12 @@ project registers itself. An entry a consumed project contributed
 composition, leaves only when a selector names it: a project
 republishes an upstream's entries only on purpose, and a consumer
 takes them from that upstream through its `projects`. The exported
-entries are in the manifest of the flake. The flake
+entries are in the manifest. The
 outputs are `modules` (and `flakeModules`) and `overlays`.
 `caisson.flakeOutputs.modules` selects which exported
 modules the `modules` output holds. `overlays` holds the exported
 package overlays as plain nixpkgs overlays. The exported lib overlays
-have no flake output.
+have no output.
 `caisson/default` for the `flake` class is caisson's contribution to
 the default default: it imports `caisson/nixpkgs` below.
 

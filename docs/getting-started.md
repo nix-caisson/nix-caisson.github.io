@@ -233,8 +233,8 @@ per item over the combined dictionary:
 ```
 
 Registering a single overlay by hand is the way to cherry-pick or
-rename it. The exported lib overlays of a flake are in the manifest
-of the flake, so the `nixos` lib overlay of caisson is
+rename it. The exported lib overlays are in the manifest, so the
+`nixos` lib overlay of caisson is
 `caisson.lib.caisson-core.evalManifest.outputs.exports.libOverlays.nixos`. The [library reference](reference/lib.md) documents
 the integration namespaces.
 

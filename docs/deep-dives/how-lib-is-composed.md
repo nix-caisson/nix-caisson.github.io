@@ -206,8 +206,9 @@ argument.
 
 The `lib` output of the flake is the composed library. By convention,
 the lib overlays of a flake named `my-flake` define their values under
-`my-flake` (see [Library overlays](../concepts/library-overlays.md)).
-Those values are in the output at `lib.my-flake`.
+`my-flake`, and the lib overlays of other flakes do not define values
+there (see [Library overlays](../concepts/library-overlays.md)).
+The values of `my-flake` are in the output at `lib.my-flake`.
 
 The manifest of the flake is in the output too, at
 `lib.caisson-core.evalManifest`. The manifest is published in `lib`

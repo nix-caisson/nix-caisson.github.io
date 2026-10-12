@@ -274,7 +274,7 @@ caisson sets the option to `_: { }`. Each module that caisson exports works only
 - **Default:** `true`
 - **Source:** `modules/generic/core/caisson/libOverlays.nix`
 
-Whether to enable lib overlay export. When enabled, the lib overlays selected by `caisson.libOverlays.exported` are exported. They are in the manifest, at `lib.caisson-core.evalManifest.outputs.exports.libOverlays` in the `lib` output. A lib overlay is an entry in the shape caisson registers, so there is no `libOverlays` output.
+Whether to enable lib overlay export. When enabled, the lib overlays selected by `caisson.libOverlays.exported` are exported. They are in the manifest. `mkLib` reads them from there for each entry of `projects`, and registers each as `<project>/<name>`. A lib overlay is an entry in the shape caisson registers, so there is no `libOverlays` output.
 
 ### `caisson.libOverlays.exported`
 

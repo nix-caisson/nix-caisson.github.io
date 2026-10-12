@@ -163,9 +163,14 @@ naming `mkLib` and pointing at the pattern.
   `nixpkgs-lib` name, else `nixpkgs`); the integrations interpret the
   rest.
 - `projects` consumes whole upstream contributions
-  (`{ my-dep = inputs.my-dep; }`): each value carries `libOverlays`,
-  class-keyed `modules` and `pkgOverlays` dictionaries, the outputs of
-  a caisson-built flake. A project's overlays and package overlays join
+  (`{ my-dep = inputs.my-dep; }`). A project contributes three
+  dictionaries: `libOverlays`, `pkgOverlays` and class-keyed `modules`.
+  For a flake built with caisson, mkLib reads the three from the
+  manifest of the flake, at `lib.caisson-core.evalManifest` in the
+  `lib` output, where they are under `outputs.exports`. mkLib ignores
+  the other outputs of that flake. A value with no manifest is read as
+  an attribute set that holds the three dictionaries itself.
+  A project's overlays and package overlays join
   their registries and its modules join the class registry under
   `<project>/<name>`, so the existing selections keep per-item
   choice: `libOverlayImports` decides which overlays apply, the

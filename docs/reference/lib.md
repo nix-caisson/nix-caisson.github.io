@@ -163,13 +163,13 @@ naming `mkLib` and pointing at the pattern.
   `nixpkgs-lib` name, else `nixpkgs`); the integrations interpret the
   rest.
 - `projects` consumes whole upstream contributions
-  (`{ my-dep = inputs.my-dep; }`). A project contributes three
-  dictionaries: `libOverlays`, `pkgOverlays` and class-keyed `modules`.
-  For a flake built with caisson, mkLib reads the three from the
-  manifest of the flake, at `lib.caisson-core.evalManifest` in the
+  (`{ my-dep = inputs.my-dep; }`). A project contributes the
+  dictionaries `libOverlays`, `pkgOverlays` and class-keyed `modules`.
+  For a flake built with caisson, mkLib reads these dictionaries from
+  the manifest of the flake, at `lib.caisson-core.evalManifest` in the
   `lib` output, where they are under `outputs.exports`. mkLib ignores
   the other outputs of that flake. A value with no manifest is read as
-  an attribute set that holds the three dictionaries itself.
+  an attribute set that holds these dictionaries itself.
   A project's overlays and package overlays join
   their registries and its modules join the class registry under
   `<project>/<name>`, so the existing selections keep per-item
@@ -939,7 +939,7 @@ path as a dependency. The rest of the store is hidden from the
 builder. The builder also has no network access.
 
 So when nix-unit evaluates the flake and the evaluation needs a flake
-input, two things go wrong. Nix looks for the input in the store and
+input, the evaluation fails. Nix looks for the input in the store and
 does not see it, because the derivation did not name it. Nix then
 tries to download the input and cannot, because the builder has no
 network access. The check fails with the message `unable to download`.
@@ -949,9 +949,9 @@ Nix which revision of the input to use. It does not put a copy of that
 revision where the builder can see it.
 
 **How the problem is solved by hand.** nix-unit accepts the flag
-`--override-input <name> <store path>` for each input. The flag does
-two things. It tells nix-unit to read the input from that store path
-and not to fetch it. And the store path is now written in the command
+`--override-input <name> <store path>` for each input. The flag
+tells nix-unit to read the input from that store path
+and not to fetch it. The store path is also written in the command
 that the builder runs, so the derivation names the store path as a
 dependency, and the builder can see it. The flake-parts module of
 nix-unit writes these flags from the option `nix-unit.inputs`, which
@@ -1055,9 +1055,9 @@ the machine import by default. It also imports
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation),
 which runs those homes on the machine.
 
-`caisson/default` also brings in the two modules described under
+`caisson/default` also brings in the modules described under
 [`caisson/home-manager-source-marker`](#modulesnixoscaissonhome-manager-source-marker-moduleshomemanagercaissonnixos-source-marker).
-With those two modules, a home prints a warning when it is activated
+With those modules, a home prints a warning when it is activated
 on a machine it was not built for.
 
 `caisson/nixos-parent` sets these options of the home:
@@ -1082,7 +1082,7 @@ home-manager leaves its command-line program out of a home that has
 `submoduleSupport.enable` set. `nixos-parent` puts it back, because
 the program is how the user runs `home-manager switch`.
 
-There are two ways to take `nixos-parent` out:
+A NixOS configuration or a home can take `nixos-parent` out:
 
 - A NixOS configuration that passes `moduleImports` selects its
   modules itself. It does not import `caisson/default`, and then no
@@ -1120,7 +1120,7 @@ not use home-manager's NixOS module for this.
 **Which homes.** The module activates the home-manager configurations
 that the NixOS configuration passes up. Those are the homes declared
 inside it, also through a structural configuration, that its
-`caisson.home-manager.exported` selector selects. Two kinds are left
+`caisson.home-manager.exported` selector selects. The module leaves
 out:
 
 - A home declared inside a NixOS configuration that is itself inside
@@ -1142,7 +1142,8 @@ home directory is mounted only at login. The option
 lists the users that have such an account on the machine. The home of
 a listed user is not refused.
 
-**Which unit.** The unit depends on which of the two the user is.
+**Which unit.** The unit depends on what provides the account of the
+user.
 
 | | Account in `users.users` | User listed as declared elsewhere |
 | --- | --- | --- |
@@ -1228,7 +1229,7 @@ home.
 
 The module adds a step to the activation of the home. The step
 compares the store path the module computed with `baseSystemOutPath`
-in the file. The step prints a warning when the two differ. The step
+in the file. The step prints a warning when they differ. The step
 also prints a warning when the file does not exist. The step does not
 stop the activation.
 
@@ -1243,8 +1244,9 @@ The option
 of the home removes the step.
 
 **When the machine activates the home.** The file on the machine then
-already belongs to the generation that is being activated. The two
-store paths are equal, and the step prints nothing.
+already belongs to the generation that is being activated. The store
+path the module computed equals `baseSystemOutPath`, and the step
+prints nothing.
 
 **Cost.** Both modules evaluate the system of the childless
 evaluation. That is a second evaluation of the whole NixOS
@@ -2021,9 +2023,9 @@ what is declared beneath it.
   [`modules.nixos."caisson/default"`](#modulesnixoscaissondefault-moduleshomemanagercaissonnixos-parent).
 
   A home that passes `moduleImports` selects all of its modules
-  itself. Such a home gets neither of the two modules unless its list
-  names them, as `modules."caisson/nixos-parent"` and
-  `modules."caisson/nixos-source-marker"`. `extraModuleImports` adds
+  itself. Such a home gets `modules."caisson/nixos-parent"` and
+  `modules."caisson/nixos-source-marker"` only if its list names
+  them. `extraModuleImports` adds
   to the default selection and keeps both.
 
   home-manager's legacy argument `nixosConfig` stays null. Its

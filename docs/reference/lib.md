@@ -403,7 +403,7 @@ origin is null. An
 mkLib composition self-describes: the composed library of a consumer
 carries the manifest of that consumer. Checks live on the export side
 only (the flake-parts integration type-checks it and projects the
-`flake.libOverlays` and `flake.modules` outputs from it, so an
+exports and the `flake.modules` output from it, so an
 `exported` selection can re-export a project-borne entry the same
 way as a hand-registered entry); a producer validates the manifest it
 publishes in its CI.
@@ -1025,9 +1025,13 @@ project registers itself. An entry a consumed project contributed
 (`<project>/<name>`), or an entry caisson-core publishes into every
 composition, leaves only when a selector names it: a project
 republishes an upstream's entries only on purpose, and a consumer
-takes them from that upstream through its `projects`. The flake
-outputs are `libOverlays`, `modules` (and `flakeModules`),
-`pkgOverlays` when the selection holds any, and `overlays`.
+takes them from that upstream through its `projects`. The exported
+entries are in the manifest. The
+outputs are `modules` (and `flakeModules`) and `overlays`.
+`caisson.flakeOutputs.modules` selects which exported
+modules the `modules` output holds. `overlays` holds the exported
+package overlays as plain nixpkgs overlays. The exported lib overlays
+have no output.
 `caisson/default` for the `flake` class is caisson's contribution to
 the default default: it imports `caisson/nixpkgs` below.
 
@@ -1846,7 +1850,7 @@ mkConfiguration :
   systems }`). The export-side check: the core flake-parts module
   reads the manifest of the evaluation
   through an option of this type before projecting the
-  `flake.libOverlays` and `flake.modules` outputs.
+  exports and the `flake.modules` output.
 
 ### `caisson.nixos` (module class `nixos`)
 

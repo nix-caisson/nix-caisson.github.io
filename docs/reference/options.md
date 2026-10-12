@@ -223,10 +223,15 @@ When the option is null, a configuration that is itself evaluated per system has
 Export settings for each registered module class. Each class key defines:
 
 - `export.enabled` (`bool`, default `true`)
-- `exported` (`function -> attrsOf deferredModule`, default `modules: { }`)
+- `exported` (`function -> attrsOf deferredModule`, default: the modules of the class that the composition registers itself)
 
-The selected modules are published under `flake.modules.<class>`. For the `"flake"`
-class specifically, the same modules are also mirrored to `flake.flakeModules`.
+The selected modules are the exported modules. They are in the manifest, and
+`mkLib` reads them from there for each entry of `projects`.
+
+The exported modules are also published under `flake.modules.<class>`, and
+[`caisson.flakeOutputs.modules`](#caissonflakeoutputsmodules) selects which of
+them. For the `"flake"` class, the published modules are also mirrored to
+`flake.flakeModules`.
 
 ### `caisson.modules.<class>.export.enabled`
 
@@ -239,10 +244,29 @@ Whether to export modules for a given class.
 ### `caisson.modules.<class>.exported`
 
 - **Type:** `function -> attrsOf deferredModule`
-- **Default:** `modules: { }`
+- **Default:** the modules of the class that the composition registers itself
 - **Source:** `modules/generic/core/caisson/modules.nix`
 
-Function that selects which modules in a class to publish under `flake.modules.<class>`.
+Function that selects which registered modules of a class to export. Receives the modules registered for the class and returns the modules to export. A module that came from an entry of `projects`, registered as `<project>/<name>`, is exported only when the function names it.
+
+### `caisson.flakeOutputs.modules`
+
+- **Type:** `function -> attrsOf (attrsOf deferredModule)`
+- **Default:** `modules: modules`
+- **Source:** `modules/flake/core/caisson/exports.nix`
+
+Function that selects which exported modules are also published in the `modules` output. It receives the exported modules, as an attribute set of classes that each hold modules by name, and returns the modules to publish in the same shape. The option exists in a flake-parts configuration.
+
+The exported modules are the modules that the `caisson.modules.<class>.exported` selectors chose. They are in the manifest, and `mkLib` reads them from there for each entry of `projects`. `mkLib` reads every exported module, whatever this function returns.
+
+The `modules` output serves an import by hand, as `inputs.<input>.modules.<class>.<name>`. Leave a module out of the output when it only works inside an evaluation that caisson makes, because it reads the options under `caisson` or the library under `lib.caisson`.
+
+```nix
+caisson.flakeOutputs.modules =
+  modules: modules // { nixos = removeAttrs modules.nixos [ "needs-caisson" ]; };
+```
+
+caisson sets the option to `_: { }`. Each module that caisson exports works only inside an evaluation that caisson makes. The `modules` output of caisson holds the empty `default` entry of the `flake` class and nothing else.
 
 ### `caisson.libOverlays.export.enabled`
 
@@ -250,12 +274,12 @@ Function that selects which modules in a class to publish under `flake.modules.<
 - **Default:** `true`
 - **Source:** `modules/generic/core/caisson/libOverlays.nix`
 
-Whether to enable lib overlay export. When enabled, publishes the overlays selected by `caisson.libOverlays.exported` under `flake.libOverlays`.
+Whether to enable lib overlay export. When enabled, the lib overlays selected by `caisson.libOverlays.exported` are exported. They are in the manifest, at `lib.caisson-core.evalManifest.outputs.exports.libOverlays` in the `lib` output. A lib overlay is an entry in the shape caisson registers, so there is no `libOverlays` output.
 
 ### `caisson.libOverlays.exported`
 
 - **Type:** `function -> attrsOf libOverlay`
-- **Default:** `overlays: { }`
+- **Default:** the lib overlays that the composition registers itself
 - **Source:** `modules/generic/core/caisson/libOverlays.nix`
 
-Function that selects which registered library overlays to export as flake outputs. Receives the set of overlays registered via `mkLib` and returns the subset to publish under `flake.libOverlays`.
+Function that selects which registered library overlays to export. Receives the set of overlays registered via `mkLib` and returns the overlays to export. A lib overlay that came from an entry of `projects`, registered as `<project>/<name>`, is exported only when the function names it.

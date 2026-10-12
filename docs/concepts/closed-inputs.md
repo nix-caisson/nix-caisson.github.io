@@ -63,14 +63,12 @@ Passing a non-function (attrset, path to a plain module, `null`) is an error: pl
 ```nix
 { closure-inputs, ... }:
 {
-  imports = [
-    closure-inputs.some-flake.lib.caisson-core.evalManifest.outputs.exports.libOverlays.default
-  ];
+  imports = [ "some-flake/default" ];
   overlay = final: prev: { ... };
 }
 ```
 
-Already-built overlays (for example another flake's exported `libOverlays.default`) are registered directly rather than wrapped in `mkLibOverlay`.
+The string names an entry of the registry. `some-flake/default` is the lib overlay `default` that the project `some-flake` exports, which is in the registry when `projects` lists `some-flake`.
 
 ## Key Functions
 

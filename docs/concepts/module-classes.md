@@ -165,6 +165,21 @@ Per-class export controls live under:
 - `caisson.modules.<class>.export.enabled`
 - `caisson.modules.<class>.exported`
 
+The exported modules are in the manifest of the flake. A flake that
+lists this flake in `projects` reads them from the manifest.
+
+A flake also publishes the exported modules under
+`flake.modules.<class>.<name>`, for a flake that imports a module by
+hand. `caisson.flakeOutputs.modules` selects which exported modules
+the output holds, and it defaults to every exported module. A module
+that only works inside an evaluation that caisson makes can be
+exported and left out of the output:
+
+```nix
+caisson.flakeOutputs.modules =
+  modules: modules // { nixos = removeAttrs modules.nixos [ "needs-caisson" ]; };
+```
+
 For flake-parts compatibility, `flake.flakeModules` mirrors
 `flake.modules.flake`, and the `flake` class always exports a `default`
 entry (an empty module unless the selection provides it) so

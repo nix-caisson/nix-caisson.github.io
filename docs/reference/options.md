@@ -223,10 +223,15 @@ When the option is null, a configuration that is itself evaluated per system has
 Export settings for each registered module class. Each class key defines:
 
 - `export.enabled` (`bool`, default `true`)
-- `exported` (`function -> attrsOf deferredModule`, default `modules: { }`)
+- `exported` (`function -> attrsOf deferredModule`, default: the modules of the class that the composition registers itself)
 
-The selected modules are published under `flake.modules.<class>`. For the `"flake"`
-class specifically, the same modules are also mirrored to `flake.flakeModules`.
+The selected modules are the exported modules. They are in the manifest of the
+flake, and a flake that lists this flake in `projects` reads them from there.
+
+A flake also publishes the exported modules under `flake.modules.<class>`, and
+[`caisson.flakeOutputs.modules`](#caissonflakeoutputsmodules) selects which of
+them. For the `"flake"` class, the published modules are also mirrored to
+`flake.flakeModules`.
 
 ### `caisson.modules.<class>.export.enabled`
 
@@ -239,10 +244,29 @@ Whether to export modules for a given class.
 ### `caisson.modules.<class>.exported`
 
 - **Type:** `function -> attrsOf deferredModule`
-- **Default:** `modules: { }`
+- **Default:** the modules of the class that the composition registers itself
 - **Source:** `modules/generic/core/caisson/modules.nix`
 
-Function that selects which modules in a class to publish under `flake.modules.<class>`.
+Function that selects which registered modules of a class to export. Receives the modules registered for the class and returns the modules to export. A module that came from a flake in `projects`, registered as `<project>/<name>`, is exported only when the function names it.
+
+### `caisson.flakeOutputs.modules`
+
+- **Type:** `function -> attrsOf (attrsOf deferredModule)`
+- **Default:** `modules: modules`
+- **Source:** `modules/flake/core/caisson/exports.nix`
+
+Function that selects which of the exported modules the flake also publishes in its `modules` flake output. It receives the exported modules, as an attribute set of classes that each hold modules by name, and returns the modules to publish in the same shape. The option exists in a flake-parts configuration.
+
+The exported modules are the modules that the `caisson.modules.<class>.exported` selectors chose. They are in the manifest of the flake, and a flake that lists this flake in `projects` reads them from the manifest. That flake gets every exported module, whatever this function returns.
+
+The `modules` flake output is for a flake that imports a module of this flake by hand, as `inputs.<flake>.modules.<class>.<name>`. Leave a module out of the output when it only works inside an evaluation that caisson makes, because it reads the options under `caisson` or the library under `lib.caisson`.
+
+```nix
+caisson.flakeOutputs.modules =
+  modules: modules // { nixos = removeAttrs modules.nixos [ "needs-caisson" ]; };
+```
+
+caisson sets the option to `_: { }` for its flake. Each module that caisson exports works only inside an evaluation that caisson makes. The `modules` output of caisson holds the empty `default` entry of the `flake` class and nothing else.
 
 ### `caisson.libOverlays.export.enabled`
 

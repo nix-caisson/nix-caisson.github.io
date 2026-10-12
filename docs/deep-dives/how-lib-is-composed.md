@@ -217,8 +217,8 @@ holds what the flake exports, as `outputs.exports`: the lib overlays,
 package overlays and modules that the `exported` selectors of the
 flake chose.
 
-Take two flakes. `producer` exports a lib overlay. `consumer` lists
-`producer` in `projects`.
+`producer` is a flake that exports a lib overlay. `consumer` is a
+flake that lists `producer` in `projects`.
 
 `consumer` reads what `producer` exports from the manifest of
 `producer`, and ignores the flake outputs of `producer`. `consumer`

@@ -63,7 +63,9 @@ Passing a non-function (attrset, path to a plain module, `null`) is an error: pl
 ```nix
 { closure-inputs, ... }:
 {
-  imports = [ closure-inputs.some-flake.libOverlays.default ];
+  imports = [
+    closure-inputs.some-flake.lib.caisson-core.evalManifest.outputs.exports.libOverlays.default
+  ];
   overlay = final: prev: { ... };
 }
 ```

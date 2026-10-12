@@ -274,12 +274,12 @@ caisson sets the option to `_: { }` for its flake. Each module that caisson expo
 - **Default:** `true`
 - **Source:** `modules/generic/core/caisson/libOverlays.nix`
 
-Whether to enable lib overlay export. When enabled, publishes the overlays selected by `caisson.libOverlays.exported` under `flake.libOverlays`.
+Whether to enable lib overlay export. When enabled, the lib overlays selected by `caisson.libOverlays.exported` are exported. They are in the manifest of the flake, at `lib.caisson-core.evalManifest.outputs.exports.libOverlays` in the `lib` flake output. A lib overlay is an entry in the shape caisson registers, so there is no flake output for lib overlays.
 
 ### `caisson.libOverlays.exported`
 
 - **Type:** `function -> attrsOf libOverlay`
-- **Default:** `overlays: { }`
+- **Default:** the lib overlays that the composition registers itself
 - **Source:** `modules/generic/core/caisson/libOverlays.nix`
 
-Function that selects which registered library overlays to export as flake outputs. Receives the set of overlays registered via `mkLib` and returns the subset to publish under `flake.libOverlays`.
+Function that selects which registered library overlays to export. Receives the set of overlays registered via `mkLib` and returns the overlays to export. A lib overlay that came from a flake in `projects`, registered as `<project>/<name>`, is exported only when the function names it.

@@ -8,22 +8,6 @@ The options are declared by caisson's core module, which is imported into an eva
 
 ## Options
 
-### `caisson.lib.export.enabled`
-
-- **Type:** `bool`
-- **Default:** `false`
-- **Source:** `modules/generic/core/caisson/lib.nix`
-
-Whether to enable lib export. When enabled, publishes the selection made by `caisson.lib.exported` as `flake.lib`.
-
-### `caisson.lib.exported`
-
-- **Type:** `function -> lazyAttrsOf raw`
-- **Default:** `composedLib: composedLib.${name}`, where `name` is the project's name declared on `mkLib` (refused when none is declared)
-- **Source:** `modules/generic/core/caisson/lib.nix`
-
-Function that selects which parts of the composed library to publish as the flake's `lib` output. The default exports the namespace named after the project; caisson itself sets `composedLib: { inherit (composedLib) caisson caisson-core; }` so flake-level and composed-level addresses match.
-
 ### `caisson.manifest`
 
 - **Type:** `caisson.flake-parts.types.manifest` (read-only)

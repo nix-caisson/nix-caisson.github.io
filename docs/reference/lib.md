@@ -6,8 +6,9 @@ and `lib.caisson`. `lib.caisson-core` holds the machinery, injected by
 [caisson-core](https://github.com/nix-caisson/caisson-core), which
 caisson pins internally). `lib.caisson`
 holds the integrations and the pkgs-dependent tooling, contributed by
-the overlays this flake exports. The flake-level `lib` output mirrors
-both namespaces (`caisson.lib.caisson-core`, `caisson.lib.caisson`).
+the overlays this flake exports. The `lib` output of the caisson flake
+is its composed library, so both namespaces are in it
+(`caisson.lib.caisson-core`, `caisson.lib.caisson`).
 
 Type notation used below:
 

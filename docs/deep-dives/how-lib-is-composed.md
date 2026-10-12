@@ -202,12 +202,43 @@ integrations and tooling, each importing `caisson-lib`.
 
 `lib.caisson.flake-parts.mkTopConfiguration` passes the composed library to flake-parts as
 `specialArgs.lib`, so modules receive it as their ordinary `lib`
-argument. `flake.lib` publishes a selection of it when
-`caisson.lib.export.enabled` is set; the default selection is the
-flake's namespace only, and that is the convention: exporting
-the full composed library would make all of nixpkgs-lib, at your
-pin, part of your public contract. Consumers build their
-composed library against their inputs instead.
+argument.
+
+The `lib` output of the flake is the composed library. By convention,
+the lib overlays of a flake named `my-flake` define their values under
+`my-flake`, and the lib overlays of other flakes do not define values
+there (see [Library overlays](../concepts/library-overlays.md)).
+The values of `my-flake` are in the output at `lib.my-flake`.
+
+The manifest of the flake is in the output too, at
+`lib.caisson-core.evalManifest`. The manifest is published in `lib`
+because the other flake outputs each have a fixed shape. The manifest
+holds what the flake exports, as `outputs.exports`: the lib overlays,
+package overlays and modules that the `exported` selectors of the
+flake chose.
+
+Take two flakes. `producer` exports a lib overlay. `consumer` lists
+`producer` in `projects`.
+
+`consumer` reads what `producer` exports from the manifest of
+`producer`, and ignores the flake outputs of `producer`. `consumer`
+adds the lib overlay to the library that `consumer` composes.
+
+The lib overlay was built with `mkLibOverlay`, in the flake whose
+source holds the overlay. `mkLibOverlay` gave the overlay
+`closure-inputs` and `closure-lib`: the pinned sources and the composed
+library of the flake that called `mkLibOverlay`. The overlay keeps
+both in the library of `consumer`.
+
+By default, `producer` exports the lib overlays that `producer`
+registers itself. For those, the flake that called `mkLibOverlay` is
+`producer`.
+
+`producer` can also list a flake `upstream` in `projects`, and name a
+lib overlay of `upstream` in the `exported` selector of `producer`.
+For that lib overlay, the flake that called `mkLibOverlay` is
+`upstream`. In the library of `consumer`, the overlay keeps the pinned
+sources and the composed library of `upstream`.
 
 ## Inspecting the result
 

@@ -161,6 +161,40 @@ A registration joins the registry that the configurations of the class beneath t
 
 A configuration with a configuration beneath it is evaluated in both views, since its registrations are read from the childless view.
 
+### `caisson.forChildren.libOverlays`
+
+- **Type:** `attrsOf libOverlay`, by key
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+Lib overlays for the configurations declared inside this configuration. Each is composed into the library of every configuration beneath, at any depth, after the lib overlays the composition selects. Build an entry with `lib.caisson-core.mkLibOverlay`:
+
+```nix
+{ lib, ... }:
+{
+  caisson.forChildren.libOverlays.site = lib.caisson-core.mkLibOverlay (
+    { ... }:
+    {
+      overlay = _final: prev: {
+        site = (prev.site or { }) // { domain = "example.org"; };
+      };
+    }
+  );
+}
+```
+
+A configuration beneath then reads `lib.site.domain`. The library of this configuration is not composed with the entry.
+
+Each entry also joins the lib overlay registry of the configurations beneath (`lib.caisson-core.libOverlays.<key>`), so an overlay that imports another by its key finds it. An entry under a key the registry already holds replaces it beneath this configuration.
+
+### `caisson.forChildren.pkgOverlays`
+
+- **Type:** `attrsOf pkgOverlay`, by key
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+Package overlays for the configurations declared inside this configuration. Each joins the package overlay registry of the configurations beneath (`lib.caisson-core.pkgOverlays.<key>`), where a package set beneath selects it by its key. An entry under a key the registry already holds replaces it beneath this configuration.
+
 ### `caisson.forChildren.defaultModuleImports`
 
 - **Type:** `attrsOf (functionTo (listOf module))`, by class

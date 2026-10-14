@@ -134,49 +134,26 @@ Here the home is activated with no comparison.
 
 See [`modules.nixos."caisson/home-manager-source-marker"`](./lib.md#modulesnixoscaissonhome-manager-source-marker-moduleshomemanagercaissonnixos-source-marker) for what the file holds and what is compared.
 
-### `caisson.forChildren.modules`
-
-- **Type:** `attrsOf (attrsOf deferredModule)`, by class and then name
-- **Default:** `{ }`
-- **Source:** `modules/generic/core/caisson/forChildren.nix`
-
-Modules registered for the configurations declared inside this configuration. An entry joins the registry of its class as those configurations see it (`lib.caisson.modules.<class>.<name>`), where a configuration selects it with `moduleImports`:
-
-```nix
-{ lib, ... }:
-{
-  caisson.forChildren.modules.nixos.gaming =
-    { pkgs, ... }:
-    {
-      programs.steam.enable = true;
-    };
-
-  caisson.nixos.configurations.desktop = lib.caisson.nixos.mkConfiguration {
-    moduleImports = modules: [ modules.gaming ];
-  };
-}
-```
-
-A registration joins the registry that the configurations of the class beneath this one select from, including nested ones and ones beneath a configuration of another integration. A configuration imports it when its selection names it. The registry of this configuration is unchanged. An entry under a name the registry already holds replaces it beneath this configuration. Definitions of the same entry from several modules merge.
-
-A configuration with a configuration beneath it is evaluated in both views, since its registrations are read from the childless view.
-
-### `caisson.forChildren.defaultModuleImports`
+### `caisson.forChildren.extraDefaultModuleImports`
 
 - **Type:** `attrsOf (functionTo (listOf module))`, by class
 - **Default:** `{ }`
 - **Source:** `modules/generic/core/caisson/forChildren.nix`
 
-Additions to the default selection of a class for the configurations beneath this configuration: a function of the lib of such a configuration returning registered modules.
+Additions to the default selection of a class for the configurations beneath this configuration: a function of the lib of such a configuration returning registered modules. A module listed here is registered in the composition, on `mkLib` or by a project.
 
 ```nix
 { ... }:
 {
-  caisson.forChildren.defaultModuleImports.nixos = lib: [ lib.caisson.modules.nixos.gaming ];
+  caisson.forChildren.extraDefaultModuleImports.nixos = lib: [ lib.caisson.modules.nixos.gaming ];
 }
 ```
 
 A configuration that passes no `moduleImports` gets every entry named `default` followed by these, those of the levels above it first. A configuration that passes `moduleImports` gets what it selects in place of that default, and one that passes `extraModuleImports` gets what that selects in addition. Definitions from several modules are concatenated.
+
+The name says that the option adds to what is in force, as `extraModuleImports` does. The options `defaultPkgs` and `systems` below replace what is in force.
+
+A configuration with a configuration beneath it is evaluated in both views, since what it gives is read from the childless view.
 
 ### `caisson.forChildren.defaultPkgs`
 

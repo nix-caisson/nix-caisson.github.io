@@ -216,14 +216,14 @@ When the option is null, a configuration that is itself evaluated per system has
 
 ### `caisson.modules`
 
-- **Type:** `attrsOf (submodule { export.enabled; exported; })`
-- **Default:** `{}`
 - **Source:** `modules/generic/core/caisson/modules.nix`
 
-Export settings for each registered module class. Each class key defines:
+Export settings for each module class of the composition. caisson declares these options for each class:
 
 - `export.enabled` (`bool`, default `true`)
 - `exported` (`function -> attrsOf deferredModule`, default: the modules of the class that the composition registers itself)
+
+The classes of the composition are the classes that the integrations declare and the classes that have a registered module. A setting for another class is refused as an option that does not exist, and so is a setting other than `export.enabled` and `exported`. A misspelled class name or setting name is therefore an error.
 
 The selected modules are the exported modules. They are in the manifest, and
 `mkLib` reads them from there for each entry of `projects`.

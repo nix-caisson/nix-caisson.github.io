@@ -1053,7 +1053,7 @@ the same settings from the home-manager module
 `caisson/default` is the `default` NixOS module caisson registers. A
 NixOS configuration imports every registered module named `default`
 unless it passes `moduleImports`. This module sets
-`caisson.forChildren.defaultModuleImports.homeManager`, which adds
+`caisson.forChildren.extraDefaultModuleImports.homeManager`, which adds
 `caisson/nixos-parent` to the modules that the homes declared inside
 the machine import by default. It also imports
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation),
@@ -1239,7 +1239,7 @@ stop the activation.
 
 `caisson/default` for the `nixos` class gives this module to the
 homes declared inside the machine, through
-`caisson.forChildren.defaultModuleImports.homeManager`. Such a home
+`caisson.forChildren.extraDefaultModuleImports.homeManager`. Such a home
 imports the module by default. A home that passes `moduleImports`
 imports the module only if the home lists it.
 
@@ -1433,7 +1433,7 @@ configuration, and reads two of them:
 - `moduleImports` replaces the default of the class. With none given,
   the selection is that default: every entry named `default`,
   followed by what the levels above the evaluation added with
-  `caisson.forChildren.defaultModuleImports`, those from the top
+  `caisson.forChildren.extraDefaultModuleImports`, those from the top
   first, each applied to the lib of the evaluation.
 - `extraModuleImports` is appended to the selection, whichever it is.
   A configuration that adds a module with it keeps the default of its

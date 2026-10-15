@@ -83,13 +83,8 @@ the library of the defining composition:
   the overlay is being registered.
 - `mkLibOverlay`: the same helper, for building nested overlays.
 - `mkModule`: the module normalizer bound to the defining
-  composition, so modules contributed by the overlay close over the
-  inputs and library of the definer.
-- `contributeModules`: merges class-keyed module contributions into
-  the registry from inside an overlay. It is threaded through the
-  closure rather than read from `final` because the output attribute
-  names of an overlay must not depend on `final` (see
-  [How `lib` is composed](how-lib-is-composed.md)).
+  composition, so modules the overlay makes close over the inputs and
+  library of the definer.
 
 A module's closure contains the definer's finished world:
 

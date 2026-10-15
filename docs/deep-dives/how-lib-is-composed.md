@@ -74,7 +74,8 @@ Each stage records a manifest at
 `lib.caisson-core.libManifest`, and the history in each manifest
 begins with the history of the stage before it. Entries registered at
 the earlier stages still close over the full lib, so a module reaches
-its siblings through `closure-lib.caisson-core.modules`.
+its siblings through `closure-lib.caisson.modules`, which reads the
+registry from the manifest of that lib.
 
 ## The sequence
 

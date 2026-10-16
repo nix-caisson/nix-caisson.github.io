@@ -2216,7 +2216,7 @@ class caisson defines itself, since colmena's hive format is not a
 module class; the class carries the `caisson-` prefix because the bare
 name is not caisson's to claim. The integration is not compatible with
 colmena's hive modules (`makeHive`, `defaults`, `meta.nixpkgs`). The
-word hive names only the output colmena's command reads.
+word hive names only the output colmena's CLI reads.
 
 A colmena configuration declares `meta` (`name`, `description`,
 `machinesFile`, `allowApplyAll`), and the machines colmena deploys as
@@ -2247,7 +2247,7 @@ configuration that passes `moduleImports` lists the module itself, as
 
 The integration reads `deployment` back from each node and builds the
 hive: `__schema`, `nodes`, `toplevel`, `deploymentConfig`,
-`evalSelected` and the other attributes colmena's command reads. A
+`evalSelected` and the other attributes colmena's CLI reads. A
 `deployment.targetHost` the node leaves at `null` is the node's name in
 the hive. The hive refuses a node that declares no `deployment`
 options, and a node whose name colmena's `--on` filter could never
@@ -2296,7 +2296,7 @@ configuration, we recommend `caisson-colmena`, which works like the
 other caisson integrations. It gives up compatibility with Nix code
 written for colmena to do that: a hive file or a module written for
 colmena's evaluator does not work with it. It keeps compatibility with
-colmena's command, which deploys from `colmenaHive` either way.
+colmena's CLI, which deploys from `colmenaHive` either way.
 
 It takes a hive in the format colmena reads: `meta` (or `network`, its
 older name), `defaults`, and a module or list of modules per node. Each node

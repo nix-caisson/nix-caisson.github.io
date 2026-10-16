@@ -2290,8 +2290,8 @@ machine.
 
 `colmena` is the upstream-compatible colmena integration. It is there
 so that a hive written for colmena can move to caisson as it is, and so
-that modules written for colmena's evaluator keep working: a project
-with many of them can port without rewriting them. For a new
+that modules written for colmena's evaluator can be used with caisson:
+a project with many of them can port without rewriting them. For a new
 configuration, we recommend `caisson-colmena`, which works like the
 other caisson integrations. It gives up compatibility with Nix code
 written for colmena to do that: a hive file or a module written for

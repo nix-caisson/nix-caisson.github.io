@@ -1659,9 +1659,10 @@ An adapter's ecosystem source resolves in layers: the explicit
 manifest), then the source named exactly `<name>` in the `sources`
 passed to mkLib. The name is the integration's ecosystem, and one
 ecosystem may serve several integrations: `nixpkgs` for the nixos,
-nixos-minimal and nixpkgs integrations, then `home-manager`, `colmena`,
-`terranix`, `system-manager` and `flake-parts` for the integration of
-the same name (the table in
+nixos-minimal and nixpkgs integrations, `colmena` for the
+caisson-colmena integration, then `home-manager`, `terranix`,
+`system-manager` and `flake-parts` for the integration of the same name
+(the table in
 [Ecosystem sources](../concepts/ecosystem-sources.md)). A full
 miss throws at the adapter, naming those places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
@@ -2191,9 +2192,14 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
   alongside package overlays; the name is ignored.
 - `types.nixpkgsOverlay`, `types.nixpkgs`: option types.
 
-### `caisson.colmena` (module class `caisson-colmena`)
+### `caisson.caisson-colmena` (module class `caisson-colmena`)
 
-- **Source:** `lib-overlays/colmena/default.nix`
+- **Source:** `lib-overlays/caisson-colmena/default.nix`
+
+`caisson-colmena` is the native colmena integration. The name
+`colmena` is reserved for an integration that accepts the hive format
+of colmena as upstream writes it.
+
 A colmena configuration is a module of the `caisson-colmena` class, a
 class caisson defines itself, since colmena's hive format is not a
 module class; the class carries the `caisson-` prefix because the bare
@@ -2207,7 +2213,7 @@ NixOS configurations, under `caisson.nixos.configurations.<name>`, the
 way any configuration declares them:
 
 ```nix
-caisson.colmena.configurations.default = lib.caisson.colmena.mkConfiguration {
+caisson.caisson-colmena.configurations.default = lib.caisson.caisson-colmena.mkConfiguration {
   configModule = { lib, ... }: {
     meta.allowApplyAll = false;
     caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
@@ -2253,7 +2259,7 @@ machine.
   ecosystemSrc?, moduleImports?, extraModuleImports?, specialArgs? }`:
   a colmena configuration, a function of `{ name, parent }`, finalized
   by the configuration that declares it under
-  `caisson.colmena.configurations.<name>`. `configModule` defaults to
+  `caisson.caisson-colmena.configurations.<name>`. `configModule` defaults to
   the configuration registered under its name in `configs/caisson-colmena`.
   `ecosystemSrc` is the colmena flake, resolved from the composition
   when absent. `pkgSets.pkgs` serves `colmena eval` (`introspect`) and

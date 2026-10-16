@@ -1038,6 +1038,13 @@ which runs those homes on the machine.
 With those modules, a home prints a warning when it is activated
 on a machine it was not built for.
 
+`caisson/default` also defines `networking.hostName` as the name the
+NixOS configuration is declared under, at `mkDefault` priority. So the
+machine declared as `nas-1` names itself `nas-1`, and a host name the
+machine's own modules set replaces it. A NixOS configuration with no
+name, and an evaluation without NixOS's networking module (the minimal
+NixOS evaluator), keep NixOS's default.
+
 `caisson/nixos-parent` sets these options of the home:
 
 | Option of the home | Value |
@@ -1522,22 +1529,6 @@ evaluated at a system, given its evaluations by system. They are
 named as anything published is, and the name of the top, which the
 file that returns it stands for, is left out of each: a single
 evaluation is its value, and several are the values by system.
-
-#### `renameDefault`
-
-```
-renameDefault : str -> attrsOf finalized -> attrsOf finalized
-```
-
-`renameDefault name` is an `exported` selection: it passes up the
-configuration declared under the name `default` under `name` instead,
-and every other configuration under the name it is declared under. A
-configuration declared under `name` beside `default` is refused, since
-both would be passed up under that name. The default modules of the
-caisson-disko and disko classes set
-`caisson.nixos.exported = lib.mkDefault (renameDefault <name of the layout>)`,
-so the machine declared as `default` inside a layout is published
-under the name of the layout.
 
 #### `mkIntegration`
 
@@ -2387,19 +2378,28 @@ the layout under `caisson.nixos.configurations.<name>`, the way any
 configuration declares them, and it may declare none, as for a data
 array:
 
+A tree registers the layout as `configs/caisson-disko/nas-1/default.nix`:
+
 ```nix
-caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfiguration {
-  configModule = { lib, ... }: {
-    disko.devices.disk.main = {
-      device = "/dev/disk/by-id/nvme-Samsung_SSD_980_PRO_1TB_S5GXNX0T123456";
-      type = "disk";
-      content = { type = "gpt"; partitions = { /* ... */ }; };
-    };
-    caisson.nixos.configurations.default = lib.caisson.nixos.mkConfiguration {
-      configModule = ./nixos/nas-1;
-    };
+{ ... }:
+{ lib, ... }:
+{
+  disko.devices.disk.main = {
+    device = "/dev/disk/by-id/nvme-Samsung_SSD_980_PRO_1TB_S5GXNX0T123456";
+    type = "disk";
+    content = { type = "gpt"; partitions = { /* ... */ }; };
   };
-};
+  # The NixOS configuration registered as `configs/nixos/nas-1`.
+  caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
+}
+```
+
+and declares it where it belongs, here at the top of its flake.
+`mkConfiguration` without `configModule` takes the configuration
+registered under the name it is declared under:
+
+```nix
+caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfiguration { };
 ```
 
 The layout is evaluated with caisson's own `evalModules` over
@@ -2438,14 +2438,28 @@ settings under any other key. A NixOS configuration that passes
 `projects`. A module of a NixOS configuration that needs more of its
 layout reads it as `lib.caisson-core.evalManifest.nearest.caisson-disko`.
 
-The NixOS configuration declared as `default` inside a layout is passed
-up under the name of the layout, by an `exported` default the class
-default module sets with `integrations.renameDefault`. So the machine
-installed onto the layout `nas-1` is published as
-`nixosConfigurations.nas-1`, and is the node `nas-1` of a colmena
-configuration that declares the layout. A layout that sets
-`caisson.nixos.exported` passes its NixOS configurations up its own
-way.
+A layout passes up its NixOS configurations under the names they are
+declared with. So the machine declared as `nas-1` inside the layout
+`nas-1` is published as `nixosConfigurations.nas-1`, and is the node
+`nas-1` of a colmena configuration that declares the layout.
+
+Where a layout holds one machine, we recommend naming the machine after
+the layout. The layout's module declares it under its own name, read
+from the manifest, and caisson's default NixOS module names the host
+after the name the machine is declared under:
+
+```nix
+{ lib, ... }: {
+  caisson.nixos.configurations.${lib.caisson-core.evalManifest.name} =
+    lib.caisson.nixos.mkConfiguration { };
+}
+```
+
+`mkConfiguration` without `configModule` takes the NixOS configuration
+registered under the name the machine is declared under. So the layout
+`nas-1` holds the machine registered as `configs/nixos/nas-1`, and
+publishes it as `nixosConfigurations.nas-1`, whose host name is `nas-1`
+unless its modules set another.
 
 A disko configuration is published as `diskoConfigurations.<name>`, in
 the form disko's CLI reads: `{ disko.devices = <serializableLayout>; }`.
@@ -2486,21 +2500,25 @@ builder and the install test. For a new configuration, we recommend
 `caisson-disko` gives up those tools on the machine to do that, and
 keeps compatibility with disko's CLI through `diskoConfigurations`.
 
-A disko configuration is a module of the `disko` class: a file written
-for disko, which sets `disko.devices`, is its module as it is. The
+A disko configuration is a module of the `disko` class: what a file
+written for disko sets, `disko.devices`, is its module as it is. The
 module also declares the NixOS configurations installed onto the
-layout, under `caisson.nixos.configurations.<name>`:
+layout, under `caisson.nixos.configurations.<name>`. A tree registers
+it as `configs/disko/nas-1/default.nix`:
 
 ```nix
-caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration {
-  configModule = { lib, ... }: {
-    imports = [ ./disko-config.nix ];
-    caisson.nixos.configurations.default = lib.caisson.nixos.mkConfiguration {
-      configModule = ./nixos/nas-1;
-    };
-  };
-};
+{ ... }:
+{ lib, ... }:
+{
+  # As written for disko.
+  disko.devices.disk.main = { /* ... */ };
+  # The NixOS configuration registered as `configs/nixos/nas-1`.
+  caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
+}
 ```
+
+and declares it with
+`caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration { };`.
 
 The layout is evaluated as disko evaluates a layout on its own:
 `evalModules` over `disko.devices`, typed with disko's type library,
@@ -2525,9 +2543,9 @@ itself, as `caisson/disko-layout`.
 For a layout and a machine with nothing caisson adds to them, the
 machine builds the same system, with the same format script, as NixOS
 builds from disko's module, the layout and the same machine module. The
-NixOS configuration declared as `default` is passed up under the name
-of the layout, and the layout is published as
-`diskoConfigurations.<name>`, as for `caisson-disko`.
+machines are passed up under the names they are declared with, and the
+layout is published as `diskoConfigurations.<name>`, as for
+`caisson-disko`.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   modules of the disko class.

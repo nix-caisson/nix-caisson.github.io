@@ -2203,9 +2203,13 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
 
 - **Source:** `lib-overlays/caisson-colmena/default.nix`
 
-`caisson-colmena` is the native colmena integration. The integration
-named `colmena`, below, accepts the hive format of colmena as upstream
-writes it.
+`caisson-colmena` is the native colmena integration, and the one to
+start with when writing new configurations. Its machines are NixOS
+configurations declared like any other, so they share modules through
+the registry and through structural groups, and they take their
+package sets from caisson's package configs. The integration named
+`colmena`, below, exists for porting a hive written for colmena as it
+is.
 
 A colmena configuration is a module of the `caisson-colmena` class, a
 class caisson defines itself, since colmena's hive format is not a
@@ -2284,9 +2288,15 @@ machine.
 
 - **Source:** `lib-overlays/colmena/default.nix`
 
-`colmena` is the upstream-compatible colmena integration. It takes a
-hive in the format colmena reads: `meta` (or `network`, its older
-name), `defaults`, and a module or list of modules per node. Each node
+`colmena` is the upstream-compatible colmena integration. It is there
+so that a hive written for colmena can move to caisson as it is, and so
+that modules written for colmena's evaluator keep working: a project
+with many of them can port without rewriting them. A new configuration
+starts with `caisson-colmena` instead, which is the more uniform of the
+two.
+
+It takes a hive in the format colmena reads: `meta` (or `network`, its
+older name), `defaults`, and a module or list of modules per node. Each node
 becomes a caisson NixOS configuration declared beneath the colmena
 configuration, and is published as `nixosConfigurations.<node>`:
 

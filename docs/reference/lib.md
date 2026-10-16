@@ -2292,8 +2292,8 @@ machine.
 so that a hive written for colmena can move to caisson as it is, and so
 that modules written for colmena's evaluator keep working: a project
 with many of them can port without rewriting them. For a new
-configuration, we recommend `caisson-colmena`, the more uniform of the
-two.
+configuration, we recommend `caisson-colmena`, which works like the
+other caisson integrations.
 
 It takes a hive in the format colmena reads: `meta` (or `network`, its
 older name), `defaults`, and a module or list of modules per node. Each node

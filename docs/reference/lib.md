@@ -2293,7 +2293,10 @@ so that a hive written for colmena can move to caisson as it is, and so
 that modules written for colmena's evaluator keep working: a project
 with many of them can port without rewriting them. For a new
 configuration, we recommend `caisson-colmena`, which works like the
-other caisson integrations.
+other caisson integrations. It gives up compatibility with Nix code
+written for colmena to do that: a hive file or a module written for
+colmena's evaluator does not work with it. It keeps compatibility with
+colmena's command, which deploys from `colmenaHive` either way.
 
 It takes a hive in the format colmena reads: `meta` (or `network`, its
 older name), `defaults`, and a module or list of modules per node. Each node

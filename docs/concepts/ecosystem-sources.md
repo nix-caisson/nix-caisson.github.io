@@ -22,9 +22,9 @@ documents the shape it takes; in practice:
   `nixos/lib/eval-config.nix` from it); `caisson.nixos-minimal` takes
   the same tree and evaluates `nixos/lib`'s `evalModules` from it.
 - `caisson.home-manager` takes a home-manager source tree.
-- `caisson.caisson-colmena` takes the colmena flake: it reads the
-  hive schema from its `lib.makeHive` and the deployment options from
-  its `nixosModules`.
+- `caisson.caisson-colmena` and `caisson.colmena` take the colmena
+  flake: they read the hive schema from its `lib.makeHive` and the
+  deployment options from its `nixosModules`.
 - `caisson.terranix` and `caisson.system-manager` take their project's
   flake (they call `lib.terranixConfiguration` and
   `lib.makeSystemConfig` on it).
@@ -46,6 +46,7 @@ below.
 | `caisson.nixos-minimal` | `nixpkgs` | nixpkgs source tree (the `nixos` class under the minimal evaluator) |
 | `caisson.home-manager` | `home-manager` | home-manager source tree |
 | `caisson.caisson-colmena` | `colmena` | colmena flake |
+| `caisson.colmena` | `colmena` | colmena flake |
 | `caisson.terranix` | `terranix` | terranix flake |
 | `caisson.system-manager` | `system-manager` | system-manager flake |
 | `caisson.structural` | none | no source: the empty integration evaluates caisson's core module alone |

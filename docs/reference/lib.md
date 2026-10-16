@@ -1322,19 +1322,23 @@ entry named `default`, in the same way; this list is the default
 default, the selection an evaluation gets when it passes no
 `moduleImports`.
 
-#### `integrationsIn`, `childrenOf`
+#### `integrationsIn`, `childrenOf`, `configurationsModuleFor`
 
 ```
-integrationsIn : options -> listOf str
-childrenOf     : { options; config } -> attrsOf (attrsOf manifest)
+integrationsIn          : options -> listOf str
+childrenOf              : { options; config } -> attrsOf (attrsOf manifest)
+configurationsModuleFor : listOf str -> module
 ```
 
 `integrationsIn` takes the options of an evaluation and lists the
 integrations whose configurations it can hold beneath it: those whose
 `configurationsModule` the evaluation imports, which declares
 `caisson.<integration>.configurations` and
-`caisson.<integration>.exported`. caisson's core module imports that
-module for each integration of caisson. `childrenOf` takes the
+`caisson.<integration>.exported`. `configurationsModuleFor` takes a
+list of integration names and returns one module that declares those
+options for all of them. The core module of caisson imports it once,
+for every integration of caisson, which costs less to evaluate than a
+module per integration. `childrenOf` takes the
 options and the `config` of an evaluated configuration and returns
 the configurations declared beneath it, by integration and then name,
 leaving out an integration with none: the `children`
@@ -1556,10 +1560,13 @@ over this class builds on.
 
 `configurationsModule` is the module that lets a configuration hold
 configurations of this integration beneath it. It declares
-`caisson.<name>.configurations` and `caisson.<name>.exported`.
-caisson's core module imports it for each integration of caisson. An
+`caisson.<name>.configurations` and `caisson.<name>.exported`. An
 integration written outside caisson registers a module that imports
-it where its configurations may be declared.
+it where its configurations may be declared. The integrations of
+caisson have their options declared by the core module of caisson,
+through `configurationsModuleFor`, so importing the
+`configurationsModule` of one of them into a caisson evaluation
+declares its options a second time.
 
 `top` is what a configuration of the integration returns when it has
 no parent, as a function of its finalized manifest. When the
@@ -2196,16 +2203,20 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
 
 - **Source:** `lib-overlays/caisson-colmena/default.nix`
 
-`caisson-colmena` is the native colmena integration. The name
-`colmena` is reserved for an integration that accepts the hive format
-of colmena as upstream writes it.
+`caisson-colmena` is the native colmena integration, and the one we
+recommend for writing new configurations. Its machines are NixOS
+configurations declared like any other, so they share modules through
+the registry and through structural groups, and they take their
+package sets from caisson's package configs. The integration named
+`colmena`, below, exists for porting a hive written for colmena as it
+is.
 
 A colmena configuration is a module of the `caisson-colmena` class, a
 class caisson defines itself, since colmena's hive format is not a
 module class; the class carries the `caisson-` prefix because the bare
 name is not caisson's to claim. The integration is not compatible with
 colmena's hive modules (`makeHive`, `defaults`, `meta.nixpkgs`). The
-word hive names only the output colmena's command reads.
+word hive names only the output colmena's CLI reads.
 
 A colmena configuration declares `meta` (`name`, `description`,
 `machinesFile`, `allowApplyAll`), and the machines colmena deploys as
@@ -2236,7 +2247,7 @@ configuration that passes `moduleImports` lists the module itself, as
 
 The integration reads `deployment` back from each node and builds the
 hive: `__schema`, `nodes`, `toplevel`, `deploymentConfig`,
-`evalSelected` and the other attributes colmena's command reads. A
+`evalSelected` and the other attributes colmena's CLI reads. A
 `deployment.targetHost` the node leaves at `null` is the node's name in
 the hive. The hive refuses a node that declares no `deployment`
 options, and a node whose name colmena's `--on` filter could never
@@ -2267,6 +2278,75 @@ machine.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the `evalModules` call (`class`, `modules`,
   `specialArgs`).
+- `metaOptions`, `hiveOf`, `exportsTo`, `ecosystemSrcOf`: the `meta`
+  options, the hive built from an evaluated colmena configuration, how
+  a colmena configuration is published, and the resolution of the
+  colmena source. The upstream-compatible `colmena` integration builds
+  on them.
+
+### `caisson.colmena` (module class `colmena`)
+
+- **Source:** `lib-overlays/colmena/default.nix`
+
+`colmena` is the upstream-compatible colmena integration. It is there
+so that a hive written for colmena can move to caisson as it is, and so
+that modules written for colmena's evaluator can be used with caisson:
+a project with many of them can port without rewriting them. For a new
+configuration, we recommend `caisson-colmena`, which works like the
+other caisson integrations. It gives up compatibility with Nix code
+written for colmena to do that: a hive file or a module written for
+colmena's evaluator does not work with it. It keeps compatibility with
+colmena's CLI, which deploys from `colmenaHive` either way.
+
+It takes a hive in the format colmena reads: `meta` (or `network`, its
+older name), `defaults`, and a module or list of modules per node. Each node
+becomes a caisson NixOS configuration declared beneath the colmena
+configuration, and is published as `nixosConfigurations.<node>`:
+
+```nix
+caisson.colmena.configurations.default = lib.caisson.colmena.mkConfiguration {
+  hive = {
+    meta.nixpkgs = pkgSets.default;
+    defaults = { name, ... }: { networking.hostName = name; };
+    nas-1 = ./hosts/nas-1.nix;
+  };
+};
+```
+
+A node is built as colmena builds it: from colmena's deployment,
+assertion and key modules, the `defaults` of the hive and the modules
+of the node, with the special arguments `name`, `nodes`,
+`meta.specialArgs` and `meta.nodeSpecialArgs.<node>`. With `name`
+given, `deployment.targetHost` defaults to the name of the node, as in
+colmena. `nodes` holds every node evaluated again with type checking
+off, as colmena provides it, made only when a module reads it.
+
+A node runs on `meta.nodeNixpkgs.<node>`, else `meta.nixpkgs`, else the
+package set caisson selects for it. Those values are package sets
+already built, such as caisson's package sets; a path to nixpkgs, a
+nixpkgs function or an uninitialized flake input is refused. The set is
+handed to NixOS whole, so its overlays and its config are those it was
+built with. As a caisson NixOS configuration, a node also gets the
+framework modules and the default selection of caisson's NixOS
+integration.
+
+For a hive with nothing caisson adds to it, each node builds the same
+system as colmena builds from the same hive. The colmena configuration
+builds its hive from the NixOS configurations it passes up, as
+caisson-colmena does, and is published as `colmenaHive`.
+
+- `mkModule : freeformModule -> module`: class-bound `mkModule` for
+  modules of the colmena class.
+- `mkConfiguration : { hive, pkgSets?, defaultPkgs?, ecosystemSrc?,
+  moduleImports?, extraModuleImports?, specialArgs? }`: a colmena
+  configuration, a function of `{ name, parent }`, finalized by the
+  configuration that declares it under
+  `caisson.colmena.configurations.<name>`. `hive` is an attribute set,
+  or a function returning one, as colmena accepts. `defaultPkgs`
+  selects the package set of a node the hive names none for.
+  `pkgSets.pkgs` serves `colmena eval`, else `meta.nixpkgs`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call of the colmena configuration.
 
 ### `caisson.terranix` (module class `terranix`)
 

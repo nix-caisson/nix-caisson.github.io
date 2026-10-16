@@ -2386,9 +2386,8 @@ caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfigu
       type = "disk";
       content = { type = "gpt"; partitions = { /* ... */ }; };
     };
-    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
-      configModule = ./nixos/nas-1;
-    };
+    # The NixOS configuration registered as `configs/nixos/nas-1`.
+    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
   };
 };
 ```
@@ -2442,12 +2441,15 @@ after the name the machine is declared under:
 ```nix
 { lib, ... }: {
   caisson.nixos.configurations.${lib.caisson-core.evalManifest.name} =
-    lib.caisson.nixos.mkConfiguration { configModule = ./nixos/nas-1; };
+    lib.caisson.nixos.mkConfiguration { };
 }
 ```
 
-The layout `nas-1` then publishes `nixosConfigurations.nas-1`, whose
-host name is `nas-1` unless its modules set another.
+`mkConfiguration` without `configModule` takes the NixOS configuration
+registered under the name the machine is declared under. So the layout
+`nas-1` holds the machine registered as `configs/nixos/nas-1`, and
+publishes it as `nixosConfigurations.nas-1`, whose host name is `nas-1`
+unless its modules set another.
 
 A disko configuration is published as `diskoConfigurations.<name>`, in
 the form disko's CLI reads: `{ disko.devices = <serializableLayout>; }`.
@@ -2497,9 +2499,8 @@ layout, under `caisson.nixos.configurations.<name>`:
 caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration {
   configModule = { lib, ... }: {
     imports = [ ./disko-config.nix ];
-    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
-      configModule = ./nixos/nas-1;
-    };
+    # The NixOS configuration registered as `configs/nixos/nas-1`.
+    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
   };
 };
 ```

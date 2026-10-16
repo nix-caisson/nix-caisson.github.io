@@ -1523,22 +1523,6 @@ named as anything published is, and the name of the top, which the
 file that returns it stands for, is left out of each: a single
 evaluation is its value, and several are the values by system.
 
-#### `renameDefault`
-
-```
-renameDefault : str -> attrsOf finalized -> attrsOf finalized
-```
-
-`renameDefault name` is an `exported` selection: it passes up the
-configuration declared under the name `default` under `name` instead,
-and every other configuration under the name it is declared under. A
-configuration declared under `name` beside `default` is refused, since
-both would be passed up under that name. The default modules of the
-caisson-disko and disko classes set
-`caisson.nixos.exported = lib.mkDefault (renameDefault <name of the layout>)`,
-so the machine declared as `default` inside a layout is published
-under the name of the layout.
-
 #### `mkIntegration`
 
 ```
@@ -2395,7 +2379,7 @@ caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfigu
       type = "disk";
       content = { type = "gpt"; partitions = { /* ... */ }; };
     };
-    caisson.nixos.configurations.default = lib.caisson.nixos.mkConfiguration {
+    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
       configModule = ./nixos/nas-1;
     };
   };
@@ -2438,14 +2422,10 @@ settings under any other key. A NixOS configuration that passes
 `projects`. A module of a NixOS configuration that needs more of its
 layout reads it as `lib.caisson-core.evalManifest.nearest.caisson-disko`.
 
-The NixOS configuration declared as `default` inside a layout is passed
-up under the name of the layout, by an `exported` default the class
-default module sets with `integrations.renameDefault`. So the machine
-installed onto the layout `nas-1` is published as
-`nixosConfigurations.nas-1`, and is the node `nas-1` of a colmena
-configuration that declares the layout. A layout that sets
-`caisson.nixos.exported` passes its NixOS configurations up its own
-way.
+A layout passes up its NixOS configurations under the names they are
+declared with. So the machine declared as `nas-1` inside the layout
+`nas-1` is published as `nixosConfigurations.nas-1`, and is the node
+`nas-1` of a colmena configuration that declares the layout.
 
 A disko configuration is published as `diskoConfigurations.<name>`, in
 the form disko's CLI reads: `{ disko.devices = <serializableLayout>; }`.
@@ -2495,7 +2475,7 @@ layout, under `caisson.nixos.configurations.<name>`:
 caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration {
   configModule = { lib, ... }: {
     imports = [ ./disko-config.nix ];
-    caisson.nixos.configurations.default = lib.caisson.nixos.mkConfiguration {
+    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
       configModule = ./nixos/nas-1;
     };
   };
@@ -2525,9 +2505,9 @@ itself, as `caisson/disko-layout`.
 For a layout and a machine with nothing caisson adds to them, the
 machine builds the same system, with the same format script, as NixOS
 builds from disko's module, the layout and the same machine module. The
-NixOS configuration declared as `default` is passed up under the name
-of the layout, and the layout is published as
-`diskoConfigurations.<name>`, as for `caisson-disko`.
+machines are passed up under the names they are declared with, and the
+layout is published as `diskoConfigurations.<name>`, as for
+`caisson-disko`.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   modules of the disko class.

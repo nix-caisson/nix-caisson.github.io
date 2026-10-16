@@ -93,9 +93,9 @@ The core, bootstrap and registered manifests have `childless = true`.
 A registration made at an earlier stage still closes over the full
 lib. The constructors the earlier libs hold (`mkModule`,
 the integrations' `mkModule`, `mkLibOverlay`, `mkPkgOverlay`) give the
-entry the full lib as `closure-lib`, and its
-`caisson-core.modules.<class>` is the registry the entry joins, so a
-module imports a sibling by name. A registration under a
+entry the full lib as `closure-lib`. The manifest of that lib holds
+the registry the entry joins, which `closure-lib.caisson.modules.<class>`
+reads, so a module imports a sibling by name. A registration under a
 `caisson-core/<name>` key replaces that entry from the bootstrap stage
 on; the core lib keeps the original.
 
@@ -118,9 +118,9 @@ naming `mkLib` and pointing at the pattern.
 - `configs` receives the bootstrap lib the same way and returns the
   configurations of the tree, keyed by module class then name, the
   layout `configs/<class>/<name>` on disk (colmena's class is
-  `colmena`); `lib: lib.caisson-core.mkModules ./configs` reads that
-  layout. They come back
-  as `lib.caisson-core.configs.<class>.<name>`, so a top and a
+  `caisson-colmena`); `lib: lib.caisson-core.mkModules ./configs` reads that
+  layout. They come back in the manifest, which
+  `lib.caisson.configs.<class>.<name>` reads, so a top and a
   configuration that evaluates another beneath itself reach them by
   name rather than by a path out of their directory.
 - `libOverlays` receives the core lib and returns the registered
@@ -147,7 +147,7 @@ naming `mkLib` and pointing at the pattern.
 - `libOverlayImports` selects which registered overlays apply to the
   `lib` of this flake. It receives the core lib and names entries from
   the `libOverlays` registry described below.
-  `libOverlayImports = lib: [ lib.caisson-core.libOverlays.my-overlay ];`
+  `libOverlayImports = lib: [ lib.caisson.libOverlays.my-overlay ];`
   selects the entry registered as `my-overlay`. The default selects
   the project and local registrations, and a selection given here
   replaces it.
@@ -188,7 +188,7 @@ mkPkgOverlays : path -> attrsOf pkgOverlay         # <dir>/<name>/default.nix
 
 The directory readers. A reader belongs to the lib it is read from:
 it takes a directory and returns the registrations, built with the
-class index and the entry constructors of that lib. Each registry
+entry constructors of that lib. Each registry
 function of `mkLib` receives a lib, so a tree with the conventional
 layout takes the reader from it and names the directory:
 
@@ -204,36 +204,15 @@ composition that registers another entry under that name reads its
 directories with that entry.
 
 `mkModules` reads the first directory level as the class, whatever
-its name, and registers each entry directory through the class index
-of the lib, `caisson-core.classes.<class>.mkModule`, the
-`mkModule` of the integration that declares the class; a directory
-for a class no composed integration declares is an error naming the
-declared classes. `mkLibOverlays` applies `mkLibOverlay`, and
+its name, and registers each entry directory through `mkModule` of
+the lib, given the name of that directory as the class. caisson keeps
+no list of classes: the integration that evaluates a class names it
+in its declaration. `mkLibOverlays` applies `mkLibOverlay`, and
 `mkPkgOverlays` applies `mkPkgOverlay`. An entry is
 a directory holding a `default.nix`, a symlink to such a directory
 included; anything else in a directory being read is an error, so a
 stray file cannot silently vanish from a registry. A tree with another
 layout writes the registration by hand.
-
-### `classes`, `contributeClasses`
-
-```
-classes : attrsOf { integration : string; mkModule : freeformModule -> module }
-contributeClasses : attrs -> attrsOf { integration; mkModule } -> attrs
-```
-
-The class index of a composition: per class, the integration that
-owns it and the `mkModule` the class registers through. An
-integration declares the class it owns from its overlay body, the way
-`contributeModules` contributes modules
-(`overlay = final: prev: contributeClasses prev { nixos = { integration = "nixos"; mkModule = final.caisson-core.mkModule "nixos"; }; } // { ... }`),
-and a declaration composed later replaces it: an integration that
-wraps another declares the same class with the `mkModule` it defines, and
-every reader of the class, `mkModules` first, registers through the
-wrapper. `caisson-core` declares the class-free `generic` class
-itself. An integration that evaluates a class another integration
-owns (`caisson.nixos-minimal`, `caisson.home-manager-minimal`) declares
-nothing here.
 
 ### `pkgOverlays`, `mkPkgOverlay`, `pkgOverlaysFor`
 
@@ -293,8 +272,6 @@ closure = { closure-inputs     : attrs    # the defining composition's pinned so
           ; closure-lib        : lib      # the defining composition's lib, lazily bound
           ; mkLibOverlay       : freeformOverlay -> libOverlay
           ; mkModule           : string -> freeformModule -> module
-          ; contributeModules  : attrs -> attrsOf (attrsOf module) -> attrs
-          ; contributeClasses  : attrs -> attrsOf { integration; mkModule } -> attrs
           }
 ```
 
@@ -307,19 +284,12 @@ The closure's `closure-lib` is the composed library of the composition
 that registered the overlay, bound lazily: read it inside the
 `overlay` function or a function it defines, never while the overlay
 is being registered. An integration reaches the registry of its
-composition through it (`closure-lib.caisson-core.modules.<class>`),
+composition through it (`closure-lib.caisson.modules.<class>`),
 wherever it is later composed. The closure's `mkModule` is bound to
-the defining composition, so modules contributed by an overlay close
-over the definer's inputs and library. `contributeModules prev { <class>.<name> = module; }`
-returns the `caisson-core.modules` registry merge for the overlay's
-output (merge its result with any namespace contributions); it
-is passed through the closure rather than the composed library because
-an overlay's output attribute names must not depend on `final`.
-Qualify contributed names with your project prefix
-(`my-flake/my-service`); the registrations made in the `mkLib` call
-itself apply last and win over same-named contributions. See
-[Module classes](../concepts/module-classes.md) for the ways
-modules enter the registry.
+the defining composition, so modules an overlay makes close over the
+definer's inputs and library. A lib overlay does not add to the
+registry; see [Module classes](../concepts/module-classes.md) for the
+ways modules enter it.
 
 ### `mkModule`
 
@@ -335,7 +305,7 @@ closure = { closure-inputs        : attrs    # the defining flake's pinned sourc
 
 Factory for class-specific module normalizers. Given a class name, returns a normalizer that applies the closure attrset to a module given as a function or a path to it; the module takes the closure as its first arg list (`{ ... }:` when unused). Plain modules are imported/registered directly rather than wrapped. Path modules gain `_file` and a path-based dedup `key`.
 
-The `mkModule` closure member is bound to the same class, so nested module composition stays in that class. A module imports a sibling by name through `closure-lib.caisson-core.modules.<class>.<name>`, the registry of the composition that registered it.
+The `mkModule` closure member is bound to the same class, so nested module composition stays in that class. A module imports a sibling by name through `closure-lib.caisson.modules.<class>.<name>`, the registry of the composition that registered it.
 
 ### `modules`
 
@@ -344,10 +314,11 @@ modules : attrsOf (attrsOf module)    # class -> name -> module
 ```
 
 The class-keyed module registry of this composition: the registrations
-of the flake merged with every overlay-borne contribution and every
-consumed project's entries (`<project>/<name>`), locals winning on
-name conflicts. Integration adapters read their class from here
-(`caisson-core.modules.<class>`): every entry named `core` (`core`,
+of the flake merged with every consumed project's entries
+(`<project>/<name>`), locals winning on name conflicts. It is read
+from the manifest of the library (`caisson-core.libManifest.modules`).
+Integration adapters read their class from here
+(`lib.caisson.modules.<class>`): every entry named `core` (`core`,
 `<project>/core`) is the framework module of the class, forced into
 every evaluation, and every entry named `default` is the default
 default, what an evaluation gets when it passes no `moduleImports`.
@@ -492,14 +463,17 @@ manifestOf lib            # lib.caisson-core.libManifest
 ### `libOverlays`, `pkgOverlays`
 
 ```
-lib.caisson-core.libOverlays : attrsOf libOverlay
-lib.caisson-core.pkgOverlays : attrsOf pkgOverlay
+lib.caisson.libOverlays : attrsOf libOverlay
+lib.caisson.pkgOverlays : attrsOf pkgOverlay
 ```
 
 These attributes are the lib overlay registry and the package overlay
 registry of the composition that built the library, keyed by registry
-name. Each has the name of the `mkLib` argument that fills it and of
-the manifest field it is a view of.
+name. Both are read from the manifest of the library
+(`caisson-core.libManifest.libOverlays` and
+`caisson-core.libManifest.pkgOverlays`), which is the only place
+caisson-core keeps them. Each has the name of the `mkLib` argument
+that fills it.
 
 - `libOverlays` holds the entries `mkLib` registered, the entries
   consumed projects contributed under `<project>/<name>`, and the
@@ -508,7 +482,7 @@ the manifest field it is a view of.
 - `pkgOverlays` holds the package overlay entries: those `mkLib`
   registered and those consumed projects contributed. A package config
   selects from it:
-  `caisson.nixpkgs.overlays = [ lib.caisson-core.pkgOverlays.default ];`.
+  `caisson.nixpkgs.overlays = [ lib.caisson.pkgOverlays.default ];`.
 
 Both are empty in a library that no `mkLib` call built.
 
@@ -605,11 +579,10 @@ as `evalManifest` (`withManifests`).
 A configuration with children is evaluated in both views, and a
 configuration with none is evaluated once.
 
-`forChildren` is what the evaluation registers for the configurations
-declared inside it. It has four fields:
+`forChildren` is what the evaluation gives the configurations
+declared inside it. It has three fields:
 
-- `modules`, by class and then name.
-- `defaultModuleImports`, by class a list of selections, each a
+- `extraDefaultModuleImports`, by class a list of selections, each a
   function of a lib returning modules.
 - `defaultPkgs`, which selects the package set its children run on by
   default. It is null when the configuration selects no set.
@@ -618,13 +591,11 @@ declared inside it. It has four fields:
 
 They are read from the childless evaluation and recorded on the
 manifest as `forChildren`. A configuration declared inside inherits
-the registry and the selections of its parent, extended by them. Its manifest holds the registry it sees as `modules`, where a
-registration under a name already there replaces the entry, and the
-selections added above it as `defaultModuleImports`, those from the
-top first. The lib it runs on shows that registry as
-`caisson-core.modules`. Every level extends both in turn, so a
-registration can be selected by the configurations beneath the level
-that made it, nested ones and ones beneath a system included.
+the selections of its parent, extended by them. Its manifest holds
+the selections added above it as `defaultModuleImports`, those from
+the top first. Every level extends them in turn, so a selection
+reaches the configurations beneath the level that added it, nested
+ones and ones beneath a system included.
 
 Both views carry `type`, `name`, `parent`, `ancestors` (the parent's
 list with the parent appended), `nearest` (the parent's attrset with
@@ -763,12 +734,15 @@ lib = caisson.lib.caisson.mkLib {
 | --- | --- |
 | composing | `mkLib`, `pins`, `callFlake`, `callConsumerFlake`, `realizeInputs` |
 | making and reading entries | `mkModule`, `mkModules`, `mkLibOverlay`, `mkLibOverlays`, `mkPkgOverlay`, `mkPkgOverlays`, `importApply` |
-| registries | `modules`, `configs`, `classes`, `libOverlays`, `pkgOverlays`, `pkgOverlaysFor` |
+| registries | `modules`, `configs`, `libOverlays`, `pkgOverlays`, `pkgOverlaysFor` |
 | manifests | `libManifest`, `pkgsManifest`, `evalManifest`, `manifestOf` |
-| for an integration written outside caisson | `contributeClasses`, `contributeModules`, `finalizeTop`, `elide`, `ecosystemSrc` |
+| for an integration written outside caisson | `finalizeTop`, `elide`, `ecosystemSrc` |
 
 - `pins`, `callFlake`, `callConsumerFlake` and `realizeInputs` are
   defined in caisson and documented below.
+- `modules`, `configs`, `libOverlays` and `pkgOverlays` are read from
+  the manifest of the library (`lib.caisson-core.libManifest`). They
+  are empty in a library that no `mkLib` built.
 - Every other name is the value of the same name under
   `lib.caisson-core` in the same library, documented in
   [The caisson-core namespace](#the-caisson-core-namespace).
@@ -1339,7 +1313,7 @@ coreModules          : attrsOf module -> listOf module
 defaultModuleImports : attrsOf module -> listOf module
 ```
 
-Both take a class registry (`lib.caisson-core.modules.<class>`) and
+Both take a class registry (`lib.caisson.modules.<class>`) and
 select entries by name. `coreModules` returns every entry named `core`,
 which includes the `<project>/core` entries of consumed projects;
 these form the framework module of the class, and every integration
@@ -1348,17 +1322,20 @@ entry named `default`, in the same way; this list is the default
 default, the selection an evaluation gets when it passes no
 `moduleImports`.
 
-#### `names`, `childrenOf`
+#### `integrationsIn`, `childrenOf`
 
 ```
-names      : listOf str
-childrenOf : config -> attrsOf (attrsOf manifest)
+integrationsIn : options -> listOf str
+childrenOf     : { options; config } -> attrsOf (attrsOf manifest)
 ```
 
-`names` lists the integrations a configuration may be declared of:
-those that own a module class, read from the class index. caisson's
-core module declares `caisson.<integration>.configurations` for each.
-`childrenOf` takes an evaluated configuration's `config` and returns
+`integrationsIn` takes the options of an evaluation and lists the
+integrations whose configurations it can hold beneath it: those whose
+`configurationsModule` the evaluation imports, which declares
+`caisson.<integration>.configurations` and
+`caisson.<integration>.exported`. caisson's core module imports that
+module for each integration of caisson. `childrenOf` takes the
+options and the `config` of an evaluated configuration and returns
 the configurations declared beneath it, by integration and then name,
 leaving out an integration with none: the `children`
 `mkModuleConfiguration` hands to `lib.caisson-core.mkConfiguration`.
@@ -1545,16 +1522,18 @@ mkIntegration :
   , class      : string            # the module class this integration owns
   , mkConfiguration                  : pattern -> result  # the entry point, a pattern function
   , mkConfigurationWithEcosystemArgs : pattern -> result  # the same pattern plus ecosystemArgs
+  , top        ? null : manifest -> value  # what a configuration with no parent returns
   , extra      ? { } : attrs       # further members of the namespace
-  } -> { namespace : attrs; classes : attrsOf { integration; mkModule } }
+  } -> { namespace : attrs }
 ```
 
 `mkIntegration` builds an integration that owns a module class from a
-declaration. The result has the parts `namespace` and `classes`.
+declaration. The result has the part `namespace`.
 
 `namespace` is the value to publish as `lib.caisson.<name>`. It holds
-`mkConfiguration`, `mkConfigurationWithEcosystemArgs`, `mkModule`, and
-everything in `extra`. The entry points come from the declaration,
+`mkConfiguration`, `mkConfigurationWithEcosystemArgs`, `mkModule`,
+`configurationsModule`, `mkTopConfiguration` when the declaration
+gives `top`, and everything in `extra`. The entry points come from the declaration,
 written as pattern functions whose body is
 `mkEvaluation { compose, evaluate }` applied to the admitted
 arguments. The pattern of `mkConfiguration` names the arguments
@@ -1570,10 +1549,19 @@ evaluator takes. `mkModule` is `lib.caisson-core.mkModule` bound to
 such as a variant entry point, an adapter, or the composition an alt
 over this class builds on.
 
-`classes` is the declaration of `class` for the class index: the
-integration's name and its `mkModule`. Once it is in the index,
-`mkModules` registers every `modules/<class>` directory through this
-integration.
+`configurationsModule` is the module that lets a configuration hold
+configurations of this integration beneath it. It declares
+`caisson.<name>.configurations` and `caisson.<name>.exported`.
+caisson's core module imports it for each integration of caisson. An
+integration written outside caisson registers a module that imports
+it where its configurations may be declared.
+
+`top` is what a configuration of the integration returns when it has
+no parent, as a function of its finalized manifest. When the
+declaration gives it, the namespace has `mkTopConfiguration`, which
+takes the arguments of `mkConfiguration`, finalizes the configuration
+with no parent, and applies `top` to the manifest. Its argument
+pattern is the pattern of `mkConfiguration`.
 
 The integration's `compose` receives the admitted arguments and
 returns an attribute set. That set must hold `ecosystemArgs`, the
@@ -1584,15 +1572,14 @@ returns the evaluation.
 
 The constructor returns values rather than an overlay output, because
 the attribute names an overlay produces must not depend on `final`.
-The overlay file writes the keys itself:
+The overlay file writes the key itself:
 
 ```nix
 overlay = final: prev:
   let
     integration = final.caisson.integrations.mkIntegration { ... };
   in
-  contributeClasses prev integration.classes
-  // {
+  {
     caisson = (prev.caisson or { }) // {
       nixos = integration.namespace;
     };
@@ -1606,6 +1593,7 @@ mkAltIntegration :
   { over     : attrs               # the integration that owns the class, e.g. final.caisson.nixos
   , mkConfiguration                  : pattern -> result
   , mkConfigurationWithEcosystemArgs : pattern -> result
+  , top      ? null : manifest -> value  # as for mkIntegration
   , extra    ? { } : attrs
   } -> attrs                       # the value of lib.caisson.<name>
 ```
@@ -1614,9 +1602,11 @@ mkAltIntegration :
 another integration owns. `over` is that owning integration, reached
 through the lib. The result is the value to publish as
 `lib.caisson.<name>`: the entry points of the declaration, pattern
-functions as for an owner, and `extra`. It has no `mkModule`, because
-modules of the class are registered through the owner, and it declares
-no class. The composition its entry points evaluate over is expected
+functions as for an owner, `mkTopConfiguration` when the declaration
+gives `top`, and `extra`. It has no `mkModule`, because modules of the
+class are registered through the owner, and no
+`configurationsModule`, because its configurations are configurations
+of the owner. The composition its entry points evaluate over is expected
 to build on the composition the owner publishes, so that the evaluators
 cannot produce different configurations from the same arguments;
 `caisson.nixos-minimal` composes through `caisson.nixos.compose` and
@@ -1717,7 +1707,7 @@ Common conventions:
   contract: from there on the evaluator's semantics are the caller's
   to know.
 - `moduleImports`: a selection function over the corresponding class
-  registry (`lib.caisson-core.modules.<class>`), returning the list
+  registry (`lib.caisson.modules.<class>`), returning the list
   of modules to apply; the default is the default default, every
   entry named `default` (`default`, `<project>/default`). The
   framework module, every entry named `core`, applies before the
@@ -1765,7 +1755,7 @@ the `core` of caisson, read through the integration's closure), the
 selected structural modules and the config module, with `evalModules`
 over the lib of the view being evaluated. When `configModule` is
 absent, the config module is the configuration registered under the
-configuration's name, `lib.caisson-core.configs.structural.<name>`,
+configuration's name, `lib.caisson.configs.structural.<name>`,
 and there is none when nothing is registered under it. The manifest's
 `value` is the evaluation as `evalModules` returned it (`config`,
 `options`); `outputs.exports` is `caisson.exports`, the `lib`,
@@ -1815,14 +1805,14 @@ mkConfiguration :
   from it, `outputs.exports` is `caisson.exports`, and `children`
   holds the configurations declared beneath it. When `configModule` is
   absent, the config module is the configuration registered under the
-  configuration's name, `lib.caisson-core.configs.flake.<name>`.
+  configuration's name, `lib.caisson.configs.flake.<name>`.
   flake-parts' `inputs` are the manifest's pinned `sources`, and the
   integration ties `self` the way Nix does for a flake: the
   evaluation's outputs with the root's source info (out path,
   revision, last-modified) beside them and `self.inputs` the sources,
   so flake-parts modules receive `self`, `self'` and `inputs` as they
   would under Nix's flake evaluation. `moduleImports` selects over
-  the `flake` class of `lib.caisson-core.modules`, the same registry
+  the `flake` class of `lib.caisson.modules`, the same registry
   every adapter selects from, so modules arriving by local
   registration, overlay contribution, or consumed project are all
   selectable. flake-parts itself resolves like every ecosystem, from
@@ -1877,7 +1867,7 @@ mkConfiguration :
   over the selected class modules and the config module. When
   `configModule` is absent, the config module is the configuration
   registered under the configuration's name,
-  `lib.caisson-core.configs.nixos.<name>`.
+  `lib.caisson.configs.nixos.<name>`.
 
   A NixOS configuration is evaluated at a system, so the integration
   passes `perSystem`: a declared configuration is an evaluation for
@@ -2093,7 +2083,7 @@ lib.caisson.nixpkgs.mkConfiguration :
 
 Declares a package config, in `mkLib`'s `pkgSets`. `configModule`
 defaults to the configuration registered under the name the config is
-declared under (`lib.caisson-core.configs.nixpkgsConfig.<name>`), and
+declared under (`lib.caisson.configs.nixpkgsConfig.<name>`), and
 a config with neither evaluates with no module of the tree.
 `moduleImports` selects from the `nixpkgsConfig` module registry and
 defaults to every entry named `default`. `ecosystemSrc` is the
@@ -2118,7 +2108,7 @@ These options under `caisson.nixpkgs` declare the sets:
 - `caisson.nixpkgs.extraOverlays`: entries applied in addition to
   `overlays`, whichever selection that is. A config that adds an entry
   with it keeps the default:
-  `caisson.nixpkgs.extraOverlays = [ lib.caisson-core.pkgOverlays.<name> ];`.
+  `caisson.nixpkgs.extraOverlays = [ lib.caisson.pkgOverlays.<name> ];`.
 
 caisson instantiates the sets itself, without going through
 `pkgs/top-level/default.nix`: it boots the stdenv stages and

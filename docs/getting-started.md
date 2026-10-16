@@ -267,10 +267,8 @@ The consumer's composed library now has `lib.my-flake.greet`: the
 project registration brings in the overlays you exported, each
 overlay's `imports` chain guarantees anything it depends on composes
 with it, and your exported modules land in the consumer's registry
-under `my-flake/<name>`, selectable at each use site. Overlays that
-contribute modules via `contributeModules` (see
-[Module classes](concepts/module-classes.md)) deliver them the same
-way. A consumer who wants only part of your project selects with
+under `my-flake/<name>`, selectable at each use site. A consumer who
+wants only part of your project selects with
 `libOverlayImports`, as shown above; the
 `my-flake.modules.<class>.<name>` flake outputs serve consumers who
 import modules without composing anything.

@@ -22,20 +22,15 @@ configs = lib: lib.caisson.mkModules ./configs;
 ```
 
 The first directory level is the class, whatever its name, and each
-entry is registered with the `mkModule` of the integration that
-declares the class, which `lib.caisson.classes.<class>` holds. Every integration that owns a
-class declares it from its overlay, so composing the nixos integration
-is what makes `modules/nixos` register, and an integration that wraps
-another declares the same class again with the wrapper's `mkModule`, which
-every reader then registers through. A class no integration covers
-(`hardware`, the way ch-hardware defines it for its capture modules)
-is declared by the overlay that defines it, and the class-free
-`generic` group (a module any class may import; the name comes from
-flake-parts, whose export leaves those modules unstamped) is declared
-by caisson-core. A directory for a class nothing composed declares is
-an error. An entry is a directory holding a `default.nix`, a symlink
-to such a directory included; anything else in a directory being read
-is an error, so a stray file cannot silently vanish from a registry.
+entry is registered with `lib.caisson.mkModule`, given the name of
+that directory as the class. The integration that evaluates a class
+names it in its declaration (the `class` argument of `mkIntegration`),
+and caisson keeps no list of classes beside that. The class-free
+`generic` group holds modules any class may import; the name comes
+from flake-parts, whose export leaves those modules unstamped. An
+entry is a directory holding a `default.nix`, a symlink to such a
+directory included; anything else in a directory being read is an
+error, so a stray file cannot silently vanish from a registry.
 
 A tree with another layout writes the registration by hand, with the
 `mkModule` of the integration that owns the class applied to the
@@ -92,7 +87,8 @@ nested use of `mkModule` stays in that class.
 
 ## Registration APIs
 
-Modules enter the class-keyed registry (`lib.caisson.modules`)
+The class-keyed registry is in the manifest of the library, and
+`lib.caisson.modules` reads it from there. Modules enter the registry
 in these ways:
 
 - **Local registration.** The `modules` argument of `mkLib` is a
@@ -101,31 +97,6 @@ in these ways:
   the conventional layout, and helpers such as
   `lib.caisson.flake-parts.mkModule` build entries by hand. This is
   for the flake's modules.
-- **Overlay contribution**, for modules contributed by a library
-  overlay: the overlay closure contains `mkModule` and
-  `contributeModules`, and the overlay merges its entries into the
-  registry:
-
-  ```nix
-  { mkModule, contributeModules, ... }:
-  {
-    imports = [ ];
-    overlay =
-      final: prev:
-      contributeModules prev {
-        nixos."my-flake/my-service" = mkModule "nixos" ./modules/my-service.nix;
-      }
-      // {
-        my-flake = (prev.my-flake or { }) // { ... };
-      };
-  }
-  ```
-
-  `mkModule` here is bound to the defining flake's composition, so the
-  contributed module closes over the definer's inputs and library, not
-  the consumer's. A consumer who registers the exported overlay gets
-  its library namespace and its modules together, transitively through
-  the overlay's `imports` chain.
 - **Project consumption**, `mkLib`'s `projects` hook: registering a
   whole upstream contribution (`projects.my-dep = inputs.my-dep`)
   places its exported modules in the registry under
@@ -133,16 +104,14 @@ in these ways:
   dictionary. Selection stays per item at each use site, and a
   local registration beats a same-named project entry.
 
-The registry is a shared, class-keyed space per composition, so rules
-on names and precedence keep multiple contributors coherent. Names
-within a class are a flat space: qualify contributed names with your
-project prefix (`my-flake/my-service`), the same discipline as
-top-level library namespaces; short names are for the registrations
-made in the `mkLib` call itself. And precedence is deterministic:
-those local registrations apply last, so a local entry always wins
-over a same-named contribution.
+The registry is a shared, class-keyed space per composition. Names
+within a class are a flat space: the entries of a project carry its
+name as a prefix (`my-flake/my-service`), and short names are for the
+registrations made in the `mkLib` call itself. Precedence is
+deterministic: those local registrations apply last, so a local entry
+wins over a project entry of the same name.
 
-Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each register their class this way (colmena's class is `colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
+Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each name their class in their declaration (colmena's class is `caisson-colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
 
 ## Consuming Exported Modules
 

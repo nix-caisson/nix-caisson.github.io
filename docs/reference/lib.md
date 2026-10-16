@@ -1038,6 +1038,13 @@ which runs those homes on the machine.
 With those modules, a home prints a warning when it is activated
 on a machine it was not built for.
 
+`caisson/default` also defines `networking.hostName` as the name the
+NixOS configuration is declared under, at `mkDefault` priority. So the
+machine declared as `nas-1` names itself `nas-1`, and a host name the
+machine's own modules set replaces it. A NixOS configuration with no
+name, and an evaluation without NixOS's networking module (the minimal
+NixOS evaluator), keep NixOS's default.
+
 `caisson/nixos-parent` sets these options of the home:
 
 | Option of the home | Value |
@@ -2426,6 +2433,21 @@ A layout passes up its NixOS configurations under the names they are
 declared with. So the machine declared as `nas-1` inside the layout
 `nas-1` is published as `nixosConfigurations.nas-1`, and is the node
 `nas-1` of a colmena configuration that declares the layout.
+
+Where a layout holds one machine, we recommend naming the machine after
+the layout. The layout's module declares it under its own name, read
+from the manifest, and caisson's default NixOS module names the host
+after the name the machine is declared under:
+
+```nix
+{ lib, ... }: {
+  caisson.nixos.configurations.${lib.caisson-core.evalManifest.name} =
+    lib.caisson.nixos.mkConfiguration { configModule = ./nixos/nas-1; };
+}
+```
+
+The layout `nas-1` then publishes `nixosConfigurations.nas-1`, whose
+host name is `nas-1` unless its modules set another.
 
 A disko configuration is published as `diskoConfigurations.<name>`, in
 the form disko's CLI reads: `{ disko.devices = <serializableLayout>; }`.

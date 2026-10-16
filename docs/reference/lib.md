@@ -2203,8 +2203,8 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
 
 - **Source:** `lib-overlays/caisson-colmena/default.nix`
 
-`caisson-colmena` is the native colmena integration, and the one to
-start with when writing new configurations. Its machines are NixOS
+`caisson-colmena` is the native colmena integration, and the one we
+recommend for writing new configurations. Its machines are NixOS
 configurations declared like any other, so they share modules through
 the registry and through structural groups, and they take their
 package sets from caisson's package configs. The integration named
@@ -2291,8 +2291,8 @@ machine.
 `colmena` is the upstream-compatible colmena integration. It is there
 so that a hive written for colmena can move to caisson as it is, and so
 that modules written for colmena's evaluator keep working: a project
-with many of them can port without rewriting them. A new configuration
-starts with `caisson-colmena` instead, which is the more uniform of the
+with many of them can port without rewriting them. For a new
+configuration, we recommend `caisson-colmena`, the more uniform of the
 two.
 
 It takes a hive in the format colmena reads: `meta` (or `network`, its

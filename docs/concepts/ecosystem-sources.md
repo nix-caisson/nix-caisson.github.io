@@ -25,6 +25,10 @@ documents the shape it takes; in practice:
 - `caisson.caisson-colmena` and `caisson.colmena` take the colmena
   flake: they read the hive schema from its `lib.makeHive` and the
   deployment options from its `nixosModules`.
+- `caisson.caisson-disko` and `caisson.disko` take the disko flake or
+  source tree: they build disko's type library from its
+  `lib/default.nix`, and `caisson.disko` gives its machines the NixOS
+  module in its `module.nix`.
 - `caisson.terranix` and `caisson.system-manager` take their project's
   flake (they call `lib.terranixConfiguration` and
   `lib.makeSystemConfig` on it).
@@ -47,6 +51,8 @@ below.
 | `caisson.home-manager` | `home-manager` | home-manager source tree |
 | `caisson.caisson-colmena` | `colmena` | colmena flake |
 | `caisson.colmena` | `colmena` | colmena flake |
+| `caisson.caisson-disko` | `disko` | disko flake or source tree |
+| `caisson.disko` | `disko` | disko flake or source tree |
 | `caisson.terranix` | `terranix` | terranix flake |
 | `caisson.system-manager` | `system-manager` | system-manager flake |
 | `caisson.structural` | none | no source: the empty integration evaluates caisson's core module alone |

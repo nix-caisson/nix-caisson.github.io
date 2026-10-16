@@ -1523,6 +1523,22 @@ named as anything published is, and the name of the top, which the
 file that returns it stands for, is left out of each: a single
 evaluation is its value, and several are the values by system.
 
+#### `renameDefault`
+
+```
+renameDefault : str -> attrsOf finalized -> attrsOf finalized
+```
+
+`renameDefault name` is an `exported` selection: it passes up the
+configuration declared under the name `default` under `name` instead,
+and every other configuration under the name it is declared under. A
+configuration declared under `name` beside `default` is refused, since
+both would be passed up under that name. The default modules of the
+caisson-disko and disko classes set
+`caisson.nixos.exported = lib.mkDefault (renameDefault <name of the layout>)`,
+so the machine declared as `default` inside a layout is published
+under the name of the layout.
+
 #### `mkIntegration`
 
 ```
@@ -1667,7 +1683,8 @@ manifest), then the source named exactly `<name>` in the `sources`
 passed to mkLib. The name is the integration's ecosystem, and one
 ecosystem may serve several integrations: `nixpkgs` for the nixos,
 nixos-minimal and nixpkgs integrations, `colmena` for the
-caisson-colmena integration, then `home-manager`, `terranix`,
+caisson-colmena and colmena integrations, `disko` for the caisson-disko
+and disko integrations, then `home-manager`, `terranix`,
 `system-manager` and `flake-parts` for the integration of the same name
 (the table in
 [Ecosystem sources](../concepts/ecosystem-sources.md)). A full
@@ -1688,13 +1705,14 @@ Common conventions:
   point, translated to the evaluator's spelling where it differs
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
 - `defaultPkgs` is accepted by the nixos, nixos-minimal, home-manager,
-  home-manager-minimal, flake-parts and structural entry points. It
+  home-manager-minimal, flake-parts, structural, caisson-colmena,
+  colmena, caisson-disko and disko entry points. It
   selects the package set the configuration runs on from the package
   configs the composition declares (see
   `caisson.integrations.pkgSetOf`). In a nixos or home-manager
   configuration, the modules get the package sets by config name as
   the `pkgSets` special argument.
-- `pkgSets`: on the colmena, terranix and system-manager entry
+- `pkgSets`: on the colmena, disko, terranix and system-manager entry
   points, an attrset of package sets passed through as the `pkgSets`
   special argument, where `pkgSets.pkgs` is what the evaluator gets:
   the package set of a terranix evaluation, the package set of
@@ -2347,6 +2365,181 @@ caisson-colmena does, and is published as `colmenaHive`.
   `pkgSets.pkgs` serves `colmena eval`, else `meta.nixpkgs`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the `evalModules` call of the colmena configuration.
+
+### `caisson.caisson-disko` (module class `caisson-disko`)
+
+- **Source:** `lib-overlays/caisson-disko/default.nix`
+
+`caisson-disko` is the native disko integration, and the one we
+recommend for new configurations. A disko configuration is a disk
+layout, and the NixOS configurations installed onto it are declared
+inside it. Those NixOS configurations get the file systems the layout
+produces and nothing of disko itself, so the scripts that format and
+destroy the disks are not reachable from a machine. The integration
+named `disko`, below, gives its machines disko's own NixOS module
+instead.
+
+A disko configuration is a module of the `caisson-disko` class. It sets
+`disko.devices`, disko's grammar for the disks, typed with disko's type
+library from the disko source the composition declares or pins under
+the name `disko`. It declares the NixOS configurations installed onto
+the layout under `caisson.nixos.configurations.<name>`, the way any
+configuration declares them, and it may declare none, as for a data
+array:
+
+```nix
+caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfiguration {
+  configModule = { lib, ... }: {
+    disko.devices.disk.main = {
+      device = "/dev/disk/by-id/nvme-Samsung_SSD_980_PRO_1TB_S5GXNX0T123456";
+      type = "disk";
+      content = { type = "gpt"; partitions = { /* ... */ }; };
+    };
+    caisson.nixos.configurations.default = lib.caisson.nixos.mkConfiguration {
+      configModule = ./nixos/nas-1;
+    };
+  };
+};
+```
+
+The layout is evaluated with caisson's own `evalModules` over
+`disko.devices`, the framework modules, the selection and the
+configuration's module. The class also declares `assertions`, a list of
+`{ assertion, message }` as in NixOS. A module of the class refuses a
+layout with an assertion that is false, and every output of the layout
+then fails with the messages of those assertions.
+
+The outputs are the layout product:
+
+- `serializableLayout`: the device tree as data, with disko's internal
+  attributes and functions left out.
+- `layoutHash`: the sha256 of `serializableLayout` as JSON, the
+  identity of the disks the layout describes.
+- `nixosConfig`: the NixOS settings the devices produce, `fileSystems`,
+  `boot` and `swapDevices`, each a definition for a NixOS option.
+- `meta`: disko's record of which device depends on which.
+- `scripts`: a function of a package set returning the scripts disko
+  makes from the layout: `format`, `mount`, `unmount`, `destroy`,
+  `formatMount`, `destroyFormatMount`, and each of them without its
+  dependencies (`formatNoDeps` and so on).
+- `packages`: a function of a package set returning the packages the
+  scripts run.
+- `rootMountPoint`: the directory the mount script mounts the layout
+  under.
+
+The default module of the class adds caisson's NixOS module
+`caisson-disko-layout` to the default selection of the NixOS
+configurations declared inside the layout. That module defines
+`fileSystems`, `boot` and `swapDevices` from the layout's
+`nixosConfig`, at default priority, and refuses a layout that produces
+settings under any other key. A NixOS configuration that passes
+`moduleImports` lists the module itself, as
+`caisson/caisson-disko-layout` in a flake that lists caisson in
+`projects`. A module of a NixOS configuration that needs more of its
+layout reads it as `lib.caisson-core.evalManifest.nearest.caisson-disko`.
+
+The NixOS configuration declared as `default` inside a layout is passed
+up under the name of the layout, by an `exported` default the class
+default module sets with `integrations.renameDefault`. So the machine
+installed onto the layout `nas-1` is published as
+`nixosConfigurations.nas-1`, and is the node `nas-1` of a colmena
+configuration that declares the layout. A layout that sets
+`caisson.nixos.exported` passes its NixOS configurations up its own
+way.
+
+A disko configuration is published as `diskoConfigurations.<name>`, in
+the form disko's CLI reads: `{ disko.devices = <serializableLayout>; }`.
+disko's CLI evaluates it again with its own evaluator, so
+`disko --mode format --flake '.#nas-1'` formats the disks the layout
+describes.
+
+- `mkModule : freeformModule -> module`: class-bound `mkModule` for
+  modules of the caisson-disko class.
+- `mkConfiguration : { configModule?, pkgSets?, defaultPkgs?,
+  ecosystemSrc?, moduleImports?, extraModuleImports?, specialArgs?,
+  rootMountPoint?, checked? }`: a disko configuration, a function of
+  `{ name, parent }`, finalized by the configuration that declares it
+  under `caisson.caisson-disko.configurations.<name>`. `configModule`
+  defaults to the configuration registered under its name in
+  `configs/caisson-disko`. `ecosystemSrc` is the disko flake or source
+  tree, resolved from the composition when absent. `rootMountPoint`
+  defaults to `/mnt`. `checked` says whether the scripts are checked
+  with shellcheck when they are built, and defaults to false.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call.
+- `ecosystemSrcOf`, `diskoLibOf`, `devicesOptions`, `layoutOf`,
+  `exportsTo`: the resolution of the disko source, disko's type library
+  from a source, the module declaring `disko.devices`, the layout
+  product of an evaluated layout, and how a layout is published. The
+  upstream-compatible `disko` integration builds on them.
+
+### `caisson.disko` (module class `disko`)
+
+- **Source:** `lib-overlays/disko/default.nix`
+
+`disko` is the upstream-compatible disko integration. It is there so
+that a layout written for disko can be used with caisson as it is, and
+so that the machines installed onto it work with disko's tools:
+disko's CLI against `nixosConfigurations`, `disko-install`, the image
+builder and the install test. For a new configuration, we recommend
+`caisson-disko`, which keeps disko out of the machines.
+`caisson-disko` gives up those tools on the machine to do that, and
+keeps compatibility with disko's CLI through `diskoConfigurations`.
+
+A disko configuration is a module of the `disko` class: a file written
+for disko, which sets `disko.devices`, is its module as it is. The
+module also declares the NixOS configurations installed onto the
+layout, under `caisson.nixos.configurations.<name>`:
+
+```nix
+caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration {
+  configModule = { lib, ... }: {
+    imports = [ ./disko-config.nix ];
+    caisson.nixos.configurations.default = lib.caisson.nixos.mkConfiguration {
+      configModule = ./nixos/nas-1;
+    };
+  };
+};
+```
+
+The layout is evaluated as disko evaluates a layout on its own:
+`evalModules` over `disko.devices`, typed with disko's type library,
+with the framework modules, the selection and the configuration's
+module beside it. The outputs are the layout product of
+`caisson-disko`, without assertions, and `ecosystemSrc`, the disko
+source the layout was evaluated with.
+
+The default module of the class adds caisson's NixOS module
+`disko-layout` to the default selection of the NixOS configurations
+declared inside the layout. That module imports disko's NixOS module
+from that source and defines `disko.devices` from the layout's
+`serializableLayout`, at default priority. The NixOS configuration then
+holds what disko's tools read: `config.disko.devices`, and the scripts
+under `system.build`. `disko-install` replaces the disks with
+`mkVMOverride`, which wins over the default priority. The other options
+disko's module declares, such as `disko.imageBuilder` and
+`disko.tests`, are set in the NixOS configuration's own modules. A
+NixOS configuration that passes `moduleImports` lists the module
+itself, as `caisson/disko-layout`.
+
+For a layout and a machine with nothing caisson adds to them, the
+machine builds the same system, with the same format script, as NixOS
+builds from disko's module, the layout and the same machine module. The
+NixOS configuration declared as `default` is passed up under the name
+of the layout, and the layout is published as
+`diskoConfigurations.<name>`, as for `caisson-disko`.
+
+- `mkModule : freeformModule -> module`: class-bound `mkModule` for
+  modules of the disko class.
+- `mkConfiguration : { configModule?, pkgSets?, defaultPkgs?,
+  ecosystemSrc?, moduleImports?, extraModuleImports?, specialArgs?,
+  rootMountPoint?, checked? }`: a disko configuration, a function of
+  `{ name, parent }`, finalized by the configuration that declares it
+  under `caisson.disko.configurations.<name>`. `configModule` defaults
+  to the configuration registered under its name in `configs/disko`.
+  The other arguments are those of `caisson-disko`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call.
 
 ### `caisson.terranix` (module class `terranix`)
 

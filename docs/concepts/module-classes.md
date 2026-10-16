@@ -111,7 +111,7 @@ registrations made in the `mkLib` call itself. Precedence is
 deterministic: those local registrations apply last, so a local entry
 wins over a project entry of the same name.
 
-Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each name their class in their declaration (colmena's class is `caisson-colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
+Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.home-manager`, `caisson.terranix`, `caisson.caisson-colmena`, `caisson.system-manager`, and `caisson.nixpkgs`) each name their class in their declaration (the class of caisson-colmena is `caisson-colmena`; its nodes are NixOS configurations); see the [library reference](../reference/lib.md).
 
 ## Consuming Exported Modules
 

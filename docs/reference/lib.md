@@ -1346,7 +1346,7 @@ leaving out an integration with none: the `children`
 frameworkModules      : str -> attrsOf module -> listOf module
 mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; evaluate : view -> evaluated; } -> configuration
 evaluated = { value; outputs ? { }; config ? value.config; }
-exportsTo = { attrset : str; value : manifest -> value;
+exportsTo = { attrset : str; value : manifest -> value; single ? false : bool;
               name ? : { name, manifest } -> { value : str; description ? : str; }; }
 ```
 
@@ -1365,6 +1365,11 @@ records on the manifest (`pkgSetOf` below).
 records it on the manifest too. `attrset` is the output attribute
 set; a NixOS configuration records `nixosConfigurations`. `value`
 takes the manifest of the configuration to what is published.
+
+`single` says the output holds a single value rather than values by
+name, as `colmenaHive` does. The configuration declared under the name
+`default` is then the output's value, and a configuration declared
+under another name is refused there.
 
 `name` is for an integration whose configurations are known by a name
 other than the name they are declared under. It takes the name the
@@ -1465,8 +1470,8 @@ which `mkModuleConfiguration` records from the argument and
 `lib.caisson-core` carries to everything beneath) to those sets.
 
 The argument is on the nixos, nixos-minimal, home-manager,
-home-manager-minimal, flake-parts and structural constructors, and on
-the colmena node constructors. In a
+home-manager-minimal, flake-parts, structural and colmena
+constructors. In a
 flake it selects the `pkgs` of `perSystem`. A structural configuration
 runs on no package set and selects for what is beneath it.
 
@@ -1654,9 +1659,10 @@ An adapter's ecosystem source resolves in layers: the explicit
 manifest), then the source named exactly `<name>` in the `sources`
 passed to mkLib. The name is the integration's ecosystem, and one
 ecosystem may serve several integrations: `nixpkgs` for the nixos,
-nixos-minimal and nixpkgs integrations, then `home-manager`, `colmena`,
-`terranix`, `system-manager` and `flake-parts` for the integration of
-the same name (the table in
+nixos-minimal and nixpkgs integrations, `colmena` for the
+caisson-colmena integration, then `home-manager`, `terranix`,
+`system-manager` and `flake-parts` for the integration of the same name
+(the table in
 [Ecosystem sources](../concepts/ecosystem-sources.md)). A full
 miss throws at the adapter, naming those places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
@@ -1684,8 +1690,8 @@ Common conventions:
 - `pkgSets`: on the colmena, terranix and system-manager entry
   points, an attrset of package sets passed through as the `pkgSets`
   special argument, where `pkgSets.pkgs` is what the evaluator gets:
-  the package set of a terranix evaluation, the default for colmena's
-  `meta.nixpkgs`, and the source of system-manager's default
+  the package set of a terranix evaluation, the package set of
+  `colmena eval`, and the source of system-manager's default
   `nixpkgs.hostPlatform`. flake-parts and structural forward it to
   their modules.
 - The signature is the whole surface. An entry point takes exactly
@@ -2186,61 +2192,81 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
   alongside package overlays; the name is ignored.
 - `types.nixpkgsOverlay`, `types.nixpkgs`: option types.
 
-### `caisson.colmena` (module class `caisson-colmena`)
+### `caisson.caisson-colmena` (module class `caisson-colmena`)
 
-- **Source:** `lib-overlays/colmena/default.nix`
+- **Source:** `lib-overlays/caisson-colmena/default.nix`
+
+`caisson-colmena` is the native colmena integration. The name
+`colmena` is reserved for an integration that accepts the hive format
+of colmena as upstream writes it.
+
 A colmena configuration is a module of the `caisson-colmena` class, a
 class caisson defines itself, since colmena's hive format is not a
 module class; the class carries the `caisson-` prefix because the bare
-name is not caisson's to claim. The integration is not compatible with colmena's hive modules
-(`makeHive`, `defaults`, `meta.nixpkgs`). The word hive names
-only this here: the output colmena's binary reads, which the evaluator
-step projects the evaluated configuration onto.
+name is not caisson's to claim. The integration is not compatible with
+colmena's hive modules (`makeHive`, `defaults`, `meta.nixpkgs`). The
+word hive names only the output colmena's command reads.
+
+A colmena configuration declares `meta` (`name`, `description`,
+`machinesFile`, `allowApplyAll`), and the machines colmena deploys as
+NixOS configurations, under `caisson.nixos.configurations.<name>`, the
+way any configuration declares them:
+
+```nix
+caisson.caisson-colmena.configurations.default = lib.caisson.caisson-colmena.mkConfiguration {
+  configModule = { lib, ... }: {
+    meta.allowApplyAll = false;
+    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
+      configModule = { deployment.targetHost = "nas-1.lan"; /* ... */ };
+    };
+  };
+};
+```
+
+The nodes are the NixOS configurations the colmena configuration passes
+up, each under the name it is published under. The default module of
+the class adds caisson's NixOS module `colmena-deployment` to the
+default selection of the NixOS configurations declared inside it. That
+module declares colmena's `deployment` options and imports colmena's
+modules for assertions and keys, from the colmena source the
+composition declares or pins under the name `colmena`. A NixOS
+configuration that passes `moduleImports` lists the module itself, as
+`caisson/colmena-deployment` in a flake that lists caisson in
+`projects`.
+
+The integration reads `deployment` back from each node and builds the
+hive: `__schema`, `nodes`, `toplevel`, `deploymentConfig`,
+`evalSelected` and the other attributes colmena's command reads. A
+`deployment.targetHost` the node leaves at `null` is the node's name in
+the hive. The hive refuses a node that declares no `deployment`
+options, and a node whose name colmena's `--on` filter could never
+select: a name containing a comma, starting with `@`, or empty. Names
+colmena's own hive format reserves (`meta`, `defaults`, `network`) are
+ordinary names. The schema version is asserted against the `makeHive`
+of the colmena source, so a colmena revision that moves it fails at
+evaluation.
+
+A colmena configuration is published as `colmenaHive`, an output that
+holds a single value, so the colmena configuration declared under the
+name `default` fills it, and another name is refused there. Its nodes
+are published as `nixosConfigurations.<name>` as well, from the same
+evaluation, so `nixos-rebuild` and `colmena apply` build the same
+machine.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   colmena modules.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?, extraModuleImports?,
-  specialArgs?, pkgSets? } -> hive`: evaluates the configuration's
-  module with the selected colmena-class modules through
-  `evalModules`, and projects the result onto colmena's hive schema
-  (`__schema`, `nodes`, `toplevel`, `deploymentConfig`,
-  `evalSelected`, ...), the attributes colmena's binary reads. The
-  configuration declares `meta` (`name`, `description`,
-  `machinesFile`, `allowApplyAll`) and `nodes.<name>`, and receives
-  `mkNixosConfiguration` as a module argument, closed over the
-  configuration's colmena source: `caisson.nixos.mkConfiguration`'s signature and
-  composition over the host's module plus colmena's public node
-  modules (`deploymentOptions`, `keyChownModule`, `keyServiceModule`,
-  `assertionModule`). Its `ecosystemSrc` is nixpkgs, as for any NixOS
-  configuration; set `deployment.*` in the host's module. A node is an
-  ordinary NixOS configuration that also declares `deployment`; a
-  consumer that exports it as `nixosConfigurations.<host>` reads it
-  back from `hive.nodes`, one evaluation for `nixos-rebuild` and
-  `colmena apply`. The schema version is asserted against the
-  `makeHive` of the ecosystem source, so a colmena revision that moves
-  it fails at evaluation; a node that did not come from
-  `mkNixosConfiguration` is refused. What the constructor returns is a
-  NixOS configuration, and the colmena configuration finalizes it
-  under the name of the node, so a node takes its system and its
-  package set from the composition like any NixOS configuration. A
-  node is a machine, so the configuration has to have exactly one
-  evaluation; with no system in force, or several, the colmena
-  configuration refuses it and names the systems.
-  `pkgSets` on the colmena
-  configuration only serves `colmena eval` (`introspect`).
-  `mkNixosConfigurationWithEcosystemArgs`
-  is the node constructor's twin, also a module argument. Every node
-  receives colmena's `name` and `nodes` special arguments (the latter
-  the whole hive, lazily, for cross-node references), so a module
-  written for colmena's evaluator works unchanged. Node names are
-  free: `meta`, `defaults` and `network`, reserved in colmena's flat
-  hive, are ordinary names under `nodes`. The only constraint is
-  colmena's `--on` filter grammar: a name containing a comma, starting
-  with `@`, or empty could never be selected, and is refused when the
-  configuration is evaluated.
+- `mkConfiguration : { configModule?, pkgSets?, defaultPkgs?,
+  ecosystemSrc?, moduleImports?, extraModuleImports?, specialArgs? }`:
+  a colmena configuration, a function of `{ name, parent }`, finalized
+  by the configuration that declares it under
+  `caisson.caisson-colmena.configurations.<name>`. `configModule` defaults to
+  the configuration registered under its name in `configs/caisson-colmena`.
+  `ecosystemSrc` is the colmena flake, resolved from the composition
+  when absent. `pkgSets.pkgs` serves `colmena eval` (`introspect`) and
+  nothing else.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the `evalModules` call (`class`, `modules`,
-  `specialArgs`); the result is projected onto the hive the same way.
+  `specialArgs`).
 
 ### `caisson.terranix` (module class `terranix`)
 

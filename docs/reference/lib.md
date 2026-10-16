@@ -2378,18 +2378,28 @@ the layout under `caisson.nixos.configurations.<name>`, the way any
 configuration declares them, and it may declare none, as for a data
 array:
 
+A tree registers the layout as `configs/caisson-disko/nas-1/default.nix`:
+
 ```nix
-caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfiguration {
-  configModule = { lib, ... }: {
-    disko.devices.disk.main = {
-      device = "/dev/disk/by-id/nvme-Samsung_SSD_980_PRO_1TB_S5GXNX0T123456";
-      type = "disk";
-      content = { type = "gpt"; partitions = { /* ... */ }; };
-    };
-    # The NixOS configuration registered as `configs/nixos/nas-1`.
-    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
+{ ... }:
+{ lib, ... }:
+{
+  disko.devices.disk.main = {
+    device = "/dev/disk/by-id/nvme-Samsung_SSD_980_PRO_1TB_S5GXNX0T123456";
+    type = "disk";
+    content = { type = "gpt"; partitions = { /* ... */ }; };
   };
-};
+  # The NixOS configuration registered as `configs/nixos/nas-1`.
+  caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
+}
+```
+
+and declares it where it belongs, here at the top of its flake.
+`mkConfiguration` without `configModule` takes the configuration
+registered under the name it is declared under:
+
+```nix
+caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfiguration { };
 ```
 
 The layout is evaluated with caisson's own `evalModules` over
@@ -2490,20 +2500,25 @@ builder and the install test. For a new configuration, we recommend
 `caisson-disko` gives up those tools on the machine to do that, and
 keeps compatibility with disko's CLI through `diskoConfigurations`.
 
-A disko configuration is a module of the `disko` class: a file written
-for disko, which sets `disko.devices`, is its module as it is. The
+A disko configuration is a module of the `disko` class: what a file
+written for disko sets, `disko.devices`, is its module as it is. The
 module also declares the NixOS configurations installed onto the
-layout, under `caisson.nixos.configurations.<name>`:
+layout, under `caisson.nixos.configurations.<name>`. A tree registers
+it as `configs/disko/nas-1/default.nix`:
 
 ```nix
-caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration {
-  configModule = { lib, ... }: {
-    imports = [ ./disko-config.nix ];
-    # The NixOS configuration registered as `configs/nixos/nas-1`.
-    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
-  };
-};
+{ ... }:
+{ lib, ... }:
+{
+  # As written for disko.
+  disko.devices.disk.main = { /* ... */ };
+  # The NixOS configuration registered as `configs/nixos/nas-1`.
+  caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
+}
 ```
+
+and declares it with
+`caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration { };`.
 
 The layout is evaluated as disko evaluates a layout on its own:
 `evalModules` over `disko.devices`, typed with disko's type library,

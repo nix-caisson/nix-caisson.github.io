@@ -114,10 +114,10 @@ See [`modules.nixos."caisson/home-manager-activation"`](./lib.md#modulesnixoscai
 
 - **Type:** `bool`
 - **Default:** `true`
-- **Source:** `modules/homeManager/activation-drift/`
-- **Declared in:** a home that imports `caisson/activation-drift`, which the home-manager `default` module imports
+- **Source:** `modules/homeManager/activation-drift/`, `modules/nvf/default/`
+- **Declared in:** a home that imports `caisson/activation-drift`, which the home-manager `default` module imports; an nvf or nixvim configuration that imports the `default` module of its class
 
-Whether the activation of this home prints a warning when the home was built for a version of the configuration it is declared inside, such as its machine, that differs from the version that is applied.
+Whether the activation of this home, or `activate` of this nvf or nixvim configuration, prints a warning when it was built for a version of the configuration it is declared inside, such as its machine or its home, that differs from the version that is applied.
 
 The configuration above records what it applied in a marker file, `/etc/caisson/marker.json` on a machine. The activation of the home compares the marker with the configuration above as it is in the source the home was built from.
 
@@ -133,6 +133,28 @@ The comparison leaves out the configurations declared inside the configuration a
 Here the home is activated with no comparison.
 
 See [drift detection](./lib.md#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift) for what the marker holds and what is compared.
+
+### `caisson.profiles.selected`
+
+- **Type:** `attrsOf str`
+- **Default:** `{ }`
+- **Source:** `modules/*/profile-activation/`
+- **Declared in:** a NixOS, darwin or system-manager machine, a home or an hjem configuration that imports `caisson/profile-activation`, which the `default` module of each of these classes imports
+
+By the variable that chooses among them, the profile a shell runs when it sets no other, as `<kind>/<name>`. `nvf/editor` is the nvf configuration declared as `editor`.
+
+A configuration installs a program for each program of the profiles declared inside it, such as `nvim`, which runs the profile the variable names, and the default profile when the variable is unset. With one profile for a variable, that profile is the default. With several, this option names it, and the evaluation fails until it does.
+
+```nix
+{ ... }:
+{
+  caisson.profiles.selected.CAISSON_NVIM_PROFILE = "nvf/editor";
+}
+```
+
+Here a shell that sets no `CAISSON_NVIM_PROFILE` runs the Neovim of the nvf configuration `editor`.
+
+See [profiles](./lib.md#profiles-caissonprofile-activation).
 
 ### `caisson.forChildren.extraDefaultModuleImports`
 

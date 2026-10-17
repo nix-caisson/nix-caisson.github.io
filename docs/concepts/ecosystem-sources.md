@@ -62,6 +62,7 @@ below.
 | `caisson.disko` | `disko` | disko flake or source tree |
 | `caisson.terranix` | `terranix` | terranix flake |
 | `caisson.system-manager` | `system-manager` | system-manager flake |
+| `caisson.treefmt` | `treefmt-nix` | treefmt-nix flake or source tree |
 | `caisson.structural` | none | no source: the empty integration evaluates caisson's core module alone |
 
 The nixpkgs library that the integrations call is loaded by the

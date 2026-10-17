@@ -1548,7 +1548,7 @@ system of its evaluation, `<attrset>.<system>.<name>`, named by the
 usual rules over its path without the systems on it. With `single`
 too, the output holds the configuration named `default` at each
 system, as `formatter.<system>` does. A configuration with no system,
-one not evaluated at a system, is refused in such an output.
+one not evaluated per system, is refused in such an output.
 
 `name` is for an integration whose configurations are known by a name
 other than the name they are declared under. It takes the name the
@@ -1693,7 +1693,7 @@ returns.
 separated by `/`. Every name caisson publishes is written by it.
 
 `topValue` is what a tool reads from a top that is a configuration
-evaluated at a system, given its evaluations by system. They are
+evaluated per system, given its evaluations by system. They are
 named as anything published is, and the name of the top, which the
 file that returns it stands for, is left out of each: a single
 evaluation is its value, and several are the values by system.
@@ -2058,7 +2058,7 @@ mkConfiguration :
   registered under the configuration's name,
   `lib.caisson.configs.nixos.<name>`.
 
-  A NixOS configuration is evaluated at a system, so the integration
+  A NixOS configuration is evaluated per system, so the integration
   passes `perSystem`: a declared configuration is an evaluation for
   every system in force where it is declared (`systems` on `mkLib`),
   each under its name beneath its system in the tree. There are as
@@ -2174,7 +2174,7 @@ which finds the configuration by its name. It is published as
 its local host name, so we recommend declaring a machine under that
 name.
 
-Every configuration evaluated at a system has an evaluation for each
+Every configuration evaluated per system has an evaluation for each
 system in force where it is declared. A tree whose `systems` hold both
 Linux and darwin systems therefore declares its darwin machines under a
 configuration that narrows the systems beneath it, such as a structural

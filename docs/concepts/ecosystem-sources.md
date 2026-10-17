@@ -21,6 +21,8 @@ documents the shape it takes; in practice:
 - `caisson.nixos` takes a nixpkgs source tree (it evaluates
   `nixos/lib/eval-config.nix` from it); `caisson.nixos-minimal` takes
   the same tree and evaluates `nixos/lib`'s `evalModules` from it.
+- `caisson.darwin` takes the nix-darwin flake or source tree (it
+  evaluates `eval-config.nix` from it).
 - `caisson.home-manager` takes a home-manager source tree.
 - `caisson.caisson-colmena` and `caisson.colmena` take the colmena
   flake: they read the hive schema from its `lib.makeHive` and the
@@ -48,6 +50,7 @@ below.
 | `caisson.nixpkgs` | `nixpkgs` | nixpkgs source tree (per package config) |
 | `caisson.nixos` | `nixpkgs` | nixpkgs source tree |
 | `caisson.nixos-minimal` | `nixpkgs` | nixpkgs source tree (the `nixos` class under the minimal evaluator) |
+| `caisson.darwin` | `nix-darwin` | nix-darwin flake or source tree |
 | `caisson.home-manager` | `home-manager` | home-manager source tree |
 | `caisson.caisson-colmena` | `colmena` | colmena flake |
 | `caisson.colmena` | `colmena` | colmena flake |

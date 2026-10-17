@@ -3145,6 +3145,83 @@ the same package set.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the `evalModules` call.
 
+### `caisson.topology` (module class `topology`)
+
+- **Source:** `lib-overlays/topology/default.nix`
+
+A topology configuration is the diagram of a network: the NixOS
+configurations declared inside it under `caisson.nixos.configurations`,
+whose `topology` options nix-topology reads, and modules of the class
+that add nodes and networks of their own. It is evaluated at every
+system in force where it is declared, on the package set selected for
+it, extended with the packages of nix-topology.
+
+caisson evaluates nix-topology's `topology` modules with its own
+`evalModules` on the composed library, and sets `nixosConfigurations`
+to the NixOS configurations declared inside it, evaluated at its
+system. Those NixOS configurations get nix-topology's NixOS module by
+default, through `caisson.forChildren`. `ecosystemSrc` is the
+nix-topology flake or source tree, resolved under the name
+`nix-topology`.
+
+The output is `output`, the rendered diagram. A top publishes the
+configuration named `default` as `topology.<system>`, the evaluation,
+where nix-topology's flake module publishes it, so
+`nix build '.#topology.x86_64-linux.config.output'` builds the diagram.
+Its machines are published as `nixosConfigurations` like any NixOS
+configuration. caisson's tests check that two machines declared inside
+give the nodes and the diagram nix-topology gives the same machines
+evaluated with its NixOS module.
+
+### `caisson.kubenix` (module class `kubenix`)
+
+- **Source:** `lib-overlays/kubenix/default.nix`
+
+A kubenix configuration is Kubernetes resources written as kubenix
+modules, which import the kubenix modules they use from the `kubenix`
+argument (`imports = [ kubenix.modules.k8s ];`). caisson makes the
+evaluation kubenix's `evalModules` makes, on the composed library
+extended with kubenix's `upstreamables.nix`, with the same `kubenix`
+argument, at every system in force on the selected package set.
+`ecosystemSrc` is the kubenix flake or source tree, resolved under the
+name `kubenix`.
+
+The output is `result`, the resources as the JSON file
+`kubectl apply -f` reads, the `kubernetes.result` of kubenix's `k8s`
+module. A top publishes it as `packages.<system>.<name>`. caisson's
+tests check that it is the result kubenix's `evalModules` gives the
+same module.
+
+### `caisson.nixidy` (module class `nixidy`)
+
+- **Source:** `lib-overlays/nixidy/default.nix`
+
+A nixidy configuration is an Argo CD environment written as nixidy
+modules (`nixidy.target`, `applications.*`). caisson evaluates it with
+nixidy's own `mkEnv`, giving it the composed library as the library of
+the evaluation and, through `mkEnv`'s `libOverlay`, the namespaces of
+the composed library that nixidy's library lacks, such as `caisson`.
+`mkEnv` returns no options, so a nixidy configuration holds no
+configurations beneath it. `ecosystemSrc` is the nixidy flake,
+resolved under the name `nixidy`.
+
+The outputs are `environmentPackage`, the rendered manifests,
+`activationPackage` and `bootstrapPackage`. A top publishes the
+configuration as `nixidyEnvs.<system>.<name>`, which the nixidy CLI
+reads. caisson's tests check that the environment is the one `mkEnv`
+renders from the same module.
+
+Each of the three takes the arguments of `caisson.treefmt`:
+
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`,
+  `configModule` defaulting to the configuration registered under its
+  name in `configs/<class>`.
+- `mkTopConfiguration`, with the same arguments.
+- `mkConfigurationWithEcosystemArgs`, the twin with `ecosystemArgs`,
+  merged over the evaluator's call (`mkEnv`'s arguments for nixidy).
+
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`

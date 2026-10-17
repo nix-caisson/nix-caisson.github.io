@@ -1312,6 +1312,83 @@ has no homes. The NixOS module also defines nothing in a NixOS
 evaluation that has no `environment.etc` option. The nixos-minimal
 integration can produce such an evaluation.
 
+### `modules.darwin."caisson/default"`
+
+- **Source:** `modules/darwin/default/`, `modules/homeManager/darwin-parent/`,
+  `modules/hjem/darwin-parent/`, `modules/darwin/home-manager-activation/`,
+  `modules/darwin/hjem-activation/`
+
+`caisson/default` is the `default` darwin module caisson registers. A
+darwin configuration imports every registered module named `default`
+unless it passes `moduleImports`. It holds what a macOS machine does
+for the homes and the hjem configurations declared inside it.
+
+It adds the home-manager module `caisson/darwin-parent` to the modules
+that the homes inside the machine import by default, and the hjem
+module `caisson/darwin-parent` to those of the hjem configurations.
+They set what home-manager's and hjem's nix-darwin modules set from the
+machine:
+
+| Module | Option | Value |
+| --- | --- | --- |
+| home-manager `darwin-parent` | `home.homeDirectory` | `users.users.<user>.home` of the machine, when the machine declares that account |
+| | `home.uid` | `users.users.<user>.uid` of the machine, when it is set |
+| | `nix.enable`, `nix.package` | those of the machine |
+| | `submoduleSupport.enable` | `true` |
+| | `home.packages` | home-manager's command-line program, when the home sets `programs.home-manager.enable` |
+| hjem `darwin-parent` | `directory` | `users.users.<user>.home` of the machine, at `mkDefault` priority |
+
+The hjem module refuses a user that has no account in `users.users`.
+
+#### `modules.darwin."caisson/home-manager-activation"`
+
+The darwin module with which a machine activates the homes declared
+inside it. `caisson/default` imports it. A step of the machine's
+`postActivation` script runs the `activate` script of each home as its
+user, through `launchctl asuser` and `sudo`, as home-manager's
+nix-darwin module does, so `darwin-rebuild switch` applies the homes. A
+home whose user has no account in `users.users` is refused with an
+assertion, and so are two homes for one user.
+
+The step runs `activate` with no driver version, as caisson's NixOS
+activation does. The script then also updates the home-manager profile
+of the user, so the user can run `home-manager switch` on the same
+profile. home-manager's nix-darwin module passes `--driver-version 1`,
+which leaves the profile alone.
+
+#### `modules.darwin."caisson/hjem-activation"`
+
+The darwin module with which a machine applies the hjem configurations
+declared inside it. `caisson/default` imports it. It writes the two
+launchd agents of hjem's nix-darwin module, with the same labels and
+scripts:
+
+| Agent | Runs |
+| --- | --- |
+| `org.hjem.activate` | at login and when the machine is activated, as the user: applies the manifest of the user, with the state in `~/Library/Application Support/Hjem` |
+| `org.nix.link-nix-apps` | the same: links the applications of the packages of the user into `~/Applications/Nix User Apps` |
+
+Each agent exits for a user that no hjem configuration of the machine
+names, and runs the CLI of the hjem configuration of the user it runs
+for. The module also adds each user's `packages` to
+`users.users.<user>.packages`, and lists each user's
+`extraDependencies` in `/etc/hjem/extra-dependencies`, which keeps them
+in the system.
+
+The module differs from hjem's nix-darwin module in two places:
+
+- It declares the agents in `launchd.agents`. nix-darwin installs those
+  in `/Library/LaunchAgents`, where launchd loads them for every user
+  who logs in. hjem's nix-darwin module declares them in
+  `launchd.user.agents`, which nix-darwin installs for
+  `system.primaryUser` alone, and it requires the machine to set
+  `system.primaryUser`.
+- It restarts the agents of each user from `postActivation`, which
+  nix-darwin runs after it installs the agents of the new generation.
+  hjem's nix-darwin module restarts the activation agent from an
+  activation step that nix-darwin does not run, and the applications
+  agent from a step that runs before the agents are installed.
+
 ### `modules.flake."caisson/nixpkgs"`
 
 - **Source:** `modules/flake/nixpkgs/`
@@ -1397,13 +1474,20 @@ entry named `default`, in the same way; this list is the default
 default, the selection an evaluation gets when it passes no
 `moduleImports`.
 
-#### `integrationsIn`, `childrenOf`, `configurationsModuleFor`
+#### `integrationsIn`, `childrenOf`, `configurationsModuleFor`, `nearestOf`
 
 ```
 integrationsIn          : options -> listOf str
 childrenOf              : { options; config } -> attrsOf (attrsOf manifest)
 configurationsModuleFor : listOf str -> module
+nearestOf               : listOf str -> manifest -> manifest or null
 ```
+
+`nearestOf` takes a list of integration names and a manifest, and
+returns the nearest configuration above the manifest whose integration
+is one of them, null when there is none. The home-manager and hjem
+integrations find the machine of a configuration with
+`nearestOf [ "nixos" "darwin" ]`.
 
 `integrationsIn` takes the options of an evaluation and lists the
 integrations whose configurations it can hold beneath it: those whose
@@ -1418,6 +1502,7 @@ options and the `config` of an evaluated configuration and returns
 the configurations declared beneath it, by integration and then name,
 leaving out an integration with none: the `children`
 `mkModuleConfiguration` hands to `lib.caisson-core.mkConfiguration`.
+It reads only the options that a module of the evaluation defines.
 
 #### `frameworkModules`, `mkModuleConfiguration`
 
@@ -2083,12 +2168,20 @@ configuration that narrows the systems beneath it, such as a structural
 configuration with `caisson.forChildren.systems = [ "aarch64-darwin" ];`,
 and its NixOS machines under one narrowed to its Linux systems.
 
-Homes and hjem configurations inside a darwin machine are not activated
-by caisson yet.
+A darwin machine activates the homes and the hjem configurations
+declared inside it, with the modules of
+[`modules.darwin."caisson/default"`](#modulesdarwincaissondefault).
+A home inside a darwin machine is published as `<user>@<machine>`, as a
+home inside a NixOS machine is, and gets `osClass = "darwin"` and the
+machine as `darwinConfig`, as home-manager's nix-darwin module gives
+them.
 
 caisson's tests evaluate a darwin machine on Linux and compare its
 system with what `darwinSystem` builds from the same module and package
-set, and its CI builds that system on a macOS runner. Activation is
+set. They also evaluate a machine with a home and an hjem configuration
+inside it, and compare the manifest of the hjem configuration with the
+manifest hjem's nix-darwin module makes. caisson's CI builds the systems
+of both machines on a macOS runner. Activation on a running machine is
 not tested.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
@@ -2243,8 +2336,11 @@ embeds does, so it can declare systemd user units under
 `systemd.services` and the other unit types. hjem's NixOS module is not
 used.
 
-Homes and hjem configurations inside a darwin machine are not activated
-by caisson yet.
+**Inside a darwin machine.** A darwin configuration applies the hjem
+configurations declared inside it with the launchd agent of
+[`caisson/hjem-activation`](#modulesdarwincaissonhjem-activation), and
+gives each of them the hjem module `caisson/darwin-parent`, which sets
+`directory` from the account of the user on the machine.
 
 caisson's tests compare the manifest of a hjem configuration inside a
 NixOS machine with the manifest hjem's NixOS module makes from the same

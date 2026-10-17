@@ -1261,8 +1261,13 @@ manifest: the identity of a configuration and the path of its marker.
 | Integration | Identity | Marker |
 | --- | --- | --- |
 | `nixos`, `darwin`, `system-manager` | the system, `toplevel` | `/etc/caisson/marker.json` |
-| `home-manager` | the activation package | `$XDG_STATE_HOME/caisson/markers/home-manager-<name>.json` |
+| `home-manager` | the activation package | `$HOME/.local/state/caisson/markers/home-manager-<name>.json` |
 | `hjem` | the manifest file | `.local/state/caisson/markers/hjem-<name>.json` in the directory of the user |
+| `nvf`, `nixvim` | the Neovim | beside its profile; nothing is declared inside one to read it |
+
+A marker of a user is named by `$HOME` and not by `$XDG_STATE_HOME`,
+because a unit of the machine and a shell of the user may see
+`$XDG_STATE_HOME` differently, and both must find the same file.
 
 The identity is that of the childless evaluation, which leaves out the
 configurations declared inside. A change to a home leaves the identity
@@ -1385,12 +1390,72 @@ The module differs from hjem's nix-darwin module in two places:
   activation step that nix-darwin does not run, and the applications
   agent from a step that runs before the agents are installed.
 
+### Profiles: `caisson/profile-activation`
+
+- **Source:** `modules/nixos/profile-activation/` (registered also for
+  `systemManager`), `modules/darwin/profile-activation/`,
+  `modules/homeManager/profile-activation/`,
+  `modules/hjem/profile-activation/`, and `profileOf`,
+  `profileShimsOf`, `profilesActivatedBy` and `profileChoicesOf` in
+  `lib-overlays/integrations/default.nix`
+
+An nvf or nixvim configuration is a program a person runs. It relates
+to the configuration it is declared inside as a home relates to its
+machine: it has an activation of its own, which the configuration
+above runs each time it is activated itself.
+
+**The profile.** The configuration has the outputs `activationPackage`
+and `profile`. `activate` checks for
+[drift](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift)
+against the nearest configuration above with an activation, and points
+a Nix profile at the Neovim with `nix-env --profile`. That also makes
+the profile a garbage-collector root. When the profile already points
+at the Neovim, `activate` changes nothing, so activating the same
+generation again adds no generation. The profile keeps its generations,
+so it can be rolled back with `nix-env --profile <path> --rollback`.
+
+| Declared inside | Profile | Activated by |
+| --- | --- | --- |
+| a NixOS or system-manager machine | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |
+| a darwin machine | the same | a step of `postActivation`, as root |
+| a home | `$HOME/.local/state/caisson/profiles/<kind>/<name>` | a step of the activation of the home, after its files are linked |
+| an hjem configuration inside a machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>` |
+| nothing (a top) | the same | running `activate` by hand |
+
+`<kind>` is `nvf` or `nixvim`. An hjem configuration has no activation
+step of its own that a configuration can add to, so the machine it is
+declared inside activates its profiles.
+
+**Reset.** The configuration above runs `activate` each time it is
+activated. A profile changed by hand is put back to what the
+configuration above declares at the next activation: `home-manager
+switch` for a home, a switch of the machine, and a boot, since the
+machine activates its homes and its profiles at boot.
+
+**Choosing a profile.** Each class installs, with
+`profileShimsOf`, a program for each program the Neovims have in
+`bin`: `nvim`, and `vi` and `vim` where they have them. The program
+runs the program of the profile that `$CAISSON_NVIM_PROFILE` names,
+read each time it runs, and of the default of the configuration that
+installed it when the variable is unset. A home and an hjem
+configuration set the variable to their own profile, with
+`home.sessionVariables` and `environment.sessionVariables`, so the
+programs the machine installs choose the same profile. A shell can
+`export` another value.
+
+The default is the only profile of the configuration for that variable.
+Where several share it,
+[`caisson.profiles.selected`](./options.md#caissonprofilesselected)
+names the default, and an evaluation without it fails with a message
+listing them.
+
 ### `modules.systemManager."caisson/default"`
 
-- **Source:** `modules/systemManager/default/`,
-  `modules/systemManager/nvf-package/`; the modules
-  `modules/systemManager/home-manager-activation` and
-  `modules/systemManager/hjem-activation` are the NixOS modules of the
+- **Source:** `modules/systemManager/default/`; the modules
+  `modules/systemManager/home-manager-activation`,
+  `modules/systemManager/hjem-activation`,
+  `modules/systemManager/profile-activation` and
+  `modules/systemManager/activation-marker` are the NixOS modules of the
   same names, and `modules/homeManager/system-manager-parent` and
   `modules/hjem/system-manager-parent` are the `nixos-parent` modules
 
@@ -1405,7 +1470,8 @@ class does for a NixOS machine:
 | --- | --- |
 | `caisson/home-manager-activation` | writes the system unit `home-manager-<user>` that activates each home declared inside the machine |
 | `caisson/hjem-activation` | writes the units of hjem that apply each hjem configuration declared inside the machine, and adds the packages of each user to `users.users.<user>.packages` |
-| `caisson/nvf-package` | adds the Neovim of each nvf configuration declared inside the machine to `environment.systemPackages` |
+| `caisson/profile-activation` | activates the profile of each nvf or nixvim configuration declared inside the machine, and installs the programs that choose among them; see [profiles](#profiles-caissonprofile-activation) |
+| `caisson/activation-marker` | records what the machine applied; see [drift detection](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift) |
 | `caisson.forChildren` | gives each home the home-manager module `caisson/system-manager-parent` and each hjem configuration the hjem module `caisson/system-manager-parent` |
 
 The two activation modules are those of a NixOS machine. system-manager
@@ -2348,8 +2414,8 @@ library as `hjem-lib`, the name of the user as `name`, the package set
 as `pkgs`, and the machine above the configuration as `osConfig`, null
 when there is none.
 
-An hjem configuration is evaluated at every system in force where it is
-declared, and runs on the package set selected for it (`defaultPkgs`,
+An hjem configuration is evaluated per system, once for each system in
+force where it is declared, and runs on the package set selected for it (`defaultPkgs`,
 else the selection of the nearest configuration above, else the set
 named `default`). `user` defaults to the name the configuration is
 declared under, and `clobberFiles` defaults to false, as in hjem's NixOS
@@ -3050,8 +3116,8 @@ beneath it.
 
 A treefmt configuration is the formatters of a tree, written as
 treefmt-nix modules (`projectRootFile`, `programs.<name>.enable`,
-`settings`). It is evaluated at every system in force where it is
-declared, on the package set selected for it (`defaultPkgs`, else the
+`settings`). It is evaluated per system, once for each system in force
+where it is declared, on the package set selected for it (`defaultPkgs`, else the
 set named `default`).
 
 treefmt-nix evaluates its modules on the library of a nixpkgs. caisson
@@ -3092,8 +3158,8 @@ same package set.
 - **Source:** `lib-overlays/nvf/default.nix`
 
 An nvf configuration is a Neovim, written as nvf modules (`vim.*`). It
-is evaluated at every system in force where it is declared, on the
-package set selected for it (`defaultPkgs`, else the set named
+is evaluated per system, once for each system in force where it is
+declared, on the package set selected for it (`defaultPkgs`, else the set named
 `default`).
 
 nvf evaluates its modules with `neovimConfiguration`, on the library of
@@ -3110,20 +3176,10 @@ returns. A top publishes the configuration as
 derivation `neovimConfiguration` builds from the same module on the
 same package set.
 
-A configuration that installs packages installs the Neovim of an nvf
-configuration declared inside it, with the module `nvf-package` of its
-class, which caisson's `default` module of the class imports:
-
-| Class | Option |
-| --- | --- |
-| `nixos`, `darwin`, `systemManager` | `environment.systemPackages` |
-| `homeManager` | `home.packages` |
-| `hjem` | `packages` |
-
-The nvf configurations installed are those evaluated at the system of
-the configuration, with no configuration but structural ones between
-them and it. `lib.caisson.nvf.packagesModule` takes the path of an
-option and returns that module for another class.
+An nvf configuration is kept in a Nix profile of its own, and the
+configuration it is declared inside activates it. See
+[profiles](#profiles-caissonprofile-activation). Its outputs
+`activationPackage` and `profile` are that profile.
 
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
@@ -3135,16 +3191,14 @@ option and returns that module for another class.
   where several systems are in force.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the `evalModules` call.
-- `packagesModule : listOf str -> module`: the module above, for the
-  option at that path.
 
 ### `caisson.nixvim` (module class `nixvim`)
 
 - **Source:** `lib-overlays/nixvim/default.nix`
 
 A nixvim configuration is a Neovim, written as nixvim modules
-(`plugins.*`, `opts`, `keymaps`). It is evaluated at every system in
-force where it is declared, on the package set selected for it
+(`plugins.*`, `opts`, `keymaps`). It is evaluated per system, once for
+each system in force where it is declared, on the package set selected for it
 (`defaultPkgs`, else the set named `default`).
 
 nixvim evaluates its modules with `evalNixvim`, `evalModules` over
@@ -3161,6 +3215,10 @@ publishes the evaluated configuration as
 publishes its own configurations under. caisson's tests check that the
 package is the derivation `evalNixvim` builds from the same module on
 the same package set.
+
+A nixvim configuration is kept in a Nix profile of its own, as an nvf
+configuration is, and the configuration it is declared inside
+activates it. See [profiles](#profiles-caissonprofile-activation).
 
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,

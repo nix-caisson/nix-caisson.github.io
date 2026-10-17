@@ -64,6 +64,7 @@ below.
 | `caisson.system-manager` | `system-manager` | system-manager flake |
 | `caisson.treefmt` | `treefmt-nix` | treefmt-nix flake or source tree |
 | `caisson.nvf` | `nvf` | nvf flake |
+| `caisson.nixvim` | `nixvim` | nixvim flake |
 | `caisson.structural` | none | no source: the empty integration evaluates caisson's core module alone |
 
 The nixpkgs library that the integrations call is loaded by the

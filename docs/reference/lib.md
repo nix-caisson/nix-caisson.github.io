@@ -1276,8 +1276,11 @@ an image, checks nothing above it.
 
 **The marker.** The `default` module of each of these classes imports
 its `caisson/activation-marker`. When a configuration declared inside
-checks it, the activation writes the identity into the marker as
-`{ "identity": "<store path>" }`. A machine writes it with
+checks it, the activation writes the SHA-256 digest of the store path
+of the identity into the marker, as `{ "identity": "<digest>" }`.
+Computing the store path evaluates the childless evaluation and builds
+nothing, and the digest names no store path, so the marker depends on
+nothing and cannot be read as a path. A machine writes it with
 `environment.etc`, a home with an activation step after its files are
 linked, and an hjem configuration adds it to its files. The marker is
 not written in the childless evaluation, or in a NixOS evaluation
@@ -1285,8 +1288,8 @@ without `environment.etc`, which the nixos-minimal integration can
 produce.
 
 **The check.** `driftCheckOf` is the shell text of the check. It
-compares the marker of the configuration above with the identity of
-that configuration as this configuration was built for it, computed
+compares the marker of the configuration above with the digest of the
+identity of that configuration as this configuration was built for it, computed
 from the same childless evaluation through the manifest. It prints a
 warning to standard error when they differ, or when the marker does
 not exist, and does not stop the activation. A home runs it from the

@@ -1038,6 +1038,13 @@ which runs those homes on the machine.
 With those modules, a home prints a warning when it is activated
 on a machine it was not built for.
 
+`caisson/default` also imports
+[`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation), which
+activates the hjem configurations declared inside the machine, and adds
+the hjem module
+[`caisson/nixos-parent`](#moduleshjemcaissonnixos-parent) to the modules
+those configurations import by default.
+
 `caisson/default` also defines `networking.hostName` as the name the
 NixOS configuration is declared under, at `mkDefault` priority. So the
 machine declared as `nas-1` names itself `nas-1`, and a host name the
@@ -1160,6 +1167,67 @@ in the childless evaluation. It also defines nothing in a NixOS
 evaluation that declares no systemd options. The nixos-minimal
 integration produces such an evaluation, and a machine of that kind
 cannot run units.
+
+### `modules.nixos."caisson/hjem-activation"`
+
+- **Source:** `modules/nixos/hjem-activation/`
+
+The NixOS module with which a machine activates the hjem configurations
+declared inside it. `caisson/default` for the `nixos` class imports it,
+so a NixOS configuration has it unless it passes `moduleImports`.
+
+Activating an hjem configuration means applying its manifest with
+hjem's CLI. The CLI links the files of the user and removes the files of
+the previous generation, whose manifest the machine keeps in
+`/var/lib/hjem/manifest-<user>.json`. The module writes the units that
+hjem's NixOS module writes, under the same names:
+
+| Unit | Runs |
+| --- | --- |
+| `hjem-prepare` | creates `/var/lib/hjem` |
+| `hjem-activate@<user>` | as the user, links the files of the new manifest |
+| `hjem-reload@<user>` | as the user, reloads the systemd user units that the change touched, when the service manager of the user is running |
+| `hjem-update-state@<user>` | stores the new manifest in `/var/lib/hjem` |
+| `hjem-cleanup` | removes the stored manifests of users that are no longer activated |
+
+The target `hjem` requires them all, and starts at boot and when the
+machine switches to a new generation. Each instance runs the CLI of the
+hjem configuration of its user. The units link with hjem's own CLI and
+back up a file they replace under the prefix `.backup-`. hjem's NixOS
+options for another linker, for `systemd-tmpfiles` and for
+`clobberByDefault` have no counterpart here; a configuration sets
+`clobberFiles` itself.
+
+The module also adds the `packages` of each user to
+`users.users.<user>.packages`, and keeps the `extraDependencies` of each
+user in the closure of the system.
+
+**Which configurations.** The hjem configurations that the NixOS
+configuration passes up and that are enabled, leaving out those
+declared inside a NixOS configuration that is itself inside this one,
+and those evaluated for another system. A machine that would activate
+two hjem configurations with the same `user` fails an assertion naming
+the user.
+
+The module defines nothing in the childless evaluation, and nothing in
+a NixOS evaluation that declares no systemd options, such as one from
+the nixos-minimal integration.
+
+### `modules.hjem."caisson/nixos-parent"`
+
+- **Source:** `modules/hjem/nixos-parent/`
+
+The hjem module that a NixOS configuration adds to the modules that the
+hjem configurations declared inside it import by default, through
+`caisson/default`. It sets `directory` to `users.users.<user>.home` of
+the machine, at `mkDefault` priority. It refuses an enabled
+configuration whose user has no enabled account on the machine, with an
+assertion naming the user, as hjem's NixOS module does.
+
+An hjem configuration that passes `moduleImports` gets this module only
+if its list names it. The module reads the machine through the manifest
+of the configuration, so only an hjem configuration with a NixOS
+configuration above it can import it.
 
 ### `modules.nixos."caisson/home-manager-source-marker"`, `modules.homeManager."caisson/nixos-source-marker"`
 
@@ -1676,7 +1744,7 @@ ecosystem may serve several integrations: `nixpkgs` for the nixos,
 nixos-minimal and nixpkgs integrations, `colmena` for the
 caisson-colmena and colmena integrations, `disko` for the caisson-disko
 and disko integrations, `nix-darwin` for the darwin integration, then
-`home-manager`, `terranix`, `system-manager` and `flake-parts` for the
+`home-manager`, `hjem`, `terranix`, `system-manager` and `flake-parts` for the
 integration of the same name
 (the table in
 [Ecosystem sources](../concepts/ecosystem-sources.md)). A full
@@ -1696,7 +1764,7 @@ Common conventions:
 - `specialArgs`: extra module arguments; the same name on every entry
   point, translated to the evaluator's spelling where it differs
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
-- `defaultPkgs` is accepted by the nixos, nixos-minimal, darwin,
+- `defaultPkgs` is accepted by the nixos, nixos-minimal, darwin, hjem,
   home-manager, home-manager-minimal, flake-parts, structural,
   caisson-colmena, colmena, caisson-disko and disko entry points. It
   selects the package set the configuration runs on from the package
@@ -2118,6 +2186,86 @@ not tested.
   `$USER@$(hostname)`, so that is the name it finds when the two
   names are the user and the hostname. A home with no NixOS
   configuration above it is published under its name.
+
+### `caisson.hjem` (module class `hjem`)
+
+- **Source:** `lib-overlays/hjem/default.nix`
+
+An hjem configuration is the files and packages of one user, written
+with the options of hjem's user module (`files`, `xdg.config.files`,
+`packages`, `directory`). hjem evaluates a user only inside its NixOS
+and nix-darwin modules, as an entry of `hjem.users`. caisson evaluates
+the user module itself, with the arguments those modules pass: hjem's
+library as `hjem-lib`, the name of the user as `name`, the package set
+as `pkgs`, and the machine above the configuration as `osConfig`, null
+when there is none.
+
+An hjem configuration is evaluated at every system in force where it is
+declared, and runs on the package set selected for it (`defaultPkgs`,
+else the selection of the nearest configuration above, else the set
+named `default`). `user` defaults to the name the configuration is
+declared under, and `clobberFiles` defaults to false, as in hjem's NixOS
+module.
+
+A tree registers the user as `configs/hjem/alice/default.nix` and
+declares it with
+`caisson.hjem.configurations.alice = lib.caisson.hjem.mkConfiguration { };`,
+which finds the configuration by its name. Its outputs are what hjem's
+tools read:
+
+| Output | Value |
+| --- | --- |
+| `manifest` | the version 3 manifest of the files of the user, as hjem's OS modules write it |
+| `manifestFile` | that manifest as a JSON file, checked against hjem's schema with `cue vet` when it is built |
+| `packages` | the `packages` of the user |
+| `cli` | hjem's CLI, built from the hjem source the configuration is evaluated with |
+
+A failed assertion of the user fails `manifest`, `manifestFile` and
+`packages` with its message.
+
+A top publishes the configuration as `hjemConfigurations.alice`, with
+`manifest` and `packages`. `hjem standalone switch --flake .` reads
+`hjemConfigurations."$USER"` from the flake in the current directory, so
+it finds the configuration of the user running it when the two names
+are the same; `--flake-attr` names another attribute. The value of an hjem
+configuration that is a top has `manifest` and `packages` too, which is
+what `hjem standalone switch --config` reads from a file.
+
+**Inside a NixOS machine.** A NixOS configuration activates the hjem
+configurations declared inside it with
+[`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation), and
+gives each of them the hjem module
+[`caisson/nixos-parent`](#moduleshjemcaissonnixos-parent), which sets
+`directory` from the account of the user on the machine. Such a
+configuration also imports hjem's `modules/nixos/systemd.nix` with the
+`utils` and options of the machine, as a user that hjem's NixOS module
+embeds does, so it can declare systemd user units under
+`systemd.services` and the other unit types. hjem's NixOS module is not
+used.
+
+Homes and hjem configurations inside a darwin machine are not activated
+by caisson yet.
+
+caisson's tests compare the manifest of an hjem configuration inside a
+NixOS machine with the manifest hjem's NixOS module makes from the same
+user module, and build its manifest file and the units that activate
+it. Activation on a running machine is not tested.
+
+- `mkModule : freeformModule -> module`: class-bound `mkModule` for
+  hjem modules.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`.
+  `configModule` defaults to the configuration registered under its
+  name in `configs/hjem`. `ecosystemSrc` is the hjem flake or source
+  tree, resolved from the composition under the name `hjem` when
+  absent.
+- `mkTopConfiguration`: the same arguments; finalizes the configuration
+  at a top and returns its value, or the values by system where several
+  systems are in force.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the call of `evalModules` (`modules`, `specialArgs`).
+- `manifestOf : hjemLib -> config -> manifest`: the manifest of an
+  evaluated user, from hjem's library and the `config` of the user.
 
 ### `caisson.home-manager-minimal` (module class `homeManager`, owned by `caisson.home-manager`)
 

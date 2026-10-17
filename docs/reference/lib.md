@@ -1389,6 +1389,51 @@ The module differs from hjem's nix-darwin module in two places:
   activation step that nix-darwin does not run, and the applications
   agent from a step that runs before the agents are installed.
 
+### `modules.systemManager."caisson/default"`
+
+- **Source:** `modules/systemManager/default/`,
+  `modules/systemManager/nvf-package/`; the modules
+  `modules/systemManager/home-manager-activation` and
+  `modules/systemManager/hjem-activation` are the NixOS modules of the
+  same names, and `modules/homeManager/system-manager-parent` and
+  `modules/hjem/system-manager-parent` are the `nixos-parent` modules
+
+`caisson/default` is the `default` system-manager module caisson
+registers. A system-manager configuration imports every registered
+module named `default` unless it passes `moduleImports`. It holds what
+a machine running another Linux distribution does for the
+configurations declared inside it, as `caisson/default` of the `nixos`
+class does for a NixOS machine:
+
+| Part | What it does |
+| --- | --- |
+| `caisson/home-manager-activation` | writes the system unit `home-manager-<user>` that activates each home declared inside the machine |
+| `caisson/hjem-activation` | writes the units of hjem that apply each hjem configuration declared inside the machine, and adds the packages of each user to `users.users.<user>.packages` |
+| `caisson/nvf-package` | adds the Neovim of each nvf configuration declared inside the machine to `environment.systemPackages` |
+| `caisson.forChildren` | gives each home the home-manager module `caisson/system-manager-parent` and each hjem configuration the hjem module `caisson/system-manager-parent` |
+
+The two activation modules are those of a NixOS machine. system-manager
+declares `users.users` and the systemd options, and starts the units
+that ask for `multi-user.target` with its own `system-manager.target`,
+so `system-manager switch` applies the homes and the hjem
+configurations. The units and their checks are described at
+[`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation)
+and [`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation).
+system-manager has no `system.extraDependencies`, so the hjem module
+keeps no extra dependencies in the system there.
+
+The two `system-manager-parent` modules are the `nixos-parent` modules,
+which read the nearest NixOS or system-manager configuration above the
+child. They set `home.homeDirectory` and `directory` from the account
+the machine declares in `users.users`. A home or an hjem configuration
+inside a system-manager machine is refused when the machine declares no
+account for its user, unless, for a home, the user is listed in
+`caisson.home-manager.activation.usersDeclaredElsewhere`.
+
+A home declared inside a system-manager machine is published as
+`homeConfigurations."<user>@<machine>"`, as a home inside a NixOS
+machine is.
+
 ### `modules.flake."caisson/nixpkgs"`
 
 - **Source:** `modules/flake/nixpkgs/`
@@ -2354,6 +2399,13 @@ configurations declared inside it with the launchd agent of
 gives each of them the hjem module `caisson/darwin-parent`, which sets
 `directory` from the account of the user on the machine.
 
+**Inside a system-manager machine.** A system-manager configuration
+activates the hjem configurations declared inside it with the same
+`caisson/hjem-activation` module and units as a NixOS machine, and
+gives each of them the hjem module `caisson/system-manager-parent`, the
+same module as `caisson/nixos-parent` under a second name. See
+[`modules.systemManager."caisson/default"`](#modulessystemmanagercaissondefault).
+
 caisson's tests compare the manifest of an hjem configuration inside a
 NixOS machine with the manifest hjem's NixOS module makes from the same
 user module, and build its manifest file and the units that activate
@@ -3066,7 +3118,7 @@ class, which caisson's `default` module of the class imports:
 
 | Class | Option |
 | --- | --- |
-| `nixos`, `darwin` | `environment.systemPackages` |
+| `nixos`, `darwin`, `systemManager` | `environment.systemPackages` |
 | `homeManager` | `home.packages` |
 | `hjem` | `packages` |
 
@@ -3213,7 +3265,10 @@ declares it with
 Its value and its output `toplevel` are the system, with the evaluated
 configuration under `passthru.config`. A top publishes it as
 `systemConfigs.default`, which `system-manager switch --flake .` reads
-when it is given no name.
+when it is given no name. A system-manager configuration activates the
+homes and the hjem configurations declared inside it, and installs the
+Neovim of the nvf configurations declared inside it, with
+[`modules.systemManager."caisson/default"`](#modulessystemmanagercaissondefault).
 
 A system-manager configuration runs on the package set selected for it
 (`defaultPkgs`, else the set named `default`), as every other

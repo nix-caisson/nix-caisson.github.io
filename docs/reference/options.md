@@ -220,11 +220,11 @@ Whether to export modules for a given class.
 
 ### `caisson.modules.<class>.exported`
 
-- **Type:** `function -> attrsOf deferredModule`
+- **Type:** `function -> lazyAttrsOf raw`
 - **Default:** the modules of the class that the composition registers itself
 - **Source:** `modules/generic/core/caisson/modules.nix`
 
-Function that selects which registered modules of a class to export. Receives the modules registered for the class and returns the modules to export. A module that came from an entry of `projects`, registered as `<project>/<name>`, is exported only when the function names it.
+Function that selects which registered modules of a class to export. Receives the modules registered for the class and returns the modules to export, which are exported as the function returns them. A module that came from an entry of `projects`, registered as `<project>/<name>`, is exported only when the function names it.
 
 ### `caisson.flakeOutputs.modules`
 

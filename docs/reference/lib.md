@@ -3037,6 +3037,57 @@ same package set.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the `evalModules` call.
 
+### `caisson.nvf` (module class `nvf`)
+
+- **Source:** `lib-overlays/nvf/default.nix`
+
+An nvf configuration is a Neovim, written as nvf modules (`vim.*`). It
+is evaluated at every system in force where it is declared, on the
+package set selected for it (`defaultPkgs`, else the set named
+`default`).
+
+nvf evaluates its modules with `neovimConfiguration`, on the library of
+nixpkgs extended with nvf's `lib.nvim`. caisson evaluates the same
+module list, `modules/modules.nix`, with the special arguments
+`neovimConfiguration` passes, on the composed library extended with
+`lib.nvim` from the same nvf source. nvf's modules read the inputs of
+the nvf flake, so `ecosystemSrc` is the nvf flake, resolved from the
+composition under the name `nvf` when absent.
+
+The output is `neovim`, the wrapped Neovim that `neovimConfiguration`
+returns. A top publishes the configuration as
+`packages.<system>.<name>`. caisson's tests check that it is the
+derivation `neovimConfiguration` builds from the same module on the
+same package set.
+
+A configuration that installs packages installs the Neovim of an nvf
+configuration declared inside it, with the module `nvf-package` of its
+class, which caisson's `default` module of the class imports:
+
+| Class | Option |
+| --- | --- |
+| `nixos`, `darwin` | `environment.systemPackages` |
+| `homeManager` | `home.packages` |
+| `hjem` | `packages` |
+
+The nvf configurations installed are those evaluated at the system of
+the configuration, with no configuration but structural ones between
+them and it. `lib.caisson.nvf.packagesModule` takes the path of an
+option and returns that module for another class.
+
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`.
+  `configModule` defaults to the configuration registered under its
+  name in `configs/nvf`.
+- `mkTopConfiguration`: the same arguments; finalizes the configuration
+  at a top and returns its evaluation, or the evaluations by system
+  where several systems are in force.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call.
+- `packagesModule : listOf str -> module`: the module above, for the
+  option at that path.
+
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`

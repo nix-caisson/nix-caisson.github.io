@@ -139,7 +139,7 @@ See [drift detection](./lib.md#drift-detection-caissonactivation-marker-modulesh
 - **Type:** `attrsOf str`
 - **Default:** `{ }`
 - **Source:** `modules/*/profile-activation/`
-- **Declared in:** a NixOS, darwin or system-manager machine, a home or an hjem configuration that imports `caisson/profile-activation`, which the `default` module of each of these classes imports
+- **Declared in:** a NixOS, darwin or system-manager machine, a home or a hjem configuration that imports `caisson/profile-activation`, which the `default` module of each of these classes imports
 
 By the variable that chooses among them, the profile a shell runs when it sets no other, as `<kind>/<name>`. `nvf/editor` is the nvf configuration declared as `editor`.
 

@@ -1177,7 +1177,7 @@ The NixOS module with which a machine activates the hjem configurations
 declared inside it. `caisson/default` for the `nixos` class imports it,
 so a NixOS configuration has it unless it passes `moduleImports`.
 
-Activating an hjem configuration means applying its manifest with
+Activating a hjem configuration means applying its manifest with
 hjem's CLI. The CLI links the files of the user and removes the files of
 the previous generation, whose manifest the machine keeps in
 `/var/lib/hjem/manifest-<user>.json`. The module writes the units that
@@ -1225,9 +1225,9 @@ the machine, at `mkDefault` priority. It refuses an enabled
 configuration whose user has no enabled account on the machine, with an
 assertion naming the user, as hjem's NixOS module does.
 
-An hjem configuration that passes `moduleImports` gets this module only
+A hjem configuration that passes `moduleImports` gets this module only
 if its list names it. The module reads the machine through the manifest
-of the configuration, so only an hjem configuration with a NixOS
+of the configuration, so only a hjem configuration with a NixOS
 configuration above it can import it.
 
 ### Drift detection: `caisson/activation-marker`, `modules.homeManager."caisson/activation-drift"`
@@ -1287,7 +1287,7 @@ Computing the store path evaluates the childless evaluation and builds
 nothing, and the digest names no store path, so the marker depends on
 nothing and cannot be read as a path. A machine writes it with
 `environment.etc`, a home with an activation step after its files are
-linked, and an hjem configuration adds it to its files. The marker is
+linked, and a hjem configuration adds it to its files. The marker is
 not written in the childless evaluation, or in a NixOS evaluation
 without `environment.etc`, which the nixos-minimal integration can
 produce.
@@ -1419,10 +1419,10 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 | a NixOS or system-manager machine | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |
 | a darwin machine | the same | a step of `postActivation`, as root |
 | a home | `$HOME/.local/state/caisson/profiles/<kind>/<name>` | a step of the activation of the home, after its files are linked |
-| an hjem configuration inside a machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>` |
+| a hjem configuration inside a machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>` |
 | nothing (a top) | the same | running `activate` by hand |
 
-`<kind>` is `nvf` or `nixvim`. An hjem configuration has no activation
+`<kind>` is `nvf` or `nixvim`. A hjem configuration has no activation
 step of its own that a configuration can add to, so the machine it is
 declared inside activates its profiles.
 
@@ -1437,7 +1437,7 @@ machine activates its homes and its profiles at boot.
 `bin`: `nvim`, and `vi` and `vim` where they have them. The program
 runs the program of the profile that `$CAISSON_NVIM_PROFILE` names,
 read each time it runs, and of the default of the configuration that
-installed it when the variable is unset. A home and an hjem
+installed it when the variable is unset. A home and a hjem
 configuration set the variable to their own profile, with
 `home.sessionVariables` and `environment.sessionVariables`, so the
 programs the machine installs choose the same profile. A shell can
@@ -1487,7 +1487,7 @@ keeps no extra dependencies in the system there.
 The two `system-manager-parent` modules are the `nixos-parent` modules,
 which read the nearest NixOS or system-manager configuration above the
 child. They set `home.homeDirectory` and `directory` from the account
-the machine declares in `users.users`. A home or an hjem configuration
+the machine declares in `users.users`. A home or a hjem configuration
 inside a system-manager machine is refused when the machine declares no
 account for its user, unless, for a home, the user is listed in
 `caisson.home-manager.activation.usersDeclaredElsewhere`.
@@ -2297,7 +2297,7 @@ them.
 
 caisson's tests evaluate a darwin machine on Linux and compare its
 system with what `darwinSystem` builds from the same module and package
-set. They also evaluate a machine with a home and an hjem configuration
+set. They also evaluate a machine with a home and a hjem configuration
 inside it, and compare the manifest of the hjem configuration with the
 manifest hjem's nix-darwin module makes. caisson's CI builds the systems
 of both machines on a macOS runner. Activation on a running machine is
@@ -2404,7 +2404,7 @@ not tested.
 
 - **Source:** `lib-overlays/hjem/default.nix`
 
-An hjem configuration is the files and packages of one user, written
+A hjem configuration is the files and packages of one user, written
 with the options of hjem's user module (`files`, `xdg.config.files`,
 `packages`, `directory`). hjem evaluates a user only inside its NixOS
 and nix-darwin modules, as an entry of `hjem.users`. caisson evaluates
@@ -2413,7 +2413,7 @@ library as `hjem-lib`, the name of the user as `name`, the package set
 as `pkgs`, and the machine above the configuration as `osConfig`, null
 when there is none.
 
-An hjem configuration is evaluated per system, once for each system in
+A hjem configuration is evaluated per system, once for each system in
 force where it is declared, and runs on the package set selected for it (`defaultPkgs`,
 else the selection of the nearest configuration above, else the set
 named `default`). `user` defaults to the name the configuration is
@@ -2440,7 +2440,7 @@ A top publishes the configuration as `hjemConfigurations.alice`, with
 `manifest` and `packages`. `hjem standalone switch --flake .` reads
 `hjemConfigurations."$USER"` from the flake in the current directory, so
 it finds the configuration of the user running it when the two names
-are the same; `--flake-attr` names another attribute. The value of an hjem
+are the same; `--flake-attr` names another attribute. The value of a hjem
 configuration that is a top has `manifest` and `packages` too, which is
 what `hjem standalone switch --config` reads from a file.
 
@@ -2469,7 +2469,7 @@ gives each of them the hjem module `caisson/system-manager-parent`, the
 same module as `caisson/nixos-parent` under a second name. See
 [`modules.systemManager."caisson/default"`](#modulessystemmanagercaissondefault).
 
-caisson's tests compare the manifest of an hjem configuration inside a
+caisson's tests compare the manifest of a hjem configuration inside a
 NixOS machine with the manifest hjem's NixOS module makes from the same
 user module, and build its manifest file and the units that activate
 it. Activation on a running machine is not tested.

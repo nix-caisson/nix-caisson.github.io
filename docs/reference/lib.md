@@ -1481,7 +1481,14 @@ integrationsIn          : options -> listOf str
 childrenOf              : { options; config } -> attrsOf (attrsOf manifest)
 configurationsModuleFor : listOf str -> module
 nearestOf               : listOf str -> manifest -> manifest or null
+integrationsDeclaringIn : options -> listOf str
 ```
+
+`integrationsDeclaringIn` is the part of `integrationsIn` whose
+`caisson.<integration>.configurations` a module of the evaluation
+defines. `childrenOf` and re-export read only those integrations, so an
+evaluation does not merge the options of an integration it holds no
+configurations of.
 
 `nearestOf` takes a list of integration names and a manifest, and
 returns the nearest configuration above the manifest whose integration
@@ -2860,6 +2867,83 @@ layout is published as `diskoConfigurations.<name>`, as for
   The other arguments are those of `caisson-disko`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the `evalModules` call.
+
+### `caisson.caisson-facter` (module class `caisson-facter`)
+
+- **Source:** `lib-overlays/caisson-facter/default.nix`
+
+A caisson-facter configuration is the hardware of a machine: a module
+of the class with `facter.report`, the hardware report nixos-facter
+writes, as data, or `facter.reportPath`, the `facter.json` it writes,
+which `facter.report` defaults to. It declares the NixOS configurations
+that run on the hardware under `caisson.nixos.configurations`. A
+project can extend the class with options of its own about the
+hardware.
+
+caisson evaluates the configuration with its own `evalModules`, on the
+composed library, over the report options, `assertions`, the framework
+modules, the selection and the configuration's module. Its outputs are:
+
+| Output | Value |
+| --- | --- |
+| `report` | the report, refused unless its `version` is one of `supportedReportVersions` (today `[ 1 ]`) or the report is empty |
+| `reportFile` | the report as a JSON file |
+| `serializableConfig` | the configuration as data, without caisson's options and without functions or attributes whose names begin with `_` |
+| `hash` | the hash of `serializableConfig` |
+
+Every output fails with the messages of the assertions that do not
+hold. The NixOS configurations declared inside it get caisson's NixOS
+module `caisson-facter-hardware` by default. That module sets
+`hardware.facter.report` to the report, at `mkDefault` priority, and
+nixpkgs' `hardware.facter` module turns the report into the settings
+of the hardware. A module of such a NixOS configuration that needs more
+of the hardware reads it through
+`lib.caisson-core.evalManifest.nearest.caisson-facter`.
+
+A tree registers the hardware as
+`configs/caisson-facter/box-1/default.nix`, with `facter.reportPath =
+./facter.json;` and the machine
+`caisson.nixos.configurations.${lib.caisson-core.evalManifest.name} =
+lib.caisson.nixos.mkConfiguration { };`. It is not published under an
+output attribute set; its outputs are on its manifest.
+
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { configModule?, defaultPkgs?, moduleImports?,
+  extraModuleImports?, specialArgs? } -> configuration`.
+  `configModule` defaults to the configuration registered under its
+  name in `configs/caisson-facter`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call.
+- `supportedReportVersions`: the report versions the integration
+  accepts.
+
+### `caisson.facter` (module class `facter`)
+
+- **Source:** `lib-overlays/facter/default.nix`
+
+A facter configuration is a `facter.json` as nixos-facter writes it,
+named by `reportPath`, the one option of the class, with the NixOS
+configurations that run on that hardware declared inside it. The
+NixOS configurations get caisson's NixOS module `facter-hardware` by
+default, which sets `hardware.facter.reportPath` to that file at
+`mkDefault` priority, the line a NixOS configuration written for
+nixos-facter carries. The outputs are `reportPath` and `report`, the
+content of the file. For a report checked against the versions caisson
+knows or extended with options of a project, see
+[`caisson.caisson-facter`](#caissoncaisson-facter-module-class-caisson-facter).
+
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { configModule?, defaultPkgs?, moduleImports?,
+  extraModuleImports?, specialArgs? } -> configuration`.
+  `configModule` defaults to the configuration registered under its
+  name in `configs/facter`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call.
+
+caisson's tests declare a machine inside each kind of facter
+configuration, from the report of nixpkgs' own facter test. Each
+machine gets the report and the kernel modules of its initrd that a
+NixOS configuration setting `hardware.facter.reportPath` itself gets.
 
 ### `caisson.terranix` (module class `terranix`)
 

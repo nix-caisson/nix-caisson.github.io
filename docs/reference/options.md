@@ -255,7 +255,7 @@ Whether to enable lib overlay export. When enabled, the lib overlays selected by
 
 ### `caisson.libOverlays.exported`
 
-- **Type:** `function -> attrsOf libOverlay`
+- **Type:** `function -> libOverlays`, an attribute set of lib overlays merged as one attribute set, each entry checked when it is read
 - **Default:** the lib overlays that the composition registers itself
 - **Source:** `modules/generic/core/caisson/libOverlays.nix`
 

@@ -1675,8 +1675,9 @@ passed to mkLib. The name is the integration's ecosystem, and one
 ecosystem may serve several integrations: `nixpkgs` for the nixos,
 nixos-minimal and nixpkgs integrations, `colmena` for the
 caisson-colmena and colmena integrations, `disko` for the caisson-disko
-and disko integrations, then `home-manager`, `terranix`,
-`system-manager` and `flake-parts` for the integration of the same name
+and disko integrations, `nix-darwin` for the darwin integration, then
+`home-manager`, `terranix`, `system-manager` and `flake-parts` for the
+integration of the same name
 (the table in
 [Ecosystem sources](../concepts/ecosystem-sources.md)). A full
 miss throws at the adapter, naming those places; a composition
@@ -1695,9 +1696,9 @@ Common conventions:
 - `specialArgs`: extra module arguments; the same name on every entry
   point, translated to the evaluator's spelling where it differs
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
-- `defaultPkgs` is accepted by the nixos, nixos-minimal, home-manager,
-  home-manager-minimal, flake-parts, structural, caisson-colmena,
-  colmena, caisson-disko and disko entry points. It
+- `defaultPkgs` is accepted by the nixos, nixos-minimal, darwin,
+  home-manager, home-manager-minimal, flake-parts, structural,
+  caisson-colmena, colmena, caisson-disko and disko entry points. It
   selects the package set the configuration runs on from the package
   configs the composition declares (see
   `caisson.integrations.pkgSetOf`). In a nixos or home-manager
@@ -1977,6 +1978,65 @@ what is declared beneath it.
   configuration at a top and returns the evaluation.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
   (`prefix`, `modules`, `specialArgs`).
+
+### `caisson.darwin` (module class `darwin`)
+
+- **Source:** `lib-overlays/darwin/default.nix`
+
+A darwin configuration is a macOS machine, evaluated with nix-darwin's
+`eval-config.nix` over the composed library, the way nix-darwin's
+`darwinSystem` calls it. caisson adds to the modules what
+`darwinSystem` adds: `nixpkgs.source` from the nixpkgs the
+composition declares, no check of `NIX_PATH`, and the revision of the
+nix-darwin source in the version of the system.
+
+Like a NixOS configuration, a darwin configuration is evaluated at
+every system in force where it is declared, and runs on the package
+set selected for it (`defaultPkgs`, else the set named `default`),
+which caisson hands to `nixpkgs.pkgs`. `nixpkgs.hostPlatform`
+defaults to the system of the evaluation. nix-darwin records no
+nixpkgs revision for a package set it did not build itself, so the
+system carries none, as with `darwinSystem` given `pkgs`.
+
+A tree registers the machine as `configs/darwin/macbook-1/default.nix`
+and declares it with
+`caisson.darwin.configurations.macbook-1 = lib.caisson.darwin.mkConfiguration { };`,
+which finds the configuration by its name. It is published as
+`darwinConfigurations.macbook-1`, the evaluated configuration with
+`system` beside `config`, which is what `darwin-rebuild` reads.
+`darwin-rebuild` without `--flake '.#<name>'` looks the machine up by
+its local host name, so we recommend declaring a machine under that
+name.
+
+Every configuration evaluated at a system has an evaluation for each
+system in force where it is declared. A tree whose `systems` hold both
+Linux and darwin systems therefore declares its darwin machines under a
+configuration that narrows the systems beneath it, such as a structural
+configuration with `caisson.forChildren.systems = [ "aarch64-darwin" ];`,
+and its NixOS machines under one narrowed to its Linux systems.
+
+Homes and hjem configurations inside a darwin machine are not activated
+by caisson yet.
+
+caisson's tests evaluate a darwin machine on Linux and compare its
+system with what `darwinSystem` builds from the same module and package
+set, and its CI builds that system on a macOS runner. Activation is
+not tested.
+
+- `mkModule : freeformModule -> module`: class-bound `mkModule` for
+  darwin modules.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`:
+  the arguments of `caisson.nixos.mkConfiguration`. `configModule`
+  defaults to the configuration registered under its name in
+  `configs/darwin`. `ecosystemSrc` is the nix-darwin flake or source
+  tree, resolved from the composition under the name `nix-darwin` when
+  absent.
+- `mkTopConfiguration`: the same arguments; finalizes the
+  configuration at a top and returns the evaluation, or the evaluations
+  by system where several systems are in force.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the call of `eval-config.nix` (`modules`, `specialArgs`).
 
 ### `caisson.home-manager` (module class `homeManager`)
 

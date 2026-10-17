@@ -1850,20 +1850,18 @@ Common conventions:
   point, translated to the evaluator's spelling where it differs
   (home-manager's `extraSpecialArgs`, terranix's `extraArgs`).
 - `defaultPkgs` is accepted by the nixos, nixos-minimal, darwin, hjem,
-  home-manager, home-manager-minimal, flake-parts, structural,
+  home-manager, home-manager-minimal, terranix, flake-parts, structural,
   caisson-colmena, colmena, caisson-disko and disko entry points. It
   selects the package set the configuration runs on from the package
   configs the composition declares (see
-  `caisson.integrations.pkgSetOf`). In a nixos or home-manager
-  configuration, the modules get the package sets by config name as
-  the `pkgSets` special argument.
-- `pkgSets`: on the colmena, disko, terranix and system-manager entry
-  points, an attrset of package sets passed through as the `pkgSets`
-  special argument, where `pkgSets.pkgs` is what the evaluator gets:
-  the package set of a terranix evaluation, the package set of
-  `colmena eval`, and the source of system-manager's default
-  `nixpkgs.hostPlatform`. flake-parts and structural forward it to
-  their modules.
+  `caisson.integrations.pkgSetOf`). In a configuration evaluated at a
+  system, the modules get the package sets by config name as the
+  `pkgSets` special argument. system-manager builds its own package
+  set and takes no `defaultPkgs`.
+- `pkgSets`: on the colmena and disko entry points, an attrset of
+  package sets passed through as the `pkgSets` special argument, where
+  `pkgSets.pkgs` is the package set of `colmena eval`. flake-parts and
+  structural forward it to their modules.
 - The signature is the whole surface. An entry point takes exactly
   the arguments listed for it and composes the evaluator's call from
   them; nothing else is forwarded, and an unknown or missing argument
@@ -2866,25 +2864,78 @@ layout is published as `diskoConfigurations.<name>`, as for
 ### `caisson.terranix` (module class `terranix`)
 
 - **Source:** `lib-overlays/terranix/default.nix`
+
+A terranix configuration is a Terraform configuration written as
+terranix modules, evaluated with terranix's `terranixConfiguration` at
+every system in force where it is declared, on the package set
+selected for it (`defaultPkgs`, else the set named `default`). A tree
+registers it as `configs/terranix/infra/default.nix` and declares it
+with
+`caisson.terranix.configurations.infra = lib.caisson.terranix.mkConfiguration { };`,
+which finds the configuration by its name.
+
+Its value and its output `json` are the `config.tf.json` file that
+Terraform reads, with the evaluated configuration under
+`passthru.config`. A top publishes it as `terranixConfigurations.infra`,
+the name terranix's flake-parts module gives its configurations, and a
+terranix configuration that is a top is that file.
+
+terranix evaluates its modules with its own module system, on the
+library of the package set, and caisson cannot hand it the composed
+library as the library of the evaluation. The modules get the composed
+library as the `lib` argument, and the package sets of the composition
+as `pkgSets`; terranix merges and checks the options with its own
+library. terranix returns only the configuration Terraform reads and
+its `_meta`, so caisson reads its own options back through
+`_meta.caisson`, and a terranix configuration holds no configurations
+beneath it.
+
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, pkgSets, configModule, moduleImports?, extraModuleImports?,
-  specialArgs? } -> derivation`:
-  `ecosystemSrc.lib.terranixConfiguration` against `pkgSets.pkgs`,
-  with the selected class modules and the config module;
-  `specialArgs` becomes terranix's `extraArgs`.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
-  (`system`, `pkgs`, `strip_nulls`, and the composed arguments);
-  `pkgSets` is optional there.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`.
+  `configModule` defaults to the configuration registered under its
+  name in `configs/terranix`. `specialArgs` becomes terranix's
+  `extraArgs`.
+- `mkTopConfiguration`: the same arguments; finalizes the configuration
+  at a top and returns its `config.tf.json`, or the files by system
+  where several systems are in force.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the call of `terranixConfiguration` (`pkgs`, `modules`,
+  `extraArgs`, `strip_nulls`).
 
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`
+
+A system-manager configuration is the system of a machine running
+another Linux distribution, evaluated with system-manager's
+`makeSystemConfig` at every system in force where it is declared. A
+tree registers it as `configs/systemManager/default/default.nix` and
+declares it with
+`caisson.system-manager.configurations.default = lib.caisson.system-manager.mkConfiguration { };`.
+Its value and its output `toplevel` are the system, with the evaluated
+configuration under `passthru.config`. A top publishes it as
+`systemConfigs.default`, which `system-manager switch --flake .` reads
+when it is given no name.
+
+system-manager builds its package set itself, from the nixpkgs its
+flake pins, at `nixpkgs.hostPlatform`, so it takes no `defaultPkgs`.
+caisson defaults `nixpkgs.hostPlatform` to the system of the
+evaluation. As with terranix, the modules get the composed library as
+`lib` and the package sets of the composition as `pkgSets`, while
+system-manager merges the options with its own library. caisson adds a
+compatibility bridge for the current nixos-unstable restructuring of
+the NixOS nix module (each half self-retires; see the source
+comments).
+
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { ecosystemSrc, configModule, moduleImports?, extraModuleImports?,
-  specialArgs?, pkgSets? } -> systemConfig`:
-  `ecosystemSrc.lib.makeSystemConfig` with the selected class
-  modules and the config module, plus a compatibility bridge for the current
-  nixos-unstable restructuring of the NixOS nix module (each half
-  self-retires; see the source comments).
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
-  (`overlays`, `allowUnsupportedNixpkgs`, and the composed arguments).
+- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
+  extraModuleImports?, specialArgs? } -> configuration`.
+  `configModule` defaults to the configuration registered under its
+  name in `configs/systemManager`.
+- `mkTopConfiguration`: the same arguments; finalizes the configuration
+  at a top and returns its system, or the systems by system where
+  several systems are in force.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the call of `makeSystemConfig` (`modules`, `overlays`,
+  `specialArgs`, `allowUnsupportedNixpkgs`).

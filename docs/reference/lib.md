@@ -1542,6 +1542,14 @@ name, as `colmenaHive` does. The configuration declared under the name
 `default` is then the output's value, and a configuration declared
 under another name is refused there.
 
+`bySystem` says the output is keyed by system first, as flakes key
+`packages` and `formatter`. Each configuration is published under the
+system of its evaluation, `<attrset>.<system>.<name>`, named by the
+usual rules over its path without the systems on it. With `single`
+too, the output holds the configuration named `default` at each
+system, as `formatter.<system>` does. A configuration with no system,
+one not evaluated at a system, is refused in such an output.
+
 `name` is for an integration whose configurations are known by a name
 other than the name they are declared under. It takes the name the
 configuration is passed up under and its manifest. It returns `value`,
@@ -2986,6 +2994,49 @@ beneath it.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
   merged over the call of `terranixConfiguration` (`pkgs`, `modules`,
   `extraArgs`, `strip_nulls`).
+
+### `caisson.treefmt` (module class `treefmt`)
+
+- **Source:** `lib-overlays/treefmt/default.nix`
+
+A treefmt configuration is the formatters of a tree, written as
+treefmt-nix modules (`projectRootFile`, `programs.<name>.enable`,
+`settings`). It is evaluated at every system in force where it is
+declared, on the package set selected for it (`defaultPkgs`, else the
+set named `default`).
+
+treefmt-nix evaluates its modules on the library of a nixpkgs. caisson
+evaluates them with its own `evalModules`, on the composed library, over
+`submodule-modules`, the modules treefmt-nix publishes for a
+configuration embedded in another, with `pkgs` set to the selected
+package set. The special arguments those modules need are read from the
+type treefmt-nix's `submoduleWith` returns.
+
+| Output | Value |
+| --- | --- |
+| `wrapper` | treefmt with its configuration, the program `nix fmt` runs |
+| `configFile` | the `treefmt.toml` |
+| `programs` | the formatters by name |
+| `check` | a function from a source tree to a derivation that fails when the tree is not formatted |
+
+A tree registers the configuration as `configs/treefmt/default/default.nix`
+and declares it with
+`caisson.treefmt.configurations.default = lib.caisson.treefmt.mkConfiguration { };`.
+A top publishes the configuration named `default` as `formatter.<system>`,
+its wrapper, which `nix fmt` reads. caisson's tests check that it is the
+derivation treefmt-nix's `mkWrapper` builds from the same module on the
+same package set.
+
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`.
+  `ecosystemSrc` is the treefmt-nix flake or source tree, resolved from
+  the composition under the name `treefmt-nix` when absent.
+- `mkTopConfiguration`: the same arguments; finalizes the configuration
+  at a top and returns its evaluation, or the evaluations by system
+  where several systems are in force.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call.
 
 ### `caisson.system-manager` (module class `systemManager`)
 

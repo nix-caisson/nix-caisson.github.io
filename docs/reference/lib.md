@@ -1033,10 +1033,11 @@ the machine import by default. It also imports
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation),
 which runs those homes on the machine.
 
-`caisson/default` also brings in the modules described under
-[`caisson/home-manager-source-marker`](#modulesnixoscaissonhome-manager-source-marker-moduleshomemanagercaissonnixos-source-marker).
-With those modules, a home prints a warning when it is activated
-on a machine it was not built for.
+`caisson/default` also imports `caisson/activation-marker`, described
+under
+[drift detection](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift).
+With it, a home prints a warning when it is activated on a machine it
+was not built for.
 
 `caisson/default` also imports
 [`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation), which
@@ -1229,88 +1230,80 @@ if its list names it. The module reads the machine through the manifest
 of the configuration, so only an hjem configuration with a NixOS
 configuration above it can import it.
 
-### `modules.nixos."caisson/home-manager-source-marker"`, `modules.homeManager."caisson/nixos-source-marker"`
+### Drift detection: `caisson/activation-marker`, `modules.homeManager."caisson/activation-drift"`
 
-- **Source:** `modules/nixos/home-manager-source-marker/`,
-  `modules/homeManager/nixos-source-marker/`
+- **Source:** `modules/nixos/activation-marker/` (registered also for
+  `darwin` and `systemManager`), `modules/homeManager/activation-marker/`,
+  `modules/hjem/activation-marker/`,
+  `modules/homeManager/activation-drift/`, and `activatingAncestorOf`,
+  `markerOf`, `checksMarkerOf` and `driftCheckOf` in
+  `lib-overlays/integrations/default.nix`
 
-With these two modules, a home prints a warning when it is activated
-on a machine it was not built for.
+A configuration with an activation, declared inside another
+configuration with an activation, warns when it is activated by hand
+after being built for a different version of the configuration above
+it. A home inside a machine is the common case.
 
-The machine activates the homes declared inside its NixOS
-configuration. The user can also activate such a home by hand, with
-`home-manager switch`. `home-manager switch` builds the home from the
-source the user has checked out.
+The machine activates the homes declared inside it. The user can also
+activate such a home by hand, with `home-manager switch`, which builds
+the home from the source the user has checked out. That source can
+describe a different machine than the one that is applied. This
+happens when the user changed the machine and has not switched it yet,
+or when the checkout is older than the machine. A home reads settings
+of its machine, so it was then built for a machine that is not the one
+it is activated on.
 
-That source can describe a different machine than the machine that is
-running. This happens when the user changed the NixOS configuration
-and has not switched the machine yet. It also happens when the
-checkout is older than the machine.
+**Which configurations.** An integration whose configurations are
+activated passes `activation` to `mkModuleConfiguration`, and the
+manifest records it. It names two things, each computed from a
+manifest: the identity of a configuration and the path of its marker.
 
-A home reads settings of its machine. A home built from such a source
-has read the settings of a machine that is not the machine the home
-is activated on.
+| Integration | Identity | Marker |
+| --- | --- | --- |
+| `nixos`, `darwin`, `system-manager` | the system, `toplevel` | `/etc/caisson/marker.json` |
+| `home-manager` | the activation package | `$XDG_STATE_HOME/caisson/markers/home-manager-<name>.json` |
+| `hjem` | the manifest file | `.local/state/caisson/markers/hjem-<name>.json` in the directory of the user |
 
-**The file on the machine.** The NixOS module
-`caisson/home-manager-source-marker` writes the file
-`/etc/caisson-home-manager/source.json`. `caisson/default` for the
-`nixos` class imports this module. A NixOS configuration therefore
-has the module unless the NixOS configuration passes `moduleImports`.
-
-The file has one field, `baseSystemOutPath`. It is the store path of
-the system of the NixOS configuration, as its childless evaluation
-builds it.
-
-The childless evaluation is the evaluation of the NixOS configuration
-that leaves out the configurations declared inside the NixOS
-configuration. The homes are among those configurations. So
-`baseSystemOutPath` does not depend on the homes. Changing a home
-leaves `baseSystemOutPath` the same. Changing anything else about the
+The identity is that of the childless evaluation, which leaves out the
+configurations declared inside. A change to a home leaves the identity
+of its machine the same, and a change to anything else about the
 machine changes it.
 
-The module writes the file only when at least one home is declared
-inside the NixOS configuration. A NixOS configuration can have a
-second NixOS configuration declared inside it. A home declared inside
-the second NixOS configuration belongs to the second, and does not
-count for the first.
+Every configuration with an activation checks the nearest
+configuration above it that has one. A machine is the exception: it is
+applied on its own host, so a machine declared inside another, such as
+an image, checks nothing above it.
 
-**The comparison in the home.** The home-manager module
-`caisson/nixos-source-marker` computes the same store path from the
-source the home is built from. The module reads the childless
-evaluation of the NixOS configuration through the manifest of the
-home.
+**The marker.** The `default` module of each of these classes imports
+its `caisson/activation-marker`. When a configuration declared inside
+checks it, the activation writes the identity into the marker as
+`{ "identity": "<store path>" }`. A machine writes it with
+`environment.etc`, a home with an activation step after its files are
+linked, and an hjem configuration adds it to its files. The marker is
+not written in the childless evaluation, or in a NixOS evaluation
+without `environment.etc`, which the nixos-minimal integration can
+produce.
 
-The module adds a step to the activation of the home. The step
-compares the store path the module computed with `baseSystemOutPath`
-in the file. The step prints a warning when they differ. The step
-also prints a warning when the file does not exist. The step does not
-stop the activation.
+**The check.** `driftCheckOf` is the shell text of the check. It
+compares the marker of the configuration above with the identity of
+that configuration as this configuration was built for it, computed
+from the same childless evaluation through the manifest. It prints a
+warning to standard error when they differ, or when the marker does
+not exist, and does not stop the activation. A home runs it from the
+home-manager module `caisson/activation-drift`, which the home-manager
+`default` module imports, as an activation step before
+`writeBoundary`. The option
+[`caisson.drift.warn`](./options.md#caissondriftwarn) of the home
+removes the step.
 
-`caisson/default` for the `nixos` class gives this module to the
-homes declared inside the machine, through
-`caisson.forChildren.extraDefaultModuleImports.homeManager`. Such a home
-imports the module by default. A home that passes `moduleImports`
-imports the module only if the home lists it.
+**When the configuration above activates it.** The marker then already
+belongs to the generation being activated, so the two are equal, and
+the check prints nothing.
 
-The option
-[`caisson.home-manager.machineDrift.warn`](./options.md#caissonhome-managermachinedriftwarn)
-of the home removes the step.
-
-**When the machine activates the home.** The file on the machine then
-already belongs to the generation that is being activated. The store
-path the module computed equals `baseSystemOutPath`, and the step
-prints nothing.
-
-**Cost.** Both modules evaluate the system of the childless
-evaluation. That is a second evaluation of the whole NixOS
-configuration. A NixOS configuration with no homes writes no file and
-does not pay for the second evaluation.
-
-**Where the NixOS module defines nothing.** The NixOS module defines
-nothing in the childless evaluation, because the childless evaluation
-has no homes. The NixOS module also defines nothing in a NixOS
-evaluation that has no `environment.etc` option. The nixos-minimal
-integration can produce such an evaluation.
+**Cost.** Computing the identity evaluates the configuration above a
+second time, without what is declared inside it. A configuration with
+nothing declared inside it that checks it writes no marker, and does
+not pay for the second evaluation.
 
 ### `modules.darwin."caisson/default"`
 
@@ -2308,9 +2301,10 @@ not tested.
   passed to `mkConfiguration` takes the place of the configuration of
   the machine.
 
-  Such a home also imports two home-manager modules by default, which
-  the NixOS configuration adds. `nixos-parent` sets the options of
-  the home that come from the machine. `nixos-source-marker` makes the
+  Such a home also imports the home-manager module `nixos-parent` by
+  default, which the NixOS configuration adds, and which sets the
+  options of the home that come from the machine. The home-manager
+  `default` module gives every home `activation-drift`, which makes a
   home print a warning when it is activated on a machine it was not
   built for. The machine activates the home with the NixOS module
   `home-manager-activation`. See
@@ -2318,7 +2312,7 @@ not tested.
 
   A home that passes `moduleImports` selects all of its modules
   itself. Such a home gets `modules."caisson/nixos-parent"` and
-  `modules."caisson/nixos-source-marker"` only if its list names
+  `modules."caisson/activation-drift"` only if its list names
   them. `extraModuleImports` adds
   to the default selection and keeps both.
 

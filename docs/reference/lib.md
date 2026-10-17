@@ -3089,6 +3089,41 @@ option and returns that module for another class.
 - `packagesModule : listOf str -> module`: the module above, for the
   option at that path.
 
+### `caisson.nixvim` (module class `nixvim`)
+
+- **Source:** `lib-overlays/nixvim/default.nix`
+
+A nixvim configuration is a Neovim, written as nixvim modules
+(`plugins.*`, `opts`, `keymaps`). It is evaluated at every system in
+force where it is declared, on the package set selected for it
+(`defaultPkgs`, else the set named `default`).
+
+nixvim evaluates its modules with `evalNixvim`, `evalModules` over
+`modules/top-level` on a library extended with the overlay the nixvim
+flake publishes as `lib.overlay`. caisson makes the same evaluation on
+the composed library extended with that overlay, with `nixpkgs.pkgs`
+set to the selected package set and the flake as `flake`. So
+`ecosystemSrc` is the nixvim flake, resolved from the composition under
+the name `nixvim` when absent.
+
+The output is `package`, the Neovim (`config.build.package`). A top
+publishes the evaluated configuration as
+`nixvimConfigurations.<system>.<name>`, the name the nixvim flake
+publishes its own configurations under. caisson's tests check that the
+package is the derivation `evalNixvim` builds from the same module on
+the same package set.
+
+- `mkModule : freeformModule -> module`.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`.
+  `configModule` defaults to the configuration registered under its
+  name in `configs/nixvim`.
+- `mkTopConfiguration`: the same arguments; finalizes the configuration
+  at a top and returns its evaluation, or the evaluations by system
+  where several systems are in force.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  merged over the `evalModules` call.
+
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`

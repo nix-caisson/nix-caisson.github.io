@@ -110,29 +110,51 @@ A user that is listed here and also declared in `users.users` is refused, becaus
 
 See [`modules.nixos."caisson/home-manager-activation"`](./lib.md#modulesnixoscaissonhome-manager-activation) for the units.
 
-### `caisson.home-manager.machineDrift.warn`
+### `caisson.drift.warn`
 
 - **Type:** `bool`
 - **Default:** `true`
-- **Source:** `modules/homeManager/nixos-source-marker/`
-- **Declared in:** a home that imports `caisson/nixos-source-marker`, which a home declared inside a NixOS configuration does by default
+- **Source:** `modules/homeManager/activation-drift/`, `modules/nvf/default/`
+- **Declared in:** a home that imports `caisson/activation-drift`, which the home-manager `default` module imports; an nvf or nixvim configuration that imports the `default` module of its class
 
-Whether the activation of this home prints a warning when the home was built for a NixOS configuration that differs from the machine that is running.
+Whether the activation of this home, or `activate` of this nvf or nixvim configuration, prints a warning when it was built for a version of the configuration it is declared inside, such as its machine or its home, that differs from the version that is applied.
 
-The file `/etc/caisson-home-manager/source.json` on the machine names the NixOS configuration the machine is running. The activation of the home compares the file with the NixOS configuration in the source the home was built from.
+The configuration above records what it applied in a marker file, `/etc/caisson/marker.json` on a machine. The activation of the home compares the marker with the configuration above as it is in the source the home was built from.
 
-The comparison leaves the homes out. A change to a home does not cause a warning. The warning does not stop the activation.
+The comparison leaves out the configurations declared inside the configuration above. A change to a home does not cause a warning. The warning does not stop the activation.
 
 ```nix
 { ... }:
 {
-  caisson.home-manager.machineDrift.warn = false;
+  caisson.drift.warn = false;
 }
 ```
 
 Here the home is activated with no comparison.
 
-See [`modules.nixos."caisson/home-manager-source-marker"`](./lib.md#modulesnixoscaissonhome-manager-source-marker-moduleshomemanagercaissonnixos-source-marker) for what the file holds and what is compared.
+See [drift detection](./lib.md#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift) for what the marker holds and what is compared.
+
+### `caisson.profiles.selected`
+
+- **Type:** `attrsOf str`
+- **Default:** `{ }`
+- **Source:** `modules/*/profile-activation/`
+- **Declared in:** a NixOS, darwin or system-manager machine, a home or a hjem configuration that imports `caisson/profile-activation`, which the `default` module of each of these classes imports
+
+By the variable that chooses among them, the profile a shell runs when it sets no other, as `<kind>/<name>`. `nvf/editor` is the nvf configuration declared as `editor`.
+
+A configuration installs a program for each program of the profiles declared inside it, such as `nvim`, which runs the profile the variable names, and the default profile when the variable is unset. With one profile for a variable, that profile is the default. With several, this option names it, and the evaluation fails until it does.
+
+```nix
+{ ... }:
+{
+  caisson.profiles.selected.CAISSON_NVIM_PROFILE = "nvf/editor";
+}
+```
+
+Here a shell that sets no `CAISSON_NVIM_PROFILE` runs the Neovim of the nvf configuration `editor`.
+
+See [profiles](./lib.md#profiles-caissonprofile-activation).
 
 ### `caisson.forChildren.extraDefaultModuleImports`
 
@@ -220,11 +242,13 @@ Whether to export modules for a given class.
 
 ### `caisson.modules.<class>.exported`
 
-- **Type:** `function -> attrsOf deferredModule`
+- **Type:** a function from the registered modules to the modules to export
 - **Default:** the modules of the class that the composition registers itself
 - **Source:** `modules/generic/core/caisson/modules.nix`
 
-Function that selects which registered modules of a class to export. Receives the modules registered for the class and returns the modules to export. A module that came from an entry of `projects`, registered as `<project>/<name>`, is exported only when the function names it.
+Function that selects which registered modules of a class to export. Receives the modules registered for the class and returns the modules to export, which are exported as the function returns them. A module that came from an entry of `projects`, registered as `<project>/<name>`, is exported only when the function names it.
+
+The two settings of every class are held in one option, `caisson.modules`, an attribute set by class of `lazyAttrsOf raw` values, so a class that no module sets costs nothing to evaluate. Each setting is a plain value: a priority such as `mkDefault` on `exported` takes effect, and two definitions of `exported` for one class conflict rather than merge. A class with no registered module, or a key other than `export` and `exported`, is refused when the exports are read.
 
 ### `caisson.flakeOutputs.modules`
 
@@ -255,7 +279,7 @@ Whether to enable lib overlay export. When enabled, the lib overlays selected by
 
 ### `caisson.libOverlays.exported`
 
-- **Type:** `function -> attrsOf libOverlay`
+- **Type:** `function -> libOverlays`, an attribute set of lib overlays merged as one attribute set, each entry checked when it is read
 - **Default:** the lib overlays that the composition registers itself
 - **Source:** `modules/generic/core/caisson/libOverlays.nix`
 

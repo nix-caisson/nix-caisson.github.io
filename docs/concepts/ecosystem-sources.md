@@ -21,7 +21,12 @@ documents the shape it takes; in practice:
 - `caisson.nixos` takes a nixpkgs source tree (it evaluates
   `nixos/lib/eval-config.nix` from it); `caisson.nixos-minimal` takes
   the same tree and evaluates `nixos/lib`'s `evalModules` from it.
+- `caisson.darwin` takes the nix-darwin flake or source tree (it
+  evaluates `eval-config.nix` from it).
 - `caisson.home-manager` takes a home-manager source tree.
+- `caisson.hjem` takes the hjem flake or source tree (it evaluates the
+  user module `modules/common/user.nix` from it, with hjem's library
+  from `lib.nix`).
 - `caisson.caisson-colmena` and `caisson.colmena` take the colmena
   flake: they read the hive schema from its `lib.makeHive` and the
   deployment options from its `nixosModules`.
@@ -48,13 +53,21 @@ below.
 | `caisson.nixpkgs` | `nixpkgs` | nixpkgs source tree (per package config) |
 | `caisson.nixos` | `nixpkgs` | nixpkgs source tree |
 | `caisson.nixos-minimal` | `nixpkgs` | nixpkgs source tree (the `nixos` class under the minimal evaluator) |
+| `caisson.darwin` | `nix-darwin` | nix-darwin flake or source tree |
 | `caisson.home-manager` | `home-manager` | home-manager source tree |
+| `caisson.hjem` | `hjem` | hjem flake or source tree |
 | `caisson.caisson-colmena` | `colmena` | colmena flake |
 | `caisson.colmena` | `colmena` | colmena flake |
 | `caisson.caisson-disko` | `disko` | disko flake or source tree |
 | `caisson.disko` | `disko` | disko flake or source tree |
 | `caisson.terranix` | `terranix` | terranix flake |
 | `caisson.system-manager` | `system-manager` | system-manager flake |
+| `caisson.treefmt` | `treefmt-nix` | treefmt-nix flake or source tree |
+| `caisson.nvf` | `nvf` | nvf flake |
+| `caisson.nixvim` | `nixvim` | nixvim flake |
+| `caisson.topology` | `nix-topology` | nix-topology flake or source tree |
+| `caisson.kubenix` | `kubenix` | kubenix flake or source tree |
+| `caisson.nixidy` | `nixidy` | nixidy flake |
 | `caisson.structural` | none | no source: the empty integration evaluates caisson's core module alone |
 
 The nixpkgs library that the integrations call is loaded by the

@@ -3075,9 +3075,12 @@ composition under the name `nvf` when absent.
 
 The output is `neovim`, the wrapped Neovim that `neovimConfiguration`
 returns. A top publishes the configuration as
-`packages.<system>.<name>`. caisson's tests check that it is the
-derivation `neovimConfiguration` builds from the same module on the
-same package set.
+`nvfConfigurations.<system>.<name>`, in the shape `neovimConfiguration`
+returns: `neovim`, `config` and `options`. `packages` is the package
+scope of the project itself, and caisson publishes nothing there.
+caisson's tests check that the Neovim is the derivation
+`neovimConfiguration` builds from the same module on the same package
+set.
 
 A configuration that installs packages installs the Neovim of an nvf
 configuration declared inside it, with the module `nvf-package` of its

@@ -2178,7 +2178,7 @@ them.
 
 caisson's tests evaluate a darwin machine on Linux and compare its
 system with what `darwinSystem` builds from the same module and package
-set. They also evaluate a machine with a home and an hjem configuration
+set. They also evaluate a machine with a home and a hjem configuration
 inside it, and compare the manifest of the hjem configuration with the
 manifest hjem's nix-darwin module makes. caisson's CI builds the systems
 of both machines on a macOS runner. Activation on a running machine is

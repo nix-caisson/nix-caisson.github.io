@@ -1856,8 +1856,7 @@ Common conventions:
   configs the composition declares (see
   `caisson.integrations.pkgSetOf`). In a configuration evaluated at a
   system, the modules get the package sets by config name as the
-  `pkgSets` special argument. system-manager builds its own package
-  set and takes no `defaultPkgs`.
+  `pkgSets` special argument.
 - `pkgSets`: on the colmena and disko entry points, an attrset of
   package sets passed through as the `pkgSets` special argument, where
   `pkgSets.pkgs` is the package set of `colmena eval`. flake-parts and
@@ -2918,24 +2917,42 @@ configuration under `passthru.config`. A top publishes it as
 `systemConfigs.default`, which `system-manager switch --flake .` reads
 when it is given no name.
 
-system-manager builds its package set itself, from the nixpkgs its
-flake pins, at `nixpkgs.hostPlatform`, so it takes no `defaultPkgs`.
-caisson defaults `nixpkgs.hostPlatform` to the system of the
-evaluation. As with terranix, the modules get the composed library as
-`lib` and the package sets of the composition as `pkgSets`, while
-system-manager merges the options with its own library. caisson adds a
-compatibility bridge for the current nixos-unstable restructuring of
-the NixOS nix module (each half self-retires; see the source
-comments).
+A system-manager configuration runs on the package set selected for it
+(`defaultPkgs`, else the set named `default`), as every other
+integration does, and on the nixpkgs the composition declares, as a
+NixOS configuration does. system-manager's flake publishes
+`makeSystemConfig` from its `nix/lib.nix` called with the nixpkgs the
+flake pins. caisson calls the same file with the composition's nixpkgs
+and the composed library, as the NixOS integration calls
+`nixos/lib/eval-config.nix`. The library, the NixOS modules
+system-manager imports and the evaluation all come from there.
+
+`makeSystemConfig` makes `pkgs` itself and declares `nixpkgs.pkgs`
+read-only. caisson passes the selected set as the `pkgs` special
+argument, which the module system takes before `_module.args`, so the
+selected set is the `pkgs` of every module and `nixpkgs.pkgs`.
+`userborn`, the user manager system-manager pins, is built from the same
+source on the selected set. caisson defaults `nixpkgs.hostPlatform` to
+the platform of the selected set.
+
+The selected set makes `nixpkgs.overlays`, `nixpkgs.config` and the
+`overlays` argument of `makeSystemConfig` ineffective, so a
+configuration that sets one is refused, as one whose
+`nixpkgs.hostPlatform` differs from the platform of the selected set
+is. Package configs and package overlays are declared on `mkLib`. The
+modules get the composed library as `lib` and the package sets of the
+composition as `pkgSets`. caisson adds a compatibility bridge for the
+current nixos-unstable restructuring of the NixOS nix module (each half
+self-retires; see the source comments).
 
 - `mkModule : freeformModule -> module`.
-- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
-  extraModuleImports?, specialArgs? } -> configuration`.
+- `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
+  moduleImports?, extraModuleImports?, specialArgs? } -> configuration`.
   `configModule` defaults to the configuration registered under its
   name in `configs/systemManager`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
   at a top and returns its system, or the systems by system where
   several systems are in force.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
-  merged over the call of `makeSystemConfig` (`modules`, `overlays`,
-  `specialArgs`, `allowUnsupportedNixpkgs`).
+  merged over the call of `makeSystemConfig` (`modules`, `specialArgs`,
+  `allowUnsupportedNixpkgs`; `overlays` is refused).

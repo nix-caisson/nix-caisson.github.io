@@ -3346,8 +3346,8 @@ Its value and its output `toplevel` are the system, with the evaluated
 configuration under `passthru.config`. A top publishes it as
 `systemConfigs.default`, which `system-manager switch --flake .` reads
 when it is given no name. A system-manager configuration activates the
-homes and the hjem configurations declared inside it, and installs the
-Neovim of the nvf configurations declared inside it, with
+homes and the hjem configurations declared inside it, and the profiles
+of the nvf and nixvim configurations declared inside it, with
 [`modules.systemManager."caisson/default"`](#modulessystemmanagercaissondefault).
 
 A system-manager configuration runs on the package set selected for it

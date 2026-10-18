@@ -1176,7 +1176,7 @@ The NixOS module with which a machine activates the hjem configurations
 declared inside it. `caisson/default` for the `nixos` class imports it,
 so a NixOS configuration has it unless it passes `moduleImports`.
 
-Activating an hjem configuration means applying its manifest with
+Activating a hjem configuration means applying its manifest with
 hjem's CLI. The CLI links the files of the user and removes the files of
 the previous generation, whose manifest the machine keeps in
 `/var/lib/hjem/manifest-<user>.json`. The module writes the units that
@@ -1224,9 +1224,9 @@ the machine, at `mkDefault` priority. It refuses an enabled
 configuration whose user has no enabled account on the machine, with an
 assertion naming the user, as hjem's NixOS module does.
 
-An hjem configuration that passes `moduleImports` gets this module only
+A hjem configuration that passes `moduleImports` gets this module only
 if its list names it. The module reads the machine through the manifest
-of the configuration, so only an hjem configuration with a NixOS
+of the configuration, so only a hjem configuration with a NixOS
 configuration above it can import it.
 
 ### `modules.nixos."caisson/home-manager-source-marker"`, `modules.homeManager."caisson/nixos-source-marker"`
@@ -2191,7 +2191,7 @@ not tested.
 
 - **Source:** `lib-overlays/hjem/default.nix`
 
-An hjem configuration is the files and packages of one user, written
+A hjem configuration is the files and packages of one user, written
 with the options of hjem's user module (`files`, `xdg.config.files`,
 `packages`, `directory`). hjem evaluates a user only inside its NixOS
 and nix-darwin modules, as an entry of `hjem.users`. caisson evaluates
@@ -2200,7 +2200,7 @@ library as `hjem-lib`, the name of the user as `name`, the package set
 as `pkgs`, and the machine above the configuration as `osConfig`, null
 when there is none.
 
-An hjem configuration is evaluated at every system in force where it is
+A hjem configuration is evaluated at every system in force where it is
 declared, and runs on the package set selected for it (`defaultPkgs`,
 else the selection of the nearest configuration above, else the set
 named `default`). `user` defaults to the name the configuration is
@@ -2227,7 +2227,7 @@ A top publishes the configuration as `hjemConfigurations.alice`, with
 `manifest` and `packages`. `hjem standalone switch --flake .` reads
 `hjemConfigurations."$USER"` from the flake in the current directory, so
 it finds the configuration of the user running it when the two names
-are the same; `--flake-attr` names another attribute. The value of an hjem
+are the same; `--flake-attr` names another attribute. The value of a hjem
 configuration that is a top has `manifest` and `packages` too, which is
 what `hjem standalone switch --config` reads from a file.
 
@@ -2246,7 +2246,7 @@ used.
 Homes and hjem configurations inside a darwin machine are not activated
 by caisson yet.
 
-caisson's tests compare the manifest of an hjem configuration inside a
+caisson's tests compare the manifest of a hjem configuration inside a
 NixOS machine with the manifest hjem's NixOS module makes from the same
 user module, and build its manifest file and the units that activate
 it. Activation on a running machine is not tested.

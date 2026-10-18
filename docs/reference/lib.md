@@ -3188,9 +3188,12 @@ name `kubenix`.
 
 The output is `result`, the resources as the JSON file
 `kubectl apply -f` reads, the `kubernetes.result` of kubenix's `k8s`
-module. A top publishes it as `packages.<system>.<name>`. caisson's
-tests check that it is the result kubenix's `evalModules` gives the
-same module.
+module. A top publishes the configuration as
+`kubenixConfigurations.<system>.<name>`, the evaluation kubenix's
+`evalModules` returns, whose `config.kubernetes.result` is the result.
+`packages` is the package scope of the project itself, and caisson
+publishes nothing there. caisson's tests check that the result is the
+one kubenix's `evalModules` gives the same module.
 
 ### `caisson.nixidy` (module class `nixidy`)
 

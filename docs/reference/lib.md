@@ -1976,7 +1976,7 @@ Common conventions:
   caisson-colmena, colmena, caisson-disko and disko entry points. It
   selects the package set the configuration runs on from the package
   configs the composition declares (see
-  `caisson.integrations.pkgSetOf`). In a configuration evaluated at a
+  `caisson.integrations.pkgSetOf`). In a configuration evaluated per
   system, the modules get the package sets by config name as the
   `pkgSets` special argument.
 - `pkgSets`: on the colmena and disko entry points, an attrset of
@@ -3237,8 +3237,8 @@ activates it. See [profiles](#profiles-caissonprofile-activation).
 A topology configuration is the diagram of a network: the NixOS
 configurations declared inside it under `caisson.nixos.configurations`,
 whose `topology` options nix-topology reads, and modules of the class
-that add nodes and networks of their own. It is evaluated at every
-system in force where it is declared, on the package set selected for
+that add nodes and networks of their own. It is evaluated per system,
+once for each system in force where it is declared, on the package set selected for
 it, extended with the packages of nix-topology.
 
 caisson evaluates nix-topology's `topology` modules with its own
@@ -3321,8 +3321,8 @@ Its value and its output `toplevel` are the system, with the evaluated
 configuration under `passthru.config`. A top publishes it as
 `systemConfigs.default`, which `system-manager switch --flake .` reads
 when it is given no name. A system-manager configuration activates the
-homes and the hjem configurations declared inside it, and installs the
-Neovim of the nvf configurations declared inside it, with
+homes and the hjem configurations declared inside it, and the profiles
+of the nvf and nixvim configurations declared inside it, with
 [`modules.systemManager."caisson/default"`](#modulessystemmanagercaissondefault).
 
 A system-manager configuration runs on the package set selected for it

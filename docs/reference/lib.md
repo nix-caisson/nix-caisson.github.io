@@ -1282,7 +1282,7 @@ Computing the store path evaluates the childless evaluation and builds
 nothing, and the digest names no store path, so the marker depends on
 nothing and cannot be read as a path. A machine writes it with
 `environment.etc`, a home with an activation step after its files are
-linked, and an hjem configuration adds it to its files. The marker is
+linked, and a hjem configuration adds it to its files. The marker is
 not written in the childless evaluation, or in a NixOS evaluation
 without `environment.etc`, which the nixos-minimal integration can
 produce.

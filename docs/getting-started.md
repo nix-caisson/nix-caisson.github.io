@@ -190,7 +190,8 @@ selection, and export.
 Integrations bring the same conventions to other module ecosystems
 and take their ecosystem as an explicit `ecosystemSrc`. A NixOS
 configuration takes its systems and its package set from the
-composition: it is evaluated at every system `mkLib` declares, on the
+composition: it is evaluated per system, once for each system `mkLib`
+declares, on the
 package config named `default`, which the `mkLib` call declares with
 `pkgSets = lib: { default = lib.caisson.nixpkgs.mkConfiguration { }; };`.
 With the single system declared above, `mkTopConfiguration` returns

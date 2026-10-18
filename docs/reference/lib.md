@@ -1624,7 +1624,9 @@ It reads only the options that a module of the evaluation defines.
 frameworkModules      : str -> attrsOf module -> listOf module
 mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; evaluate : view -> evaluated; } -> configuration
 evaluated = { value; outputs ? { }; config ? value.config; }
-exportsTo = { attrset : str; value : manifest -> value; single ? false : bool;
+exportsTo = export | listOf export
+export    = { attrset : str; value : manifest -> value; single ? false : bool;
+              bySystem ? false : bool; only ? : manifest -> bool;
               name ? : { name, manifest } -> { value : str; description ? : str; }; }
 ```
 
@@ -1640,9 +1642,16 @@ selection the configuration was constructed with, which the builder
 records on the manifest (`pkgSetOf` below).
 
 `exportsTo` says how the configuration is published, and the builder
-records it on the manifest too. `attrset` is the output attribute
-set; a NixOS configuration records `nixosConfigurations`. `value`
-takes the manifest of the configuration to what is published.
+records it on the manifest too. It is one export, or a list of them for
+an integration whose configurations are published in more than one
+output. `attrset` is the output attribute set; a NixOS configuration
+records `nixosConfigurations`. `value` takes the manifest of the
+configuration to what is published.
+
+`only` takes the manifest and says whether the configuration is
+published in that output at all. A configuration it leaves out is still
+passed up, and is found through the manifest. The treefmt integration
+uses it to publish only the configuration named `default`.
 
 `single` says the output holds a single value rather than values by
 name, as `colmenaHive` does. The configuration declared under the name
@@ -3136,10 +3145,20 @@ type treefmt-nix's `submoduleWith` returns.
 A tree registers the configuration as `configs/treefmt/default/default.nix`
 and declares it with
 `caisson.treefmt.configurations.default = lib.caisson.treefmt.mkConfiguration { };`.
-A top publishes the configuration named `default` as `formatter.<system>`,
-its wrapper, which `nix fmt` reads. caisson's tests check that it is the
-derivation treefmt-nix's `mkWrapper` builds from the same module on the
-same package set.
+A top publishes only the configuration named `default`:
+
+| Output | Value |
+| --- | --- |
+| `formatter.<system>` | its wrapper, which `nix fmt` runs |
+| `checks.<system>.treefmt` | its `check` over the root of the tree, `root` on `mkLib`, which `nix flake check` builds; it fails when the tree is not formatted |
+
+A tree without a root publishes no check; a library composed inside a
+test is one. A configuration under another name is evaluated and passed
+up, is published in no output, and is found through the manifest, at
+`caisson.manifest.children.system.<system>.children.treefmt.<name>`.
+caisson's tests check that the wrapper is the derivation treefmt-nix's
+`mkWrapper` builds from the same module on the same package set, and
+that the published check is the configuration's `check` over the root.
 
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,

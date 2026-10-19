@@ -31,7 +31,7 @@ The configurations of an integration declared beneath this configuration, by nam
 }
 ```
 
-Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. An entry of an integration that evaluates a configuration at a system (nixos) reads back as its evaluations by system, `config.caisson.nixos.configurations.laptop.x86_64-linux`, a manifest for every system in force. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
+Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. An entry of an integration that evaluates a configuration per system (nixos) reads back as its evaluations by system, `config.caisson.nixos.configurations.laptop.x86_64-linux`, a manifest for every system in force. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
 
 A configuration declared inside this configuration sees its childless evaluation, which leaves out the configurations declared inside it. In the childless evaluation an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson.evalManifest.childless`:
 

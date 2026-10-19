@@ -1049,7 +1049,7 @@ those configurations import by default.
 `caisson/default` also defines `networking.hostName` as the name the
 NixOS configuration is declared under, at `mkDefault` priority. So the
 machine declared as `nas-1` names itself `nas-1`, and a host name the
-machine's own modules set replaces it. A NixOS configuration with no
+machine's modules set replaces it. A NixOS configuration with no
 name, and an evaluation without NixOS's networking module (the minimal
 NixOS evaluator), keep NixOS's default.
 
@@ -1193,7 +1193,7 @@ hjem's NixOS module writes, under the same names:
 
 The target `hjem` requires them all, and starts at boot and when the
 machine switches to a new generation. Each instance runs the CLI of the
-hjem configuration of its user. The units link with hjem's own CLI and
+hjem configuration of its user. The units link with hjem's CLI and
 back up a file they replace under the prefix `.backup-`. hjem's NixOS
 options for another linker, for `systemd-tmpfiles` and for
 `clobberByDefault` have no counterpart here; a configuration sets
@@ -1276,7 +1276,7 @@ machine changes it.
 
 Every configuration with an activation checks the nearest
 configuration above it that has one. A machine is the exception: it is
-applied on its own host, so a machine declared inside another, such as
+applied on the host it describes, so a machine declared inside another, such as
 an image, checks nothing above it.
 
 **The marker.** The `default` module of each of these classes imports
@@ -1411,7 +1411,7 @@ The module differs from hjem's nix-darwin module in two places:
 
 An nvf or nixvim configuration is a program a person runs. It relates
 to the configuration it is declared inside as a home relates to its
-machine: it has an activation of its own, which the configuration
+machine: it has a separate activation, which the configuration
 above runs each time it is activated itself.
 
 **The profile.** The configuration has the outputs `activationPackage`
@@ -1433,7 +1433,7 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 | nothing (a top) | the same | running `activate` by hand |
 
 `<kind>` is `nvf` or `nixvim`. A hjem configuration has no activation
-step of its own that a configuration can add to, so the machine it is
+step that a configuration can add to, so the machine it is
 declared inside activates its profiles.
 
 **Reset.** The configuration above runs `activate` each time it is
@@ -1448,7 +1448,7 @@ machine activates its homes and its profiles at boot.
 runs the program of the profile that `$CAISSON_NVIM_PROFILE` names,
 read each time it runs, and of the default of the configuration that
 installed it when the variable is unset. A home and a hjem
-configuration set the variable to their own profile, with
+configuration set the variable to their profile, with
 `home.sessionVariables` and `environment.sessionVariables`, so the
 programs the machine installs choose the same profile. A shell can
 `export` another value.
@@ -1486,7 +1486,7 @@ class does for a NixOS machine:
 
 The two activation modules are those of a NixOS machine. system-manager
 declares `users.users` and the systemd options, and starts the units
-that ask for `multi-user.target` with its own `system-manager.target`,
+that ask for `multi-user.target` with `system-manager.target`,
 so `system-manager switch` applies the homes and the hjem
 configurations. The units and their checks are described at
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation)
@@ -2715,7 +2715,7 @@ is one evaluation, so the hive also refuses a NixOS configuration
 evaluated per system for more than one system, such as one inside a colmena
 configuration that sets `caisson.forChildren.systems` to two systems.
 The message names the configuration and its systems. Names
-colmena's own hive format reserves (`meta`, `defaults`, `network`) are
+colmena's hive format reserves (`meta`, `defaults`, `network`) are
 ordinary names. The schema version is asserted against the `makeHive`
 of the colmena source, so a colmena revision that moves it fails at
 evaluation.
@@ -2823,7 +2823,7 @@ settings and swap the layout produces. The scripts that format and
 destroy the disks are outputs of the layout. The layout and each
 machine installed onto it are separate configurations, and one layout
 can hold several machines. The integration named `disko`, below, is
-disko's own two forms, where a machine and its layout are one
+disko's two forms, where a machine and its layout are one
 configuration or the layout stands alone.
 
 A disko configuration is a module of the `caisson-disko` class. It sets
@@ -2858,7 +2858,7 @@ registered under the name it is declared under:
 caisson.caisson-disko.configurations.nas-1 = lib.caisson.caisson-disko.mkConfiguration { };
 ```
 
-The layout is evaluated with caisson's own `evalModules` over
+The layout is evaluated with an `evalModules` call in caisson over
 `disko.devices`, the framework modules, the selection and the
 configuration's module. The class also declares `assertions`, a list of
 `{ assertion, message }` as in NixOS. A module of the class refuses a
@@ -2900,8 +2900,8 @@ declared with. So the machine declared as `nas-1` inside the layout
 `nas-1` of a colmena configuration that declares the layout.
 
 Where a layout holds one machine, we recommend naming the machine after
-the layout. The layout's module declares it under its own name, read
-from the manifest, and caisson's default NixOS module names the host
+the layout. The layout's module declares it under the layout's name,
+read from the manifest, and caisson's default NixOS module names the host
 after the name the machine is declared under:
 
 ```nix
@@ -2919,7 +2919,7 @@ unless its modules set another.
 
 A disko configuration is published as `diskoConfigurations.<name>`, in
 the form disko's CLI reads: `{ disko.devices = <serializableLayout>; }`.
-disko's CLI evaluates it again with its own evaluator, so
+disko's CLI evaluates it again with disko's evaluator, so
 `disko --mode format --flake '.#nas-1'` formats the disks the layout
 describes.
 
@@ -2951,7 +2951,7 @@ describes.
 forms, and caisson supports each as disko has it, so a layout or a
 machine written for disko is used with caisson as it is.
 
-- **A layout on its own.** A disko configuration is a module of the
+- **A standalone layout.** A disko configuration is a module of the
   `disko` class: what a file written for disko's `diskoConfigurations`
   sets, `disko.devices`, is its module as it is. It is published as
   `diskoConfigurations.<name>`, which disko's CLI formats and mounts
@@ -2962,8 +2962,8 @@ machine written for disko is used with caisson as it is.
   layout in one configuration. `disko-install`, the image builder and
   the install test read this form.
 
-For a machine installed onto a layout that is a configuration of its
-own, we recommend `caisson-disko`, above.
+For a machine installed onto a layout that is a separate
+configuration, we recommend `caisson-disko`, above.
 
 A tree registers a layout as `configs/disko/data-array/default.nix`:
 
@@ -2979,7 +2979,7 @@ A tree registers a layout as `configs/disko/data-array/default.nix`:
 and declares it with
 `caisson.disko.configurations.data-array = lib.caisson.disko.mkConfiguration { };`.
 
-The layout is evaluated as disko evaluates a layout on its own:
+The layout is evaluated as disko evaluates a standalone layout:
 `evalModules` over `disko.devices`, typed with disko's type library,
 with the framework modules, the selection and the configuration's
 module beside it. The outputs are the layout product of
@@ -2991,7 +2991,7 @@ NixOS configuration selects it with
 `extraModuleImports = modules: [ modules.disko ];`, or
 `modules."caisson/disko"` in a flake that lists caisson in `projects`,
 and sets `disko.devices` and the other options of disko's module, such
-as `disko.imageBuilder`, in its own modules. For a layout and a machine
+as `disko.imageBuilder`, in its modules. For a layout and a machine
 module with nothing caisson adds to them, it builds the same system,
 with the same format script, as NixOS builds from disko's module and
 the same modules.
@@ -3017,10 +3017,10 @@ of the class with `facter.report`, the hardware report nixos-facter
 writes, as data, or `facter.reportPath`, the `facter.json` it writes,
 which `facter.report` defaults to. It declares the NixOS configurations
 that run on the hardware under `caisson.nixos.configurations`. A
-project can extend the class with options of its own about the
+project can extend the class with further options about the
 hardware.
 
-caisson evaluates the configuration with its own `evalModules`, on the
+caisson evaluates the configuration with `evalModules`, on the
 composed library, over the report options, `assertions`, the framework
 modules, the selection and the configuration's module. Its outputs are:
 
@@ -3081,7 +3081,7 @@ knows or extended with options of a project, see
   merged over the `evalModules` call.
 
 caisson's tests declare a machine inside each kind of facter
-configuration, from the report of nixpkgs' own facter test. Each
+configuration, from the report of nixpkgs' facter test. Each
 machine gets the report and the kernel modules of its initrd that a
 NixOS configuration setting `hardware.facter.reportPath` itself gets.
 
@@ -3104,13 +3104,13 @@ Terraform reads, with the evaluated configuration under
 the name terranix's flake-parts module gives its configurations, and a
 terranix configuration that is a top is that file.
 
-terranix evaluates its modules with its own module system, on the
+terranix evaluates its modules itself, on the
 library of the package set, and caisson cannot hand it the composed
 library as the library of the evaluation. The modules get the composed
 library as the `lib` argument, and the package sets of the composition
-as `pkgSets`; terranix merges and checks the options with its own
+as `pkgSets`; terranix merges and checks the options with that
 library. terranix returns only the configuration Terraform reads and
-its `_meta`, so caisson reads its own options back through
+its `_meta`, so caisson reads the `caisson` options back through
 `_meta.caisson`, and a terranix configuration holds no configurations
 beneath it.
 
@@ -3138,7 +3138,7 @@ where it is declared, on the package set selected for it (`defaultPkgs`, else th
 set named `default`).
 
 treefmt-nix evaluates its modules on the library of a nixpkgs. caisson
-evaluates them with its own `evalModules`, on the composed library, over
+evaluates them with `evalModules`, on the composed library, over
 `submodule-modules`, the modules treefmt-nix publishes for a
 configuration embedded in another, with `pkgs` set to the selected
 package set. The special arguments those modules need are read from the
@@ -3200,7 +3200,7 @@ returns: `neovim`, `config` and `options`. caisson's tests check that
 the Neovim is the derivation `neovimConfiguration` builds from the same
 module on the same package set.
 
-An nvf configuration is kept in a Nix profile of its own, and the
+An nvf configuration is kept in a separate Nix profile, and the
 configuration it is declared inside activates it. See
 [profiles](#profiles-caissonprofile-activation). Its outputs
 `activationPackage` and `profile` are that profile.
@@ -3236,11 +3236,11 @@ the name `nixvim` when absent.
 The output is `package`, the Neovim (`config.build.package`). A top
 publishes the evaluated configuration as
 `nixvimConfigurations.<system>.<name>`, the name the nixvim flake
-publishes its own configurations under. caisson's tests check that the
+publishes configurations under. caisson's tests check that the
 package is the derivation `evalNixvim` builds from the same module on
 the same package set.
 
-A nixvim configuration is kept in a Nix profile of its own, as an nvf
+A nixvim configuration is kept in a separate Nix profile, as an nvf
 configuration is, and the configuration it is declared inside
 activates it. See [profiles](#profiles-caissonprofile-activation).
 
@@ -3262,11 +3262,11 @@ activates it. See [profiles](#profiles-caissonprofile-activation).
 A topology configuration is the diagram of a network: the NixOS
 configurations declared inside it under `caisson.nixos.configurations`,
 whose `topology` options nix-topology reads, and modules of the class
-that add nodes and networks of their own. It is evaluated per system,
+that add nodes and networks. It is evaluated per system,
 once for each system in force where it is declared, on the package set selected for
 it, extended with the packages of nix-topology.
 
-caisson evaluates nix-topology's `topology` modules with its own
+caisson evaluates nix-topology's `topology` modules with
 `evalModules` on the composed library, and sets `nixosConfigurations`
 to the NixOS configurations declared inside it, evaluated for its
 system. Those NixOS configurations get nix-topology's NixOS module by
@@ -3310,7 +3310,7 @@ caisson's tests check that the result is the one kubenix's
 
 A nixidy configuration is an Argo CD environment written as nixidy
 modules (`nixidy.target`, `applications.*`). caisson evaluates it with
-nixidy's own `mkEnv`, giving it the composed library as the library of
+nixidy's `mkEnv`, giving it the composed library as the library of
 the evaluation and, through `mkEnv`'s `libOverlay`, the namespaces of
 the composed library that nixidy's library lacks, such as `caisson`.
 `mkEnv` returns no options, so a nixidy configuration holds no

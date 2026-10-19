@@ -1332,14 +1332,22 @@ machine:
 
 | Module | Option | Value |
 | --- | --- | --- |
-| home-manager `darwin-parent` | `home.homeDirectory` | `users.users.<user>.home` of the machine, when the machine declares that account |
+| home-manager `darwin-parent` | `home.homeDirectory` | `users.users.<user>.home` of the machine, when the machine declares that account and sets its `home` |
 | | `home.uid` | `users.users.<user>.uid` of the machine, when it is set |
 | | `nix.enable`, `nix.package` | those of the machine |
 | | `submoduleSupport.enable` | `true` |
 | | `home.packages` | home-manager's command-line program, when the home sets `programs.home-manager.enable` |
 | hjem `darwin-parent` | `directory` | `users.users.<user>.home` of the machine, at `mkDefault` priority |
 
-The hjem module refuses a user that has no account in `users.users`.
+nix-darwin leaves `users.users.<user>.home` at `null` until the machine
+sets it. When the machine declares no account for the user, or the
+account sets no `home`, reading `home.homeDirectory` of the home or
+`directory` of the hjem configuration fails with a message that says
+which of the two the machine is missing. The hjem module also refuses
+such a user with an assertion, which covers a hjem configuration that
+sets `directory` itself. An account without `uid` is accepted, and the
+home's `home.uid` stays unset, as with home-manager's nix-darwin
+module.
 
 #### `modules.darwin."caisson/home-manager-activation"`
 
@@ -1349,7 +1357,9 @@ inside it. `caisson/default` imports it. A step of the machine's
 user, through `launchctl asuser` and `sudo`, as home-manager's
 nix-darwin module does, so `darwin-rebuild switch` applies the homes. A
 home whose user has no account in `users.users` is refused with an
-assertion, and so are two homes for one user.
+assertion, and so is a home whose user's account sets no `home`, which
+matters for a home that sets `home.homeDirectory` itself. Two homes for
+one user are refused as well.
 
 The step runs `activate` with no driver version, as caisson's NixOS
 activation does. The script then also updates the home-manager profile
@@ -2700,7 +2710,11 @@ hive: `__schema`, `nodes`, `toplevel`, `deploymentConfig`,
 `deployment.targetHost` the node leaves at `null` is the node's name in
 the hive. The hive refuses a node that declares no `deployment`
 options, and a node whose name colmena's `--on` filter could never
-select: a name containing a comma, starting with `@`, or empty. Names
+select: a name containing a comma, starting with `@`, or empty. A node
+is one evaluation, so the hive also refuses a NixOS configuration
+evaluated per system for more than one system, such as one inside a colmena
+configuration that sets `caisson.forChildren.systems` to two systems.
+The message names the configuration and its systems. Names
 colmena's own hive format reserves (`meta`, `defaults`, `network`) are
 ordinary names. The schema version is asserted against the `makeHive`
 of the colmena source, so a colmena revision that moves it fails at

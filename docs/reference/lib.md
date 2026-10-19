@@ -2712,7 +2712,7 @@ the hive. The hive refuses a node that declares no `deployment`
 options, and a node whose name colmena's `--on` filter could never
 select: a name containing a comma, starting with `@`, or empty. A node
 is one evaluation, so the hive also refuses a NixOS configuration
-evaluated at more than one system, such as one inside a colmena
+evaluated per system for more than one system, such as one inside a colmena
 configuration that sets `caisson.forChildren.systems` to two systems.
 The message names the configuration and its systems. Names
 colmena's own hive format reserves (`meta`, `defaults`, `network`) are

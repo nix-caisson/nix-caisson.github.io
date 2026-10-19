@@ -604,7 +604,7 @@ and the parent's `sources`, `root`, `systems`, `projects`,
 `defaultEcosystemSrc`, `pkgSets` and registries. A `record` that names
 a field `mkConfiguration` writes is refused.
 
-An integration that evaluates a configuration at a system passes
+An integration that evaluates a configuration per system passes
 `perSystem = true`. A declared configuration is then an evaluation for
 every system in force where it is declared, and the configuration
 returns those evaluations by system. In the tree the system sits
@@ -1672,7 +1672,7 @@ under another name is refused there.
 `packages` and `formatter`. Each configuration is published under the
 system of its evaluation, `<attrset>.<system>.<name>`, named by the
 usual rules over its path without the systems on it. With `single`
-too, the output holds the configuration named `default` at each
+too, the output holds the configuration named `default` for each
 system, as `formatter.<system>` does. A configuration with no system,
 one not evaluated per system, is refused in such an output.
 
@@ -1742,7 +1742,7 @@ for every integration whose configurations run on a package set.
 
 A configuration selects its set when it is constructed, with the
 `defaultPkgs` argument: a function of the package sets available where
-the configuration is declared, by package config name, each at the
+the configuration is declared, by package config name, each for the
 system of the evaluation.
 
 ```nix
@@ -1769,7 +1769,7 @@ The modules of a configuration can also use any available set by
 name, through the `pkgSets` argument.
 
 `pkgSetsAt` gives the sets available to an evaluation: the package
-configs its manifest holds, each projected to its set at the system.
+configs its manifest holds, each projected to its set for the system.
 `pkgSetOf` applies the selection in force at the manifest (`defaultPkgs`,
 which `mkModuleConfiguration` records from the argument and
 `lib.caisson-core` carries to everything beneath) to those sets.
@@ -2200,11 +2200,11 @@ mkConfiguration :
 
   The package set comes from the composition, through the manifest.
   An evaluation runs on the set the `defaultPkgs` argument selects
-  from the package sets available at the system of the evaluation
+  from the package sets available for the system of the evaluation
   (see `caisson.integrations.pkgSetOf`), defined as `nixpkgs.pkgs`. A
   configuration that passes none runs on what the nearest
   configuration above it selected, and on the set named `default`
-  where none above selects. The modules can also use any set at that
+  where none above selects. The modules can also use any set for that
   system by config name, through the `pkgSets` special argument. A
   module reads its name as
   `lib.caisson-core.evalManifest.name` and its system as
@@ -3273,7 +3273,7 @@ it, extended with the packages of nix-topology.
 
 caisson evaluates nix-topology's `topology` modules with its own
 `evalModules` on the composed library, and sets `nixosConfigurations`
-to the NixOS configurations declared inside it, evaluated at its
+to the NixOS configurations declared inside it, evaluated for its
 system. Those NixOS configurations get nix-topology's NixOS module by
 default, through `caisson.forChildren`. `ecosystemSrc` is the
 nix-topology flake or source tree, resolved under the name
@@ -3297,7 +3297,7 @@ modules, which import the kubenix modules they use from the `kubenix`
 argument (`imports = [ kubenix.modules.k8s ];`). caisson makes the
 evaluation kubenix's `evalModules` makes, on the composed library
 extended with kubenix's `upstreamables.nix`, with the same `kubenix`
-argument, at every system in force on the selected package set.
+argument, for every system in force on the selected package set.
 `ecosystemSrc` is the kubenix flake or source tree, resolved under the
 name `kubenix`.
 
@@ -3345,7 +3345,7 @@ Each of the three takes the arguments of `caisson.treefmt`:
 
 A system-manager configuration is the system of a machine running
 another Linux distribution, evaluated with system-manager's
-`makeSystemConfig` at every system in force where it is declared. A
+`makeSystemConfig` for every system in force where it is declared. A
 tree registers it as `configs/systemManager/default/default.nix` and
 declares it with
 `caisson.system-manager.configurations.default = lib.caisson.system-manager.mkConfiguration { };`.

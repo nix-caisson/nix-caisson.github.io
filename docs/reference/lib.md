@@ -1386,7 +1386,8 @@ for. The module also adds each user's `packages` to
 `extraDependencies` in `/etc/hjem/extra-dependencies`, which keeps them
 in the system.
 
-The module differs from hjem's nix-darwin module in two places:
+The module differs from hjem's nix-darwin module in where it declares
+the agents and in how it applies the files at an activation:
 
 - It declares the agents in `launchd.agents`. nix-darwin installs those
   in `/Library/LaunchAgents`, where launchd loads them for every user
@@ -1394,11 +1395,20 @@ The module differs from hjem's nix-darwin module in two places:
   `launchd.user.agents`, which nix-darwin installs for
   `system.primaryUser` alone, and it requires the machine to set
   `system.primaryUser`.
-- It restarts the agents of each user from `postActivation`, which
-  nix-darwin runs after it installs the agents of the new generation.
-  hjem's nix-darwin module restarts the activation agent from an
-  activation step that nix-darwin does not run, and the applications
-  agent from a step that runs before the agents are installed.
+- It applies the files of each hjem user who is logged in from
+  `postActivation`, which nix-darwin runs after it installs the agents
+  of the new generation. nix-darwin loads the agents of
+  `/Library/LaunchAgents` as root, which loads them into no session, so
+  a user who is logged in when the machine is activated has the agents
+  of the generation that was current at the login, or none. For each
+  such user, the step removes the agents from the session, runs the
+  program of each agent of the new generation as the user, so the files
+  are applied before the activation returns, and loads the agents of
+  the new generation into the session. A user who is not logged in gets
+  the agents at the next login. hjem's nix-darwin module restarts the
+  activation agent from an activation step that nix-darwin does not
+  run, and the applications agent from a step that runs before the
+  agents are installed.
 
 ### Profiles: `caisson/profile-activation`
 

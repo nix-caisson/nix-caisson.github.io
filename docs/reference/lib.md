@@ -2820,9 +2820,11 @@ recommend for new configurations. A disko configuration is a disk
 layout, and the NixOS configurations installed onto it are declared
 inside it. Those NixOS configurations get the file systems the layout
 produces and nothing of disko itself, so the scripts that format and
-destroy the disks are not reachable from a machine. The integration
-named `disko`, below, gives its machines disko's own NixOS module
-instead.
+destroy the disks are not reachable from a machine. The layout and the
+machines stay separate configurations, and one layout can hold several
+machines. The integration named `disko`, below, is disko's own forms
+instead, where a machine and its layout are one configuration or the
+layout stands alone.
 
 A disko configuration is a module of the `caisson-disko` class. It sets
 `disko.devices`, disko's grammar for the disks, typed with disko's type
@@ -2945,61 +2947,55 @@ describes.
 
 - **Source:** `lib-overlays/disko/default.nix`
 
-`disko` is the upstream-compatible disko integration. It is there so
-that a layout written for disko can be used with caisson as it is, and
-so that the machines installed onto it work with disko's tools:
-disko's CLI against `nixosConfigurations`, `disko-install`, the image
-builder and the install test. For a new configuration, we recommend
-`caisson-disko`, which keeps disko out of the machines.
-`caisson-disko` gives up those tools on the machine to do that, and
-keeps compatibility with disko's CLI through `diskoConfigurations`.
+`disko` is the upstream-compatible disko integration. disko has two
+forms, and caisson supports each as disko has it, so a layout or a
+machine written for disko is used with caisson as it is.
 
-A disko configuration is a module of the `disko` class: what a file
-written for disko sets, `disko.devices`, is its module as it is. The
-module also declares the NixOS configurations installed onto the
-layout, under `caisson.nixos.configurations.<name>`. A tree registers
-it as `configs/disko/nas-1/default.nix`:
+- **A layout on its own.** A disko configuration is a module of the
+  `disko` class: what a file written for disko's `diskoConfigurations`
+  sets, `disko.devices`, is its module as it is. It is published as
+  `diskoConfigurations.<name>`, which disko's CLI formats and mounts
+  with `disko --flake .#<name>`.
+- **A machine that carries its layout.** A NixOS configuration that
+  selects caisson's NixOS module `disko` and writes its layout as
+  `disko.devices` is disko's NixOS form. The machine and its layout are
+  one configuration, and no integration is involved. This is the form
+  `disko-install`, the image builder and the install test read.
+
+For a machine installed onto a layout that is a configuration of its
+own, we recommend `caisson-disko`, above.
+
+A tree registers a layout as `configs/disko/data-array/default.nix`:
 
 ```nix
 { ... }:
-{ lib, ... }:
+{ ... }:
 {
   # As written for disko.
   disko.devices.disk.main = { /* ... */ };
-  # The NixOS configuration registered as `configs/nixos/nas-1`.
-  caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration { };
 }
 ```
 
 and declares it with
-`caisson.disko.configurations.nas-1 = lib.caisson.disko.mkConfiguration { };`.
+`caisson.disko.configurations.data-array = lib.caisson.disko.mkConfiguration { };`.
 
 The layout is evaluated as disko evaluates a layout on its own:
 `evalModules` over `disko.devices`, typed with disko's type library,
 with the framework modules, the selection and the configuration's
 module beside it. The outputs are the layout product of
-`caisson-disko`, without assertions, and `ecosystemSrc`, the disko
-source the layout was evaluated with.
+`caisson-disko`, without assertions. The configurations declared
+inside a disko configuration get nothing from it.
 
-The default module of the class adds caisson's NixOS module
-`disko-layout` to the default selection of the NixOS configurations
-declared inside the layout. That module imports disko's NixOS module
-from that source and defines `disko.devices` from the layout's
-`serializableLayout`, at default priority. The NixOS configuration then
-holds what disko's tools read: `config.disko.devices`, and the scripts
-under `system.build`. `disko-install` replaces the disks with
-`mkVMOverride`, which wins over the default priority. The other options
-disko's module declares, such as `disko.imageBuilder` and
-`disko.tests`, are set in the NixOS configuration's own modules. A
-NixOS configuration that passes `moduleImports` lists the module
-itself, as `caisson/disko-layout`.
-
-For a layout and a machine with nothing caisson adds to them, the
-machine builds the same system, with the same format script, as NixOS
-builds from disko's module, the layout and the same machine module. The
-machines are passed up under the names they are declared with, and the
-layout is published as `diskoConfigurations.<name>`, as for
-`caisson-disko`.
+The NixOS module `disko` imports disko's NixOS module, from the disko
+source the composition declares or pins under the name `disko`, and
+defines nothing itself. A NixOS configuration selects it with
+`extraModuleImports = modules: [ modules.disko ];`, or
+`modules."caisson/disko"` in a flake that lists caisson in `projects`,
+and sets `disko.devices` and the other options of disko's module, such
+as `disko.imageBuilder`, in its own modules. For a layout and a machine
+module with nothing caisson adds to them, it builds the same system,
+with the same format script, as NixOS builds from disko's module and
+the same modules.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   modules of the disko class.

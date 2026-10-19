@@ -2818,13 +2818,13 @@ caisson-colmena does, and is published as `colmenaHive`.
 `caisson-disko` is the native disko integration, and the one we
 recommend for new configurations. A disko configuration is a disk
 layout, and the NixOS configurations installed onto it are declared
-inside it. Those NixOS configurations get the file systems the layout
-produces and nothing of disko itself, so the scripts that format and
-destroy the disks are not reachable from a machine. The layout and the
-machines stay separate configurations, and one layout can hold several
-machines. The integration named `disko`, below, is disko's own forms
-instead, where a machine and its layout are one configuration or the
-layout stands alone.
+inside it. Those NixOS configurations get the file systems, boot
+settings and swap the layout produces. The scripts that format and
+destroy the disks are outputs of the layout. The layout and each
+machine installed onto it are separate configurations, and one layout
+can hold several machines. The integration named `disko`, below, is
+disko's own two forms, where a machine and its layout are one
+configuration or the layout stands alone.
 
 A disko configuration is a module of the `caisson-disko` class. It sets
 `disko.devices`, disko's grammar for the disks, typed with disko's type
@@ -2958,9 +2958,9 @@ machine written for disko is used with caisson as it is.
   with `disko --flake .#<name>`.
 - **A machine that carries its layout.** A NixOS configuration that
   selects caisson's NixOS module `disko` and writes its layout as
-  `disko.devices` is disko's NixOS form. The machine and its layout are
-  one configuration, and no integration is involved. This is the form
-  `disko-install`, the image builder and the install test read.
+  `disko.devices` is disko's NixOS form, with the machine and its
+  layout in one configuration. `disko-install`, the image builder and
+  the install test read this form.
 
 For a machine installed onto a layout that is a configuration of its
 own, we recommend `caisson-disko`, above.
@@ -2983,12 +2983,11 @@ The layout is evaluated as disko evaluates a layout on its own:
 `evalModules` over `disko.devices`, typed with disko's type library,
 with the framework modules, the selection and the configuration's
 module beside it. The outputs are the layout product of
-`caisson-disko`, without assertions. The configurations declared
-inside a disko configuration get nothing from it.
+`caisson-disko`, without assertions.
 
 The NixOS module `disko` imports disko's NixOS module, from the disko
-source the composition declares or pins under the name `disko`, and
-defines nothing itself. A NixOS configuration selects it with
+source the composition declares or pins under the name `disko`. A
+NixOS configuration selects it with
 `extraModuleImports = modules: [ modules.disko ];`, or
 `modules."caisson/disko"` in a flake that lists caisson in `projects`,
 and sets `disko.devices` and the other options of disko's module, such

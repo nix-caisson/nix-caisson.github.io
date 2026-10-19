@@ -1439,7 +1439,8 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 | a NixOS or system-manager machine | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |
 | a darwin machine | the same | a step of `postActivation`, as root |
 | a home | `$HOME/.local/state/caisson/profiles/<kind>/<name>` | a step of the activation of the home, after its files are linked |
-| a hjem configuration inside a NixOS or system-manager machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>`, wanted by `hjem.target` and part of it |
+| a hjem configuration inside a NixOS machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>`, wanted by `hjem.target` and part of it |
+| a hjem configuration inside a system-manager machine | the same | the unit `hjem-activate@<user>` of the machine, as the user, after it applies the files of the user |
 | a hjem configuration inside a darwin machine | the same | a step of `postActivation`, as the user, after the hjem agents are restarted |
 | a hjem configuration with no machine above it, on Linux | the same | the systemd user service `caisson-profiles` in the files of the hjem configuration, when the systemd of the user starts and at each `hjem standalone switch` |
 | a hjem configuration with no machine above it, on macOS | the same | the launchd agent `org.caisson.profiles` in the files of the hjem configuration, when launchd loads it at login and at each `hjem standalone switch` |
@@ -1447,10 +1448,23 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 
 `<kind>` is `nvf` or `nixvim`. A hjem configuration has no activation
 step that a configuration can add to. A machine activates the profiles
-of a hjem configuration declared inside it. On a NixOS or
-system-manager machine, `hjem.target` starts the units that apply the
-files of each user, at boot and again at every switch, and the unit of
-each profile starts with it.
+of a hjem configuration declared inside it. On a NixOS machine,
+`hjem.target` starts the units that apply the files of each user, at
+boot and again at every switch, and the unit of each profile starts
+with it.
+
+system-manager reloads a changed unit by its name, which fails for a
+template, restarts each changed unit in a separate request, so the order
+between units does not hold, and does not stop `hjem.target` at an
+activation. On a system-manager machine, caisson therefore writes a
+single unit for each hjem user, `hjem-activate@<user>`, wanted by
+`multi-user.target`, which links the files, reloads the units of the
+user, stores the state and activates the profiles inside the hjem
+configuration, in that order. The unit names the manifests and the
+profiles of its generation, so it changes, and system-manager restarts
+it, when the files or the profiles of the user change. Activating the
+same generation again starts no unit, so a profile changed by hand is
+put back at the next activation that changes it, or at a boot.
 
 A hjem configuration with no machine above it is applied with
 `hjem standalone switch`. On Linux, its files hold the systemd user

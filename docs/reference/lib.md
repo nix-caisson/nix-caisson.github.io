@@ -1445,7 +1445,11 @@ each profile starts with it.
 A hjem configuration with no machine above it is applied with
 `hjem standalone switch`. On Linux, its files hold the systemd user
 units that activate its profiles. The service `caisson-profiles` runs
-the `activate` of each profile, and is wanted by `default.target`. The
+`~/.local/state/caisson/activate-profiles`, which the files link to the
+script that runs the `activate` of each profile, and is wanted by
+`default.target`. The unit files are the same in every generation, and
+only the link changes, since the systemd of the user keeps the units it
+has read until it reloads, which a switch does not make it do. The
 path unit `caisson-profiles` starts the service when
 `$XDG_STATE_HOME/hjem/standalone/current/manifest.json` changes, which
 `hjem standalone switch` writes at every switch. The systemd of the
@@ -1457,8 +1461,9 @@ run `systemctl --user daemon-reload` and
 On macOS, the files of such a hjem configuration hold the launchd agent
 `org.caisson.profiles`, as
 `~/Library/LaunchAgents/org.caisson.profiles.plist`. The agent runs the
-`activate` of each profile when launchd loads it, which it does at
-login, and when the manifest of the current generation changes. launchd
+same script from the same link when launchd loads it, which it does at
+login, and when the manifest of the current generation changes. Like
+the units, the agent is the same in every generation. launchd
 expands no variables in the paths an agent watches, so the agent
 watches `~/.local/state/hjem/standalone/current/manifest.json`, where
 hjem keeps the manifest when `XDG_STATE_HOME` is unset. To activate the
@@ -1470,7 +1475,8 @@ activated. A profile changed by hand is put back to what the
 configuration above declares at the next activation: `home-manager
 switch` for a home, a switch of the machine, a boot, since the machine
 activates its homes and its profiles at boot, and `hjem standalone
-switch` for a hjem configuration with no machine above it.
+switch` or `hjem standalone rollback` for a hjem configuration with no
+machine above it.
 
 **Choosing a profile.** Each class installs, with
 `profileShimsOf`, a program for each program the Neovims have in

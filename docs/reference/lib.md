@@ -1514,7 +1514,7 @@ The nixpkgs integration's flake module. It hands `perSystem` the
 package sets of the package configs declared in `mkLib`'s `pkgSets`
 (see `caisson.nixpkgs` below), and exports from them:
 
-- The `perSystem` `pkgSets` argument is every package config's set at
+- The `perSystem` `pkgSets` argument is every package config's set for
   that system, keyed by config name, and `pkgs` is the `default`
   config's set. A flake that declares no `default` config keeps the
   `pkgs` flake-parts provides.
@@ -1729,12 +1729,12 @@ configuration, and reads two of them:
 Both are functions of the registry returning modules, and every
 constructor of every integration takes both.
 
-#### `pkgSetsAt`, `pkgSetOf`
+#### `pkgSetsForSystem`, `pkgSetOf`
 
 ```
-pkgSetsAt : { context, what } -> manifest -> system -> attrsOf pkgs
-pkgSetOf  : { context, what } -> manifest -> attrsOf pkgs -> pkgs
-selection = attrsOf pkgs -> pkgs
+pkgSetsForSystem : { context, what } -> manifest -> system -> attrsOf pkgs
+pkgSetOf         : { context, what } -> manifest -> attrsOf pkgs -> pkgs
+selection        = attrsOf pkgs -> pkgs
 ```
 
 How a configuration gets the package set it runs on. It is the same
@@ -1768,11 +1768,25 @@ nothing is told so, with the sets it declares.
 The modules of a configuration can also use any available set by
 name, through the `pkgSets` argument.
 
-`pkgSetsAt` gives the sets available to an evaluation: the package
+`pkgSetsForSystem` gives the sets available to an evaluation: the package
 configs its manifest holds, each projected to its set for the system.
 `pkgSetOf` applies the selection in force at the manifest (`defaultPkgs`,
 which `mkModuleConfiguration` records from the argument and
 `lib.caisson-core` carries to everything beneath) to those sets.
+
+`context` and `what` are used only in the errors the two functions
+raise. `context` names the entry point that was called, and `what`
+names the evaluation being built. A package config that builds no set
+for the evaluation's system fails only when the evaluation selects it
+or reads it by name. With `context = "lib.caisson.nixos.mkConfiguration"`
+and ``what = "the NixOS configuration `builder-arm` for aarch64-linux"``,
+the message reads:
+
+```
+lib.caisson.nixos.mkConfiguration: the package config `cuda` builds no set for aarch64-linux,
+which the NixOS configuration `builder-arm` for aarch64-linux needs. Add the system to
+`caisson.nixpkgs.systems` in the config's module.
+```
 
 The argument is on the nixos, nixos-minimal, home-manager,
 home-manager-minimal, flake-parts, structural and colmena
@@ -2281,8 +2295,8 @@ A darwin configuration is a macOS machine, evaluated with nix-darwin's
 composition declares, no check of `NIX_PATH`, and the revision of the
 nix-darwin source in the version of the system.
 
-Like a NixOS configuration, a darwin configuration is evaluated at
-every system in force where it is declared, and runs on the package
+Like a NixOS configuration, a darwin configuration is evaluated per
+system, for every system in force where it is declared, and runs on the package
 set selected for it (`defaultPkgs`, else the set named `default`),
 which caisson hands to `nixpkgs.pkgs`. `nixpkgs.hostPlatform`
 defaults to the system of the evaluation. nix-darwin records no
@@ -3095,7 +3109,7 @@ NixOS configuration setting `hardware.facter.reportPath` itself gets.
 - **Source:** `lib-overlays/terranix/default.nix`
 
 A terranix configuration is a Terraform configuration written as
-terranix modules, evaluated with terranix's `terranixConfiguration` at
+terranix modules, evaluated with terranix's `terranixConfiguration` for
 every system in force where it is declared, on the package set
 selected for it (`defaultPkgs`, else the set named `default`). A tree
 registers it as `configs/terranix/infra/default.nix` and declares it

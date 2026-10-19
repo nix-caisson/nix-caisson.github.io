@@ -1432,6 +1432,7 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 | a hjem configuration inside a NixOS or system-manager machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>`, wanted by `hjem.target` and part of it |
 | a hjem configuration inside a darwin machine | the same | a step of `postActivation`, as the user, after the hjem agents are restarted |
 | a hjem configuration with no machine above it, on Linux | the same | the systemd user service `caisson-profiles` in the files of the hjem configuration, when the systemd of the user starts and at each `hjem standalone switch` |
+| a hjem configuration with no machine above it, on macOS | the same | the launchd agent `org.caisson.profiles` in the files of the hjem configuration, when launchd loads it at login and at each `hjem standalone switch` |
 | nothing (a top) | the same | running `activate` by hand |
 
 `<kind>` is `nvf` or `nixvim`. A hjem configuration has no activation
@@ -1452,6 +1453,17 @@ user reads the units when it starts, so the switch that first adds them
 activates the profiles at the next login. To activate them before then,
 run `systemctl --user daemon-reload` and
 `systemctl --user start caisson-profiles.path caisson-profiles.service`.
+
+On macOS, the files of such a hjem configuration hold the launchd agent
+`org.caisson.profiles`, as
+`~/Library/LaunchAgents/org.caisson.profiles.plist`. The agent runs the
+`activate` of each profile when launchd loads it, which it does at
+login, and when the manifest of the current generation changes. launchd
+expands no variables in the paths an agent watches, so the agent
+watches `~/.local/state/hjem/standalone/current/manifest.json`, where
+hjem keeps the manifest when `XDG_STATE_HOME` is unset. To activate the
+profiles before the next login, run
+`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/org.caisson.profiles.plist`.
 
 **Reset.** The configuration above runs `activate` each time it is
 activated. A profile changed by hand is put back to what the

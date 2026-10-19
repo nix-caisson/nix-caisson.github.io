@@ -1429,18 +1429,36 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 | a NixOS or system-manager machine | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |
 | a darwin machine | the same | a step of `postActivation`, as root |
 | a home | `$HOME/.local/state/caisson/profiles/<kind>/<name>` | a step of the activation of the home, after its files are linked |
-| a hjem configuration inside a machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>` |
+| a hjem configuration inside a NixOS or system-manager machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>`, wanted by `hjem.target` and part of it |
+| a hjem configuration inside a darwin machine | the same | a step of `postActivation`, as the user, after the hjem agents are restarted |
+| a hjem configuration with no machine above it, on Linux | the same | the systemd user service `caisson-profiles` in the files of the hjem configuration, when the systemd of the user starts and at each `hjem standalone switch` |
 | nothing (a top) | the same | running `activate` by hand |
 
 `<kind>` is `nvf` or `nixvim`. A hjem configuration has no activation
-step that a configuration can add to, so the machine it is
-declared inside activates its profiles.
+step that a configuration can add to. A machine activates the profiles
+of a hjem configuration declared inside it. On a NixOS or
+system-manager machine, `hjem.target` starts the units that apply the
+files of each user, at boot and again at every switch, and the unit of
+each profile starts with it.
+
+A hjem configuration with no machine above it is applied with
+`hjem standalone switch`. On Linux, its files hold the systemd user
+units that activate its profiles. The service `caisson-profiles` runs
+the `activate` of each profile, and is wanted by `default.target`. The
+path unit `caisson-profiles` starts the service when
+`$XDG_STATE_HOME/hjem/standalone/current/manifest.json` changes, which
+`hjem standalone switch` writes at every switch. The systemd of the
+user reads the units when it starts, so the switch that first adds them
+activates the profiles at the next login. To activate them before then,
+run `systemctl --user daemon-reload` and
+`systemctl --user start caisson-profiles.path caisson-profiles.service`.
 
 **Reset.** The configuration above runs `activate` each time it is
 activated. A profile changed by hand is put back to what the
 configuration above declares at the next activation: `home-manager
-switch` for a home, a switch of the machine, and a boot, since the
-machine activates its homes and its profiles at boot.
+switch` for a home, a switch of the machine, a boot, since the machine
+activates its homes and its profiles at boot, and `hjem standalone
+switch` for a hjem configuration with no machine above it.
 
 **Choosing a profile.** Each class installs, with
 `profileShimsOf`, a program for each program the Neovims have in

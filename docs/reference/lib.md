@@ -629,10 +629,11 @@ configurations evaluated once for every system, which stay under
 `children.<integration>`.
 
 Where a configuration that is evaluated per system is declared inside
-another, the system of its parent is the default. A home declared
-inside a NixOS configuration has, by default, one evaluation per
-evaluation of the machine, for the same system. The manifest of each
-evaluation of the machine holds that system as `systems`.
+another, the system of its parent is the default. A home-manager
+configuration declared inside a NixOS configuration has, by default,
+one evaluation per evaluation of the machine, for the same system. The
+manifest of each evaluation of the machine holds that system as
+`systems`.
 
 A parent changes this by returning `forChildren.systems`, the systems
 its per-system children are evaluated for: a machine that holds an
@@ -1014,30 +1015,32 @@ the default default: it imports `caisson/nixpkgs` below.
 - **Source:** `modules/nixos/default/`,
   `modules/homeManager/nixos-parent/`
 
-These two modules are what a NixOS configuration gives the homes
-declared inside it.
+These modules are what a NixOS configuration gives the home-manager
+configurations declared inside it.
 
-home-manager has a NixOS module that embeds homes in a machine. For
-each home, that module sets a few options of the home from the
-machine. caisson does not use that NixOS module. A home declared
-inside a NixOS configuration is a caisson configuration, and it gets
-the same settings from the home-manager module
+home-manager has a NixOS module that embeds home-manager
+configurations in a machine. For each home-manager configuration, that
+module sets a few options of the configuration from the machine.
+caisson does not use that NixOS module. A home-manager configuration
+declared inside a NixOS configuration is a caisson configuration, and
+it gets the same settings from the home-manager module
 `caisson/nixos-parent`.
 
 `caisson/default` is the `default` NixOS module caisson registers. A
 NixOS configuration imports every registered module named `default`
 unless it passes `moduleImports`. This module sets
 `caisson.forChildren.extraDefaultModuleImports.homeManager`, which adds
-`caisson/nixos-parent` to the modules that the homes declared inside
-the machine import by default. It also imports
+`caisson/nixos-parent` to the modules that the home-manager
+configurations declared inside the machine import by default. It also
+imports
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation),
-which runs those homes on the machine.
+which runs those home-manager configurations on the machine.
 
 `caisson/default` also imports `caisson/activation-marker`, described
 under
 [drift detection](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift).
-With it, a home prints a warning when it is activated on a machine it
-was not built for.
+With it, a home-manager configuration prints a warning when it is
+activated on a machine it was not built for.
 
 `caisson/default` also imports
 [`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation), which
@@ -1053,43 +1056,49 @@ machine's modules set replaces it. A NixOS configuration with no
 name, and an evaluation without NixOS's networking module (the minimal
 NixOS evaluator), keep NixOS's default.
 
-`caisson/nixos-parent` sets these options of the home:
+`caisson/nixos-parent` sets these options of the home-manager
+configuration:
 
-| Option of the home | Value |
+| Option of the home-manager configuration | Value |
 | --- | --- |
 | `home.homeDirectory` | `users.users.<user>.home` of the machine, when the machine declares that account |
 | `home.uid` | `users.users.<user>.uid` of the machine, when the machine declares that account and its `uid` is set |
 | `nix.enable` | `nix.enable` of the machine |
 | `nix.package` | `nix.package` of the machine, when the machine has Nix enabled |
-| `submoduleSupport.enable` | `true`, which home-manager reads to tell that a machine activates the home |
-| `home.packages` | home-manager's command-line program, when the home sets `programs.home-manager.enable` |
+| `submoduleSupport.enable` | `true`, which home-manager reads to tell that a machine activates the home-manager configuration |
+| `home.packages` | home-manager's command-line program, when the home-manager configuration sets `programs.home-manager.enable` |
 
-`<user>` is `home.username` of the home.
+`<user>` is `home.username` of the home-manager configuration.
 
 A machine whose user is managed by systemd-homed has no entry for
-that user in `users.users`. For such a home, `nixos-parent` leaves
-`home.homeDirectory` and `home.uid` alone, and the home sets its home
-directory itself.
+that user in `users.users`. For such a home-manager configuration,
+`nixos-parent` leaves `home.homeDirectory` and `home.uid` alone, and
+the home-manager configuration sets its home directory itself.
 
-home-manager leaves its command-line program out of a home that has
-`submoduleSupport.enable` set. `nixos-parent` puts it back, because
+home-manager leaves its command-line program out of a home-manager
+configuration that has `submoduleSupport.enable` set. `nixos-parent` puts it back, because
 the program is how the user runs `home-manager switch`.
 
-A NixOS configuration or a home can take `nixos-parent` out:
+A NixOS configuration or a home-manager configuration can take
+`nixos-parent` out:
 
 - A NixOS configuration that passes `moduleImports` selects its
   modules itself. It does not import `caisson/default`, and then no
-  home inside it gets `nixos-parent` from caisson.
-- A home that passes `moduleImports` selects its modules itself, and
-  then that home does not get `nixos-parent`.
+  home-manager configuration inside it gets `nixos-parent` from
+  caisson.
+- A home-manager configuration that passes `moduleImports` selects
+  its modules itself, and then that home-manager configuration does
+  not get `nixos-parent`.
 
 Each can keep it while selecting its other modules. The NixOS
 configuration lists `caisson/default`, which is a NixOS module, in its
-selection. The home lists `caisson/nixos-parent`, which is a
-home-manager module, in its selection.
+selection. The home-manager configuration lists
+`caisson/nixos-parent`, which is a home-manager module, in its
+selection.
 
-`nixos-parent` reads the machine through the manifest of the home, so
-only a home with a NixOS configuration above it can import it.
+`nixos-parent` reads the machine through the manifest of the
+home-manager configuration, so only a home-manager configuration with
+a NixOS configuration above it can import it.
 
 In a NixOS evaluation whose library is not a caisson composition,
 `caisson/default` defines nothing, as the core module declares
@@ -1099,41 +1108,48 @@ nothing there.
 
 - **Source:** `modules/nixos/home-manager-activation/`
 
-The NixOS module with which a machine activates the homes declared
-inside it. `caisson/default` for the `nixos` class imports it, so a
-NixOS configuration has it unless it passes `moduleImports`.
+The NixOS module with which a machine activates the home-manager
+configurations declared inside it. `caisson/default` for the `nixos`
+class imports it, so a NixOS configuration has it unless it passes
+`moduleImports`.
 
-Activating a home means running the `activate` script of its
-activation package as the user of the home. The script links the
-files of the home into the home directory and installs its packages.
-This module writes a systemd unit for each home, so that switching
-the machine to a new generation also applies its homes. caisson does
-not use home-manager's NixOS module for this.
+Activating a home-manager configuration means running the `activate`
+script of its activation package as the user of the home-manager
+configuration. The script links the files of the home-manager
+configuration into the home directory and installs its packages. This
+module writes a systemd unit for each home-manager configuration, so
+that switching the machine to a new generation also applies its
+home-manager configurations. caisson does not use home-manager's NixOS
+module for this.
 
-**Which homes.** The module activates the home-manager configurations
-that the NixOS configuration passes up. Those are the homes declared
-inside it, also through a structural configuration, that its
+**Which home-manager configurations.** The module activates the
+home-manager configurations that the NixOS configuration passes up.
+Those are the home-manager configurations declared inside it, also
+through a structural configuration, that its
 `caisson.home-manager.exported` selector selects. The module leaves
 out:
 
-- A home declared inside a NixOS configuration that is itself inside
-  this one. That home belongs to the inner machine.
-- A home evaluated for a system other than the system of this
-  machine.
+- A home-manager configuration declared inside a NixOS configuration
+  that is itself inside this one. That home-manager configuration
+  belongs to the inner machine.
+- A home-manager configuration evaluated for a system other than the
+  system of this machine.
 
 **The account of the user.** The module expects the machine to declare
-the account of the user of each home in `users.users`. A home whose
-user has no account there is refused, with an assertion that names the
-home and the user. On most machines such a home is a mistake: a
-misspelled user name, or a home declared on the wrong machine.
+the account of the user of each home-manager configuration in
+`users.users`. A home-manager configuration whose user has no account
+there is refused, with an assertion that names the home-manager
+configuration and the user. On most machines such a home-manager
+configuration is a mistake: a misspelled user name, or a home-manager
+configuration declared on the wrong machine.
 
 Some accounts are provided by something other than `users.users`. An
 account that systemd-homed manages is one. systemd-homed keeps the
 record of it, the machine must not declare it a second time, and its
 home directory is mounted only at login. The option
 [`caisson.home-manager.activation.usersDeclaredElsewhere`](./options.md#caissonhome-manageractivationusersdeclaredelsewhere)
-lists the users that have such an account on the machine. The home of
-a listed user is not refused.
+lists the users that have such an account on the machine. The
+home-manager configuration of a listed user is not refused.
 
 **Which unit.** The unit depends on what provides the account of the
 user.
@@ -1145,28 +1161,30 @@ user.
 | Restricted by | `User=<user>` | `ConditionUser=<user>` |
 | Waits for | the home directory, and the Nix daemon socket | the home directory |
 
-`<user>` is `home.username` of the home.
+`<user>` is `home.username` of the home-manager configuration.
 
 The system unit is the unit home-manager's NixOS module writes.
 
-**The profile of the home.** Both units run `activate` with no driver
-version. home-manager calls that the legacy behavior: the script also
-updates the home-manager profile of the user. The user can then run
-`home-manager switch` and `home-manager generations` on the same
-profile. home-manager's NixOS module passes `--driver-version 1`,
+**The profile of the home-manager configuration.** Both units run
+`activate` with no driver version. home-manager calls that the legacy
+behavior: the script also updates the home-manager profile of the
+user. The user can then run `home-manager switch` and `home-manager
+generations` on the same profile. home-manager's NixOS module passes `--driver-version 1`,
 which leaves the profile alone.
 
-**Two homes for one user.** A machine that would activate two homes
-with the same `home.username` fails an assertion. The message names
-the user and both homes. Give one of the homes a different
-`home.username`, or leave one out with
+**Two home-manager configurations for one user.** A machine that would
+activate two home-manager configurations with the same
+`home.username` fails an assertion. The message names the user and
+both home-manager configurations. Give one of the home-manager
+configurations a different `home.username`, or leave one out with
 `caisson.home-manager.exported`.
 
-**Where the module defines nothing.** The module reads the homes from
-the full evaluation of the NixOS configuration, so it defines nothing
-in the childless evaluation. It also defines nothing in a NixOS
-evaluation that declares no systemd options. The nixos-minimal
-integration produces such an evaluation, and a machine of that kind
+**Where the module defines nothing.** The module reads the
+home-manager configurations from the full evaluation of the NixOS
+configuration, so it defines nothing in the childless evaluation. It
+also defines nothing in a NixOS evaluation that declares no systemd
+options. The nixos-minimal integration produces such an evaluation,
+and a machine of that kind
 cannot run units.
 
 ### `modules.nixos."caisson/hjem-activation"`
@@ -1242,16 +1260,17 @@ configuration above it can import it.
 A configuration with an activation, declared inside another
 configuration with an activation, warns when it is activated by hand
 after being built for a different version of the configuration above
-it. A home inside a machine is the common case.
+it. A home-manager configuration inside a machine is the common case.
 
-The machine activates the homes declared inside it. The user can also
-activate such a home by hand, with `home-manager switch`, which builds
-the home from the source the user has checked out. That source can
-describe a different machine than the one that is applied. This
-happens when the user changed the machine and has not switched it yet,
-or when the checkout is older than the machine. A home reads settings
-of its machine, so it was then built for a machine that is not the one
-it is activated on.
+The machine activates the home-manager configurations declared inside
+it. The user can also activate such a home-manager configuration by
+hand, with `home-manager switch`, which builds the home-manager
+configuration from the source the user has checked out. That source
+can describe a different machine than the machine that is applied.
+This happens when the user changed the machine and has not switched it
+yet, or when the checkout is older than the machine. A home-manager
+configuration reads settings of its machine, so it was then built for
+a machine other than the machine it is activated on.
 
 **Which configurations.** An integration whose configurations are
 activated passes `activation` to `mkModuleConfiguration`, and the
@@ -1270,9 +1289,9 @@ because a unit of the machine and a shell of the user may see
 `$XDG_STATE_HOME` differently, and both must find the same file.
 
 The identity is that of the childless evaluation, which leaves out the
-configurations declared inside. A change to a home leaves the identity
-of its machine the same, and a change to anything else about the
-machine changes it.
+configurations declared inside. A change to a home-manager
+configuration leaves the identity of its machine the same, and a
+change to anything else about the machine changes it.
 
 Every configuration with an activation checks the nearest
 configuration above it that has one. A machine is the exception: it is
@@ -1286,8 +1305,9 @@ of the identity into the marker, as `{ "identity": "<digest>" }`.
 Computing the store path evaluates the childless evaluation and builds
 nothing, and the digest names no store path, so the marker depends on
 nothing and cannot be read as a path. A machine writes it with
-`environment.etc`, a home with an activation step after its files are
-linked, and a hjem configuration adds it to its files. The marker is
+`environment.etc`, a home-manager configuration with an activation
+step after its files are linked, and a hjem configuration adds it to
+its files. The marker is
 not written in the childless evaluation, or in a NixOS evaluation
 without `environment.etc`, which the nixos-minimal integration can
 produce.
@@ -1297,12 +1317,12 @@ compares the marker of the configuration above with the digest of the
 identity of that configuration as this configuration was built for it, computed
 from the same childless evaluation through the manifest. It prints a
 warning to standard error when they differ, or when the marker does
-not exist, and does not stop the activation. A home runs it from the
-home-manager module `caisson/activation-drift`, which the home-manager
-`default` module imports, as an activation step before
-`writeBoundary`. The option
-[`caisson.drift.warn`](./options.md#caissondriftwarn) of the home
-removes the step.
+not exist, and does not stop the activation. A home-manager
+configuration runs it from the home-manager module
+`caisson/activation-drift`, which the home-manager `default` module
+imports, as an activation step before `writeBoundary`. The option
+[`caisson.drift.warn`](./options.md#caissondriftwarn) of the
+home-manager configuration removes the step.
 
 **When the configuration above activates it.** The marker then already
 belongs to the generation being activated, so the two are equal, and
@@ -1322,10 +1342,12 @@ not pay for the second evaluation.
 `caisson/default` is the `default` darwin module caisson registers. A
 darwin configuration imports every registered module named `default`
 unless it passes `moduleImports`. It holds what a macOS machine does
-for the homes and the hjem configurations declared inside it.
+for the home-manager configurations and the hjem configurations
+declared inside it.
 
 It adds the home-manager module `caisson/darwin-parent` to the modules
-that the homes inside the machine import by default, and the hjem
+that the home-manager configurations inside the machine import by
+default, and the hjem
 module `caisson/darwin-parent` to those of the hjem configurations.
 They set what home-manager's and hjem's nix-darwin modules set from the
 machine:
@@ -1336,30 +1358,33 @@ machine:
 | | `home.uid` | `users.users.<user>.uid` of the machine, when it is set |
 | | `nix.enable`, `nix.package` | those of the machine |
 | | `submoduleSupport.enable` | `true` |
-| | `home.packages` | home-manager's command-line program, when the home sets `programs.home-manager.enable` |
+| | `home.packages` | home-manager's command-line program, when the home-manager configuration sets `programs.home-manager.enable` |
 | hjem `darwin-parent` | `directory` | `users.users.<user>.home` of the machine, at `mkDefault` priority |
 
 nix-darwin leaves `users.users.<user>.home` at `null` until the machine
 sets it. When the machine declares no account for the user, or the
-account sets no `home`, reading `home.homeDirectory` of the home or
-`directory` of the hjem configuration fails with a message that says
-which of the two the machine is missing. The hjem module also refuses
-such a user with an assertion, which covers a hjem configuration that
-sets `directory` itself. An account without `uid` is accepted, and the
-home's `home.uid` stays unset, as with home-manager's nix-darwin
-module.
+account sets no `home`, reading `home.homeDirectory` of the
+home-manager configuration or `directory` of the hjem configuration
+fails with a message that says which of the two the machine is
+missing. The hjem module also refuses such a user with an assertion,
+which covers a hjem configuration that sets `directory` itself. An
+account without `uid` is accepted, and `home.uid` of the home-manager
+configuration stays unset, as with home-manager's nix-darwin module.
 
 #### `modules.darwin."caisson/home-manager-activation"`
 
-The darwin module with which a machine activates the homes declared
-inside it. `caisson/default` imports it. A step of the machine's
-`postActivation` script runs the `activate` script of each home as its
-user, through `launchctl asuser` and `sudo`, as home-manager's
-nix-darwin module does, so `darwin-rebuild switch` applies the homes. A
-home whose user has no account in `users.users` is refused with an
-assertion, and so is a home whose user's account sets no `home`, which
-matters for a home that sets `home.homeDirectory` itself. Two homes for
-one user are refused as well.
+The darwin module with which a machine activates the home-manager
+configurations declared inside it. `caisson/default` imports it. A
+step of the machine's `postActivation` script runs the `activate`
+script of each home-manager configuration as its user, through
+`launchctl asuser` and `sudo`, as home-manager's nix-darwin module
+does, so `darwin-rebuild switch` applies the home-manager
+configurations. A home-manager configuration whose user has no account
+in `users.users` is refused with an assertion, and so is a
+home-manager configuration whose user's account sets no `home`, which
+matters for a home-manager configuration that sets
+`home.homeDirectory` itself. Two home-manager configurations for one
+user are refused as well.
 
 The step runs `activate` with no driver version, as caisson's NixOS
 activation does. The script then also updates the home-manager profile
@@ -1420,9 +1445,9 @@ the agents and in how it applies the files at an activation:
   `lib-overlays/integrations/default.nix`
 
 An nvf or nixvim configuration is a program a person runs. It relates
-to the configuration it is declared inside as a home relates to its
-machine: it has a separate activation, which the configuration
-above runs each time it is activated itself.
+to the configuration it is declared inside as a home-manager
+configuration relates to its machine: it has a separate activation,
+which the configuration above runs each time it is activated itself.
 
 **The profile.** The configuration has the outputs `activationPackage`
 and `profile`. `activate` checks for
@@ -1438,7 +1463,7 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 | --- | --- | --- |
 | a NixOS or system-manager machine | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |
 | a darwin machine | the same | a step of `postActivation`, as root |
-| a home | `$HOME/.local/state/caisson/profiles/<kind>/<name>` | a step of the activation of the home, after its files are linked |
+| a home-manager configuration | `$HOME/.local/state/caisson/profiles/<kind>/<name>` | a step of the activation of the home-manager configuration, after its files are linked |
 | a hjem configuration inside a NixOS machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>`, wanted by `hjem.target` and part of it |
 | a hjem configuration inside a system-manager machine | the same | the unit `hjem-activate@<user>` of the machine, as the user, after it applies the files of the user |
 | a hjem configuration inside a darwin machine | the same | a step of `postActivation`, as the user, after the hjem agents are restarted |
@@ -1497,18 +1522,18 @@ profiles before the next login, run
 **Reset.** The configuration above runs `activate` each time it is
 activated. A profile changed by hand is put back to what the
 configuration above declares at the next activation: `home-manager
-switch` for a home, a switch of the machine, a boot, since the machine
-activates its homes and its profiles at boot, and `hjem standalone
-switch` or `hjem standalone rollback` for a hjem configuration with no
-machine above it.
+switch` for a home-manager configuration, a switch of the machine, a
+boot, since the machine activates its home-manager configurations and
+its profiles at boot, and `hjem standalone switch` or `hjem standalone
+rollback` for a hjem configuration with no machine above it.
 
 **Choosing a profile.** Each class installs, with
 `profileShimsOf`, a program for each program the Neovims have in
 `bin`: `nvim`, and `vi` and `vim` where they have them. The program
 runs the program of the profile that `$CAISSON_NVIM_PROFILE` names,
 read each time it runs, and of the default of the configuration that
-installed it when the variable is unset. A home and a hjem
-configuration set the variable to their profile, with
+installed it when the variable is unset. A home-manager configuration
+and a hjem configuration set the variable to their profile, with
 `home.sessionVariables` and `environment.sessionVariables`, so the
 programs the machine installs choose the same profile. A shell can
 `export` another value.
@@ -1538,17 +1563,17 @@ class does for a NixOS machine:
 
 | Part | What it does |
 | --- | --- |
-| `caisson/home-manager-activation` | writes the system unit `home-manager-<user>` that activates each home declared inside the machine |
+| `caisson/home-manager-activation` | writes the system unit `home-manager-<user>` that activates each home-manager configuration declared inside the machine |
 | `caisson/hjem-activation` | writes the units of hjem that apply each hjem configuration declared inside the machine, and adds the packages of each user to `users.users.<user>.packages` |
 | `caisson/profile-activation` | activates the profile of each nvf or nixvim configuration declared inside the machine, and installs the programs that choose among them; see [profiles](#profiles-caissonprofile-activation) |
 | `caisson/activation-marker` | records what the machine applied; see [drift detection](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift) |
-| `caisson.forChildren` | gives each home the home-manager module `caisson/system-manager-parent` and each hjem configuration the hjem module `caisson/system-manager-parent` |
+| `caisson.forChildren` | gives each home-manager configuration the home-manager module `caisson/system-manager-parent` and each hjem configuration the hjem module `caisson/system-manager-parent` |
 
 The two activation modules are those of a NixOS machine. system-manager
 declares `users.users` and the systemd options, and starts the units
 that ask for `multi-user.target` with `system-manager.target`,
-so `system-manager switch` applies the homes and the hjem
-configurations. The units and their checks are described at
+so `system-manager switch` applies the home-manager configurations and
+the hjem configurations. The units and their checks are described at
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation)
 and [`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation).
 system-manager has no `system.extraDependencies`, so the hjem module
@@ -1557,14 +1582,15 @@ keeps no extra dependencies in the system there.
 The two `system-manager-parent` modules are the `nixos-parent` modules,
 which read the nearest NixOS or system-manager configuration above the
 child. They set `home.homeDirectory` and `directory` from the account
-the machine declares in `users.users`. A home or a hjem configuration
-inside a system-manager machine is refused when the machine declares no
-account for its user, unless, for a home, the user is listed in
+the machine declares in `users.users`. A home-manager configuration or
+a hjem configuration inside a system-manager machine is refused when
+the machine declares no account for its user, unless, for a
+home-manager configuration, the user is listed in
 `caisson.home-manager.activation.usersDeclaredElsewhere`.
 
-A home declared inside a system-manager machine is published as
-`homeConfigurations."<user>@<machine>"`, as a home inside a NixOS
-machine is.
+A home-manager configuration declared inside a system-manager machine
+is published as `homeConfigurations."<user>@<machine>"`, as a
+home-manager configuration inside a NixOS machine is.
 
 ### `modules.flake."caisson/nixpkgs"`
 
@@ -1741,9 +1767,9 @@ other than the name they are declared under. It takes the name the
 configuration is passed up under and its manifest. It returns `value`,
 the name to publish the configuration under, and optionally
 `description`, a sentence describing how the name was formed. The
-home-manager integration uses it to name a home declared inside a
-NixOS configuration: the name of the home, `@`, and the name of the
-NixOS configuration.
+home-manager integration uses it to name a home-manager configuration
+declared inside a NixOS configuration: the name of the home-manager
+configuration, `@`, and the name of the NixOS configuration.
 
 A structural or flake-parts configuration is built with no `exportsTo`
 and is not published under a name. The configurations declared inside
@@ -2380,18 +2406,18 @@ configuration that narrows the systems beneath it, such as a structural
 configuration with `caisson.forChildren.systems = [ "aarch64-darwin" ];`,
 and its NixOS machines under one narrowed to its Linux systems.
 
-A darwin machine activates the homes and the hjem configurations
-declared inside it, with the modules of
+A darwin machine activates the home-manager configurations and the
+hjem configurations declared inside it, with the modules of
 [`modules.darwin."caisson/default"`](#modulesdarwincaissondefault).
-A home inside a darwin machine is published as `<user>@<machine>`, as a
-home inside a NixOS machine is, and gets `osClass = "darwin"` and the
-machine as `darwinConfig`, as home-manager's nix-darwin module gives
-them.
+A home-manager configuration inside a darwin machine is published as
+`<user>@<machine>`, as a home-manager configuration inside a NixOS
+machine is, and gets `osClass = "darwin"` and the machine as
+`darwinConfig`, as home-manager's nix-darwin module gives them.
 
 caisson's tests evaluate a darwin machine on Linux and compare its
 system with what `darwinSystem` builds from the same module and package
-set. They also evaluate a machine with a home and a hjem configuration
-inside it, and compare the manifest of the hjem configuration with the
+set. They also evaluate a machine with a home-manager configuration and
+a hjem configuration inside it, and compare the manifest of the hjem configuration with the
 manifest hjem's nix-darwin module makes. caisson's CI builds the systems
 of both machines on a macOS runner. Activation on a running machine is
 not tested.
@@ -2419,79 +2445,87 @@ not tested.
   moduleImports?, extraModuleImports?, specialArgs?, osConfig?, check? }
   -> configuration`
 
-  `mkConfiguration` builds a home: a configuration evaluated with
-  home-manager's evaluator, the modules under `<ecosystemSrc>/modules`.
-  A home is declared under
-  `caisson.home-manager.configurations.<name>` in a module of any
-  configuration, or finalized as a top.
+  `mkConfiguration` builds a home-manager configuration: a
+  configuration evaluated with home-manager's evaluator, the modules
+  under `<ecosystemSrc>/modules`. A home-manager configuration is
+  declared under `caisson.home-manager.configurations.<name>` in a
+  module of any configuration, or finalized as a top.
   `mkConfigurationWithEcosystemArgs` takes `ecosystemArgs` as well,
   which is how to pass home-manager's `lib` argument.
 
-  A home is evaluated per system. A home declared inside a NixOS
-  configuration is evaluated for the system of that configuration by
-  default, and the NixOS configuration can list other systems with
-  `caisson.forChildren.systems`. A home declared anywhere else is
-  evaluated for each system the composition declares on `mkLib`,
-  unless a configuration it is declared inside lists others the same
-  way.
+  A home-manager configuration is evaluated per system. A home-manager
+  configuration declared inside a NixOS configuration is evaluated for
+  the system of that configuration by default, and the NixOS
+  configuration can list other systems with
+  `caisson.forChildren.systems`. A home-manager configuration declared
+  anywhere else is evaluated for each system the composition declares
+  on `mkLib`, unless a configuration it is declared inside lists others
+  the same way.
 
   `configModule` defaults to the configuration registered as
   `configs/homeManager/<name>`, where `<name>` is the name of the
-  home. `home.username` defaults to the name the home is declared
-  under, and a module of the home may set a different username.
+  home-manager configuration. `home.username` defaults to the name the
+  home-manager configuration is declared under, and a module of the
+  home-manager configuration may set a different username.
 
-  The home runs on the package set `defaultPkgs` selects (see
-  `caisson.integrations.pkgSetOf`). A home constructed with no
-  `defaultPkgs` and declared inside a NixOS configuration runs on the
-  set of that NixOS configuration, unless the NixOS configuration sets
-  `caisson.forChildren.defaultPkgs`. `pkgs` in the home is that set.
+  The home-manager configuration runs on the package set `defaultPkgs`
+  selects (see `caisson.integrations.pkgSetOf`). A home-manager
+  configuration constructed with no `defaultPkgs` and declared inside a
+  NixOS configuration runs on the set of that NixOS configuration,
+  unless the NixOS configuration sets `caisson.forChildren.defaultPkgs`.
+  `pkgs` in the home-manager configuration is that set.
   The evaluation leaves out home-manager's nixpkgs module, as
   home-manager's NixOS module does under `useGlobalPkgs`, so
   `nixpkgs.config` and `nixpkgs.overlays` belong in the package
   config. The modules can also use any package set for that system by
   config name, through the `pkgSets` special argument.
 
-  A home declared inside a NixOS configuration is given that machine.
-  The integration hands the home the configuration of the machine as
-  the module argument `osConfig`, and the class of the machine as
-  `osClass`. These are the arguments home-manager's NixOS module
-  passes to a home it embeds. The configuration is the childless
-  evaluation of the NixOS configuration, which leaves out the
-  configurations declared inside it, because the home is one of them.
-  A home with no NixOS configuration above it gets `osConfig = null`,
-  as a home evaluated by home-manager alone does. An `osConfig`
-  passed to `mkConfiguration` takes the place of the configuration of
-  the machine.
+  A home-manager configuration declared inside a NixOS configuration
+  is given that machine. The integration hands the home-manager
+  configuration the configuration of the machine as the module
+  argument `osConfig`, and the class of the machine as `osClass`.
+  These are the arguments home-manager's NixOS module passes to a
+  home-manager configuration it embeds. The configuration of the
+  machine is the childless evaluation of the NixOS configuration, which
+  leaves out the configurations declared inside it, because the
+  home-manager configuration is one of them. A home-manager
+  configuration with no NixOS configuration above it gets
+  `osConfig = null`, as a home-manager configuration evaluated by
+  home-manager alone does. An `osConfig` passed to `mkConfiguration`
+  takes the place of the configuration of the machine.
 
-  Such a home also imports the home-manager module `nixos-parent` by
-  default, which the NixOS configuration adds, and which sets the
-  options of the home that come from the machine. The home-manager
-  `default` module gives every home `activation-drift`, which makes a
-  home print a warning when it is activated on a machine it was not
-  built for. The machine activates the home with the NixOS module
-  `home-manager-activation`. See
+  Such a home-manager configuration also imports the home-manager
+  module `nixos-parent` by default, which the NixOS configuration adds,
+  and which sets the options of the home-manager configuration that
+  come from the machine. The home-manager `default` module gives every
+  home-manager configuration `activation-drift`, which makes a
+  home-manager configuration print a warning when it is activated on a
+  machine it was not built for. The machine activates the home-manager
+  configuration with the NixOS module `home-manager-activation`. See
   [`modules.nixos."caisson/default"`](#modulesnixoscaissondefault-moduleshomemanagercaissonnixos-parent).
 
-  A home that passes `moduleImports` selects all of its modules
-  itself. Such a home gets `modules."caisson/nixos-parent"` and
-  `modules."caisson/activation-drift"` only if its list names
-  them. `extraModuleImports` adds
-  to the default selection and keeps both.
+  A home-manager configuration that passes `moduleImports` selects all
+  of its modules itself. Such a home-manager configuration gets
+  `modules."caisson/nixos-parent"` and
+  `modules."caisson/activation-drift"` only if its list names them.
+  `extraModuleImports` adds to the default selection and keeps both.
 
   home-manager's legacy argument `nixosConfig` stays null. Its
   fontconfig module reads `nixosConfig.home-manager.useUserPackages`,
   an option that only home-manager's NixOS module declares, and
   caisson does not use that module.
-- `mkTopConfiguration` takes the same arguments. It finalizes the home
-  at a top and returns the evaluated home with its
-  `activationPackage`, which is what the home-manager CLI reads.
-- A top publishes homes as `homeConfigurations.<name>`. A home
-  declared inside a NixOS configuration is published under the name
-  the home is declared under, `@`, and the name the NixOS
-  configuration is declared under. The home-manager CLI looks up
+- `mkTopConfiguration` takes the same arguments. It finalizes the
+  home-manager configuration at a top and returns the evaluated
+  home-manager configuration with its `activationPackage`, which is
+  what the home-manager CLI reads.
+- A top publishes home-manager configurations as
+  `homeConfigurations.<name>`. A home-manager configuration declared
+  inside a NixOS configuration is published under the name the
+  home-manager configuration is declared under, `@`, and the name the
+  NixOS configuration is declared under. The home-manager CLI looks up
   `$USER@$(hostname)`, so that is the name it finds when the two
-  names are the user and the hostname. A home with no NixOS
-  configuration above it is published under its name.
+  names are the user and the hostname. A home-manager configuration
+  with no NixOS configuration above it is published under its name.
 
 ### `caisson.hjem` (module class `hjem`)
 
@@ -2598,11 +2632,11 @@ composing it needs the home-manager integration composed beside it.
 
 - `mkConfiguration` takes the arguments of
   `caisson.home-manager.mkConfiguration` and returns the same result.
-  The configuration is a home: it is declared under
-  `caisson.home-manager.configurations` and published under
+  The configuration is a home-manager configuration: it is declared
+  under `caisson.home-manager.configurations` and published under
   `homeConfigurations`.
 - `mkTopConfiguration` takes the same arguments and returns the
-  evaluated home.
+  evaluated home-manager configuration.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
 ### `caisson.nixpkgs` (module class `nixpkgsConfig`)
@@ -3422,7 +3456,8 @@ Its value and its output `toplevel` are the system, with the evaluated
 configuration under `passthru.config`. A top publishes it as
 `systemConfigs.default`, which `system-manager switch --flake .` reads
 when it is given no name. A system-manager configuration activates the
-homes and the hjem configurations declared inside it, and the profiles
+home-manager configurations and the hjem configurations declared
+inside it, and the profiles
 of the nvf and nixvim configurations declared inside it, with
 [`modules.systemManager."caisson/default"`](#modulessystemmanagercaissondefault).
 

@@ -1933,10 +1933,12 @@ them, so it is the address of the configuration's manifest under the
 integration's `exportsTo.name` wrote, when it wrote a sentence, and
 then the `exportNote` of each level the configuration passed through.
 `code` holds the files that define each level's `exported`, and the
-position where the integration gives its `exportsTo`, in the same
-order, from the configuration up to the top. The module system keeps
-no line for a definition, so the position of an `exported` has its
-file alone. Both tops publish their manifest as `caisson.manifest`,
+file and line number where the integration gives its `exportsTo`, in
+the same order, from the configuration up to the top. A position is
+`{ file; line; }`, with the line number in `line`. The module system
+records the file of each definition of an option but not its line
+number, so the position of an `exported` has a `line` of null. Both
+tops publish their manifest as `caisson.manifest`,
 carrying the record as `exportRecord`.
 
 `displayName` writes the kept segments out as a name: in path order,

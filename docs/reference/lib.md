@@ -621,7 +621,9 @@ They are read from the childless evaluation and recorded on the
 manifest as `forChildren`. A configuration declared inside inherits
 the selections of its parent, extended by them. Its manifest holds
 the selections added above it as `defaultModuleImports`, those from
-the top first. Every level extends them in turn, so a selection
+the top first, each a record `{ select; file; level; }`: `select` is
+the selection, `file` the file that defines it, and `level` the name
+path of the level that added it. Every level extends them in turn, so a selection
 reaches the configurations beneath the level that added it, nested
 ones and ones beneath a system included.
 
@@ -1746,7 +1748,7 @@ It reads only the options that a module of the evaluation defines.
 
 ```
 frameworkModules      : str -> attrsOf module -> listOf module
-mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; evaluate : view -> evaluated; } -> configuration
+mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; selection ? null; evaluate : view -> evaluated; } -> configuration
 evaluated = { value; outputs ? { }; config ? value.config; modules ? listOf (module | unit); }
 ecosystemUnit : { key : str; project : str; file : nullOr str; } -> unit
 inEcosystem   : { name : str; src : path; } -> listOf module -> listOf (module | unit)
@@ -1765,7 +1767,11 @@ evaluator returned it, and `outputs`, the references into it that the
 integration declares (`config` says where the evaluated options are
 when that is not `value.config`). `defaultPkgs` is the package set
 selection the configuration was constructed with, which the builder
-records on the manifest (`pkgSetOf` below).
+records on the manifest (`pkgSetOf` below). `selection` is
+`{ class; args; }`, the class of the evaluation and the arguments the
+configuration was constructed with, from which the builder records
+how the evaluation selected its modules as `moduleImports`
+(`selectionAccountOf` below). Every integration of caisson passes it.
 
 `evaluate` also returns `modules`, the list of modules the evaluator
 received, in that order, and the builder records a `declaration`
@@ -1859,6 +1865,46 @@ configuration, and reads two of them:
 
 Both are functions of the registry returning modules, and every
 constructor of every integration takes both.
+
+#### `selectionAccountOf`
+
+```
+selectionAccountOf : { class : str; args } -> { lib, manifest } -> account
+account = { act : "default" | "appended" | "reset";
+            position : nullOr { file; line; };
+            default : listOf { key : nullOr str; level : nullOr namePath; file : nullOr str; };
+            selected : listOf (nullOr str); }
+```
+
+How an evaluation of `class`, constructed with `args`, selected its
+modules. The manifest of every configuration records it as
+`moduleImports`, through the `selection` argument of
+`mkModuleConfiguration`. `act` is `default` when the configuration
+took the default of its class, `appended` when it gave
+`extraModuleImports` alone, and `reset` when it gave `moduleImports`.
+`position` is the file and line number where the configuration gave
+the argument, and null for `default`. `default` is the default in
+force, whatever the act: the entries of the registry named `default`,
+with a null `level` and `file`, then each entry a level above added,
+with the name path of the level and the file that defines it.
+`selected` holds the registry keys of the modules selected, null for
+a module that is not from the registry. For a NixOS configuration
+with a home-manager configuration inside it, the home-manager
+configuration records:
+
+```nix
+{
+  act = "default";
+  position = null;
+  default = [
+    { key = "modules.homeManager.caisson/default"; level = null; file = null; }
+    { key = "modules.homeManager.nixos-parent";
+      level = [ { type = "system"; name = "x86_64-linux"; } { type = "nixos"; name = "laptop"; } ];
+      file = "modules/nixos/default/caisson"; }
+  ];
+  selected = [ "modules.homeManager.caisson/default" "modules.homeManager.nixos-parent" ];
+}
+```
 
 #### `pkgSetsForSystem`, `pkgSetOf`
 

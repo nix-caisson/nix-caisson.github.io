@@ -1459,14 +1459,6 @@ at the Neovim, `activate` changes nothing, so activating the same
 generation again adds no generation. The profile keeps its generations,
 so it can be rolled back with `nix-env --profile <path> --rollback`.
 
-When an nvf or nixvim configuration is removed from the configuration
-it is declared inside, the next activation stops activating its
-profile. The profile stays where it was and keeps the last Neovim it
-was given, which it still holds as a garbage-collector root. To delete
-it, remove the profile and its generations with
-`rm <path> <path>-*-link`, as the user who owns it, and then run
-`nix-collect-garbage` to free the Neovim.
-
 | Declared inside | Profile | Activated by |
 | --- | --- | --- |
 | a NixOS or system-manager machine | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |

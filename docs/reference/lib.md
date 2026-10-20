@@ -1880,12 +1880,16 @@ constructors. In a
 flake it selects the `pkgs` of `perSystem`. A structural configuration
 runs on no package set and selects for what is beneath it.
 
-#### `entriesOf`, `publish`, `displayName`, `topValue`
+#### `entriesOf`, `publish`, `recordOf`, `displayName`, `topValue`
 
 ```
-entriesOf   : attrsOf (attrsOf finalized) -> listOf entry
+entriesOf   : attrsOf level -> attrsOf (attrsOf finalized) -> listOf entry
 publish     : listOf entry -> attrsOf (attrsOf value)
-entry       = { path; manifest; attrset; value; description ?; }
+recordOf    : listOf entry -> attrsOf (attrsOf recordEntry)
+entry       = { path; namePath; notes; code; manifest; attrset; value; description ?; }
+level       = { notes : listOf str; code : listOf position; }
+recordEntry = { from.namePath; notes; code; }
+position    = { file; line : int | null; }
 displayName : listOf str -> str
 topValue    : attrsOf manifest -> value | attrsOf value
 ```
@@ -1894,8 +1898,13 @@ How the configurations in a tree are named and published.
 
 `entriesOf` gives the entries a configuration passes up: an entry for
 each configuration declared inside it, directly or deeper, whose
-manifest records `exportsTo`. Its argument is what each integration's
-`exported` selected, by integration and then name.
+manifest records `exportsTo`. Its second argument is what each
+integration's `exported` selected, by integration and then name. Its
+first argument is what the configuration adds, for each integration,
+to the entries of that integration's configurations it passes up:
+`notes`, its `caisson.<integration>.exportNote` as a list, and `code`,
+the files that define its `caisson.<integration>.exported`. A
+selector left at its default adds no file.
 
 The configuration that passes a child up makes the entry, because it
 knows the name the child is declared under. The entry holds the
@@ -1914,6 +1923,23 @@ values by attribute set and name. Entries that still share a name are
 refused, with their paths. The flake-parts top writes the
 result into the flake outputs, and the structural top into what it
 returns.
+
+`recordOf` is the export record of the same entries, keyed as
+`publish` keys the values. For each name published, `from.namePath`
+is the path from the top to the configuration by the names the
+configurations are declared under, before any `exported` renamed
+them, so it is the address of the configuration's manifest under the
+`children` of the top's manifest. `notes` holds the sentence the
+integration's `exportsTo.name` wrote, when it wrote a sentence, and
+then the `exportNote` of each level the configuration passed through.
+`code` holds the files that define each level's `exported`, and the
+file and line number where the integration gives its `exportsTo`, in
+the same order, from the configuration up to the top. A position is
+`{ file; line; }`, with the line number in `line`. The module system
+records the file of each definition of an option but not its line
+number, so the position of an `exported` has a `line` of null. Both
+tops publish their manifest as `caisson.manifest`,
+carrying the record as `exportRecord`.
 
 `displayName` writes the kept segments out as a name: in path order,
 separated by `/`. Every name caisson publishes is written by it.

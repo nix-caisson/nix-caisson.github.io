@@ -25,8 +25,8 @@ Configurations, grouped by module class and named for **what they
 configure**. A flake-parts config configures the flake itself, so there
 is typically exactly one, named after the flake (this repository uses
 `configs/flake/caisson/`) or `default`. In other classes,
-a config is named for the thing it describes: a machine, a home, a
-deployment.
+a config is named for the thing it describes: a machine, a
+home-manager configuration, a deployment.
 
 ## lib-overlays/
 

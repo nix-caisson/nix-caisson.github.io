@@ -88,8 +88,14 @@ nested use of `mkModule` stays in that class.
 ## Registration APIs
 
 The class-keyed registry is in the manifest of the library, and
-`lib.caisson.modules` reads it from there. Modules enter the registry
-in these ways:
+`lib.caisson.modules` reads it from there. Each module there is the
+registered module inside a module that imports it and carries the key
+`modules.<class>.<name>@<project>`, the registry key and the project
+that registered it. The module system imports the modules that share a
+key once, so a registry entry an evaluation selects twice is imported
+once. The key is also how the history of an evaluation names the
+registry entry each of its modules is (`declaration` events). Modules
+enter the registry in these ways:
 
 - **Local registration.** The `modules` argument of `mkLib` is a
   function that receives the composed `lib` and returns the class-keyed

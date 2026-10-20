@@ -394,8 +394,9 @@ and `pkgOverlays` registrations. A layer event carries `prev` and
 `result` as the stage that recorded it composed them.
 
 ```
-event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib
-          type : "lib"; operation : "registry" | "layer";
+event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib and the top
+          type : str;                                        # "lib", or the integration
+          operation : "registry" | "layer" | "declaration";
           key : str; index : int;                            # index within its operation
           origin : { project : nullOr str; file : nullOr str; };
           prev ? attrs; result ? attrs; }                    # layer events only, lazy
@@ -410,6 +411,33 @@ call `final: prev: result`: `prev` is the accumulation it received and
 `result` the attrset it returned. They are the
 values the lib was built from, and nothing reads them until
 `definers` does.
+
+The manifest of every configuration has a `history` too. The history
+of its childless manifest is the history of its parent, then a
+`declaration` event for each module its evaluator received, in that
+order. The history of its full manifest is the history of the
+childless manifest, then what each configuration beneath adds after
+the history it began with, so the history of a child always begins
+with the childless history of its parent. `manifest` is the name path
+of the configuration, the `{ type, name }` of each manifest beneath
+the top, which is its address under `children` of the top's manifest;
+a configuration evaluated per system has its system as a segment.
+The key of a `declaration` event says what the module is:
+
+- the name of the ecosystem, such as `nixos`, for the module list of
+  the ecosystem, recorded as a single event, with the source and the
+  file the list comes from (`nixpkgs`, `nixos/modules/module-list.nix`);
+- `caisson.<class>` for the framework module of caisson, and
+  `caisson.<…>` for the other modules caisson adds;
+- the registry key, such as `modules.nixos.default`, for a module
+  selected from the registry, with the project that registered it;
+- the path, for a module given as a path;
+- `inline/<index>` for any other module, its position among the
+  events of the evaluation, with the file the module names, where it
+  names a file.
+
+A file inside a source in the Nix store is written relative to that
+source.
 
 ### `definers`
 
@@ -1714,12 +1742,14 @@ leaving out an integration with none: the `children`
 `mkModuleConfiguration` hands to `lib.caisson-core.mkConfiguration`.
 It reads only the options that a module of the evaluation defines.
 
-#### `frameworkModules`, `mkModuleConfiguration`
+#### `frameworkModules`, `mkModuleConfiguration`, `ecosystemUnit`, `inEcosystem`
 
 ```
 frameworkModules      : str -> attrsOf module -> listOf module
 mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; evaluate : view -> evaluated; } -> configuration
-evaluated = { value; outputs ? { }; config ? value.config; }
+evaluated = { value; outputs ? { }; config ? value.config; modules ? listOf (module | unit); }
+ecosystemUnit : { key : str; project : str; file : nullOr str; } -> unit
+inEcosystem   : { name : str; src : path; } -> listOf module -> listOf (module | unit)
 exportsTo = export | listOf export
 export    = { attrset : str; value : manifest -> value; single ? false : bool;
               bySystem ? false : bool; only ? : manifest -> bool;
@@ -1736,6 +1766,21 @@ integration declares (`config` says where the evaluated options are
 when that is not `value.config`). `defaultPkgs` is the package set
 selection the configuration was constructed with, which the builder
 records on the manifest (`pkgSetOf` below).
+
+`evaluate` also returns `modules`, the list of modules the evaluator
+received, in that order, and the builder records a `declaration`
+event in the history of the manifest for each element (`manifest`
+above). Where the evaluator receives the module list of the ecosystem,
+the list holds an `ecosystemUnit` instead of those modules, so the
+module list is a single event: `key` names the ecosystem, `project`
+the source, and `file` the file of the list inside the source, null
+when the list has no single file. NixOS records
+`ecosystemUnit { key = "nixos"; project = "nixpkgs"; file = "nixos/modules/module-list.nix"; }`
+before the modules of the composition, since eval-config adds its
+module list first. `inEcosystem` makes those units for an integration
+whose list names modules of the ecosystem by their files: each module
+of the list inside the source `src` becomes an `ecosystemUnit` of the
+source `name`, with its file inside the source.
 
 `exportsTo` says how the configuration is published, and the builder
 records it on the manifest too. It is one export, or a list of them for

@@ -188,7 +188,8 @@ selection, and export.
 ## 4. Use an integration
 
 Integrations bring the same conventions to other module ecosystems
-and take their ecosystem as an explicit `ecosystemSrc`. A NixOS
+and take their ecosystem as an explicit `ecosystemSrc`, a function of
+the tree's `sources`. A NixOS
 configuration takes its systems and its package set from the
 composition: it is evaluated per system, once for each system `mkLib`
 declares, on the
@@ -199,7 +200,7 @@ the evaluated configuration. At the top level of the config module:
 
 ```nix
   flake.nixosConfigurations.example = lib.caisson.nixos.mkTopConfiguration {
-    ecosystemSrc = inputs.nixpkgs;
+    ecosystemSrc = sources: sources.nixpkgs;
     configModule =
       { ... }:
       {
@@ -214,10 +215,13 @@ the evaluated configuration. At the top level of the config module:
 ```
 
 Instead of passing `ecosystemSrc` at every call, the `mkLib` call can
-declare a default (`defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`) and
+declare a default for the `nixos` key, the key a NixOS configuration
+reads
+(`defaultEcosystemSrc = sources: { nixos = sources.nixpkgs; };`), and
 the argument can be dropped; an explicit argument still wins, and the
-source named exactly `nixpkgs` in the `sources` passed to `mkLib` is
-the last fallback.
+source named exactly `nixos` in the `sources` passed to `mkLib` is the
+last fallback. See
+[Ecosystem sources](concepts/ecosystem-sources.md).
 
 With caisson consumed as a project, its integration overlays are
 already registered and applied, so `caisson.nixos` is present. To

@@ -12,18 +12,20 @@ without `mkLib` when you want to.
 the seed is the empty attribute set, and nixpkgs' library arrives as
 an entry like everything else.
 
-- `defaultEcosystemSrc`: the tree's default source per ecosystem, by
-  exact name (see [Ecosystem sources](../concepts/ecosystem-sources.md)).
-  `nixpkgs` supplies the `nixpkgs-lib` part of the stack unless
-  `nixpkgs-lib` is declared separately, such as the
-  `nix-community/nixpkgs.lib` mirror for a flake that carries no
-  nixpkgs. The `nixpkgs-lib` integration of caisson, at
-  `lib-overlays/nixpkgs-lib` in the caisson source tree, is the entry
-  that imports the `lib` directory of that source, with the fixed
-  point upstream computes. It loads the source declared by the flake
-  whose `mkLib` call composes it, including when that flake consumes
-  caisson as a project. The caisson integrations import the entry. An
-  overlay outside caisson
+- `defaultEcosystemSrc`: a function of the tree's `sources`,
+  returning the tree's default source per ecosystem key (see
+  [Ecosystem sources](../concepts/ecosystem-sources.md)). An
+  attribute set given in place of the function is refused. A tree
+  declares `nixpkgs-lib` under this key for a mirror such as
+  `nix-community/nixpkgs.lib`, for a flake that carries no nixpkgs, or
+  for a nixpkgs checkout pinned under another input name. The
+  `nixpkgs-lib` integration of caisson, at `lib-overlays/nixpkgs-lib`
+  in the caisson source tree, is the entry that imports the `lib`
+  directory of the source resolved under the `nixpkgs-lib` key, with
+  the fixed point upstream computes. It loads the source declared by
+  the flake whose `mkLib` call composes it, including when that flake
+  consumes caisson as a project. The caisson integrations import the
+  entry. An overlay outside caisson
   that calls upstream's functions imports it by key from the caisson
   source tree:
   `(mkLibOverlay (closure-inputs.caisson.outPath + "/lib-overlays/nixpkgs-lib")) // { key = "nixpkgs-lib"; }`.

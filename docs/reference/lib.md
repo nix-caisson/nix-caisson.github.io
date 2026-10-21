@@ -51,8 +51,8 @@ mkLib :
                       : lib -> attrsOf pkgOverlay          # given the bootstrap lib
   , pkgSets           ? (lib: { })
                       : lib -> attrsOf configuration       # package configs by name, given the registered lib
-  , defaultEcosystemSrc ? { } : attrs                      # the tree's default source per ecosystem, by exact name;
-                                                           # nixpkgs supplies the nixpkgs-lib part unless nixpkgs-lib is declared separately
+  , defaultEcosystemSrc ? (sources: { })
+                      : sources -> attrs                   # the tree's default source per ecosystem key, as a function of sources
   , systems           ? null : listOf str                  # the platforms the tree builds on
   , projects          ? { } : attrs                        # consumed upstream contributions, by project name
   } -> lib
@@ -65,9 +65,11 @@ then the synthetic overlays: the local module registrations (so local
 names win over overlay-borne contributions) and the manifest. In a
 flake that uses caisson, the selected overlays include the
 `nixpkgs-lib` entry, which is the `lib` of nixpkgs loaded from the
-source that `defaultEcosystemSrc` declares. The caisson integration
-overlays import it. Every source arrives as an argument or a
-declaration; the exact-name fallback over `sources` applies to
+source `ecosystemSrc "nixpkgs-lib"` resolves: the source
+`defaultEcosystemSrc sources` returns for the `nixpkgs-lib` key, else
+the source pinned under exactly that name in `sources`. The caisson
+integration overlays import it. Every source arrives as an argument
+or a declaration; the exact-name fallback over `sources` applies to
 ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
 
@@ -156,12 +158,16 @@ naming `mkLib` and pointing at the pattern.
   it keeps the default.
   Registration also feeds export, so what is registered and what is
   selected can differ.
-- `defaultEcosystemSrc` declares the tree's default source per
-  ecosystem (`{ nixpkgs = inputs.nixpkgs; ... }`), keyed by the exact
-  names the integrations resolve. mkLib captures them into the
-  manifest and reads the `nixpkgs-lib` source from them (the
-  `nixpkgs-lib` name, else `nixpkgs`); the integrations interpret the
-  rest.
+- `defaultEcosystemSrc` is a function of `sources` returning the
+  tree's default source per ecosystem key, keyed by the exact names
+  the integrations resolve
+  (`sources: { nixpkgs-lib = sources.nixpkgs; nixos = sources.nixpkgs; }`
+  gives the library and the NixOS module collection from a checkout
+  pinned under the `nixpkgs` key). An attribute set given in place of
+  the function is refused. mkLib captures the function in the
+  manifest, and the `nixpkgs-lib` entry it composes reads its source
+  through `ecosystemSrc "nixpkgs-lib"`, the same resolution every
+  ecosystem uses; the integrations interpret the rest.
 - `projects` consumes whole upstream contributions
   (`{ my-dep = inputs.my-dep; }`). A project contributes the
   dictionaries `libOverlays`, `pkgOverlays` and class-keyed `modules`.
@@ -335,7 +341,7 @@ manifest : { _type : "caisson-manifest"; type : "lib";
              configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
              pkgOverlays : attrsOf pkgOverlay;
-             defaultEcosystemSrc : attrs; systems : nullOr (listOf str);
+             defaultEcosystemSrc : sources -> attrs; systems : nullOr (listOf str);
              projects : attrs;
              childless : bool; inputs : list; parent : nullOr manifest;
              ancestors : listOf manifest; nearest : attrsOf manifest;
@@ -521,8 +527,8 @@ lib.caisson-core.ecosystemSrc : name -> source | null
 ```
 
 `ecosystemSrc` takes an ecosystem name and returns the source the
-composition supplies for exactly that name. That is the
-`defaultEcosystemSrc.<name>` the composition declares, or else the
+composition supplies for exactly that name. That is the source
+`defaultEcosystemSrc sources` selects for that name, or else the
 source it pins under that name, or else null. The result is fixed by
 the arguments of the `mkLib` call.
 
@@ -1676,6 +1682,18 @@ Required arguments are bare in the pattern and optional arguments
 default to `null`; the composition supplies the value of an omitted
 argument. `builtins.functionArgs` reads a signature back as data.
 
+#### `selectedEcosystemSrc`
+
+```
+lib.caisson.integrations.selectedEcosystemSrc : context -> manifest -> explicit -> src | null
+```
+
+`selectedEcosystemSrc` applies a configuration's `ecosystemSrc`
+argument, a function of `sources` or null, to the `sources` of
+`manifest`. It returns null for a null `explicit`, and refuses an
+`explicit` that is not a function. `context` names the caller in that
+refusal's message.
+
 #### `resolveEcosystemSrc`
 
 ```
@@ -1684,10 +1702,12 @@ resolveEcosystemSrc : { name, context } -> { explicit ? null, manifest ? libMani
 
 `resolveEcosystemSrc` finds the source of an ecosystem in the layered
 order that [Ecosystem sources](../concepts/ecosystem-sources.md)
-describes: the explicit argument first, then `defaultEcosystemSrc.<name>`
-as declared in the composition, then the pinned source named exactly `<name>`.
-The first call names the ecosystem and the caller; the second supplies
-the explicit argument and the manifest to read the declarations from.
+describes: `selectedEcosystemSrc` applied to the explicit argument
+first, then the source `defaultEcosystemSrc sources` returns for the
+name, then the pinned source named exactly `<name>`. The first call
+names the ecosystem and the caller; the second supplies the explicit
+argument and the manifest to read the sources and the declarations
+from.
 When nothing provides a source, it throws a message that names the
 caller and those places.
 
@@ -2179,16 +2199,18 @@ every ecosystem, flake-parts included, is resolved from the
 composition of the consumer.
 
 An adapter's ecosystem source resolves in layers: the explicit
-`ecosystemSrc` argument first, then the composition's declared
-`defaultEcosystemSrc.<name>` (an mkLib argument, carried by the
-manifest), then the source named exactly `<name>` in the `sources`
-passed to mkLib. The name is the integration's ecosystem, and one
-ecosystem may serve several integrations: `nixpkgs` for the nixos,
-nixos-minimal and nixpkgs integrations, `colmena` for the
-caisson-colmena and colmena integrations, `disko` for the caisson-disko
-and disko integrations, `nix-darwin` for the darwin integration, then
-`home-manager`, `hjem`, `terranix`, `system-manager` and `flake-parts` for the
-integration of the same name
+`ecosystemSrc` argument first, applied to `sources` through
+`selectedEcosystemSrc`; then the source `defaultEcosystemSrc sources`
+returns for `<name>` (`defaultEcosystemSrc` is an mkLib argument,
+carried by the manifest); then the source named exactly `<name>` in
+the `sources` passed to mkLib. The name is the integration's
+ecosystem, and a single ecosystem may serve several integrations:
+`nixos` for the nixos and nixos-minimal integrations, `nixpkgs` for
+the nixpkgs integration, `colmena` for the caisson-colmena and colmena
+integrations, `disko` for the caisson-disko and disko integrations,
+`nix-darwin` for the darwin integration, then `home-manager`, `hjem`,
+`terranix`, `system-manager` and `flake-parts` for the integration of
+the same name
 (the table in
 [Ecosystem sources](../concepts/ecosystem-sources.md)). A full
 miss throws at the adapter, naming those places; a composition
@@ -2319,7 +2341,7 @@ mkConfiguration :
   { configModule  ? (the configuration registered under the name)
                   : module                                  # flake class
   , pkgSets       ? null                                    # the `pkgSets` special argument
-  , ecosystemSrc  ? null                                    # the flake-parts source
+  , ecosystemSrc  ? null : sources -> source                # the flake-parts source
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the flake class registry
   , specialArgs   ? { }                                     # beside `lib`, the composed library
@@ -2347,9 +2369,9 @@ mkConfiguration :
   every adapter selects from, so modules arriving by local
   registration, overlay contribution, or consumed project are all
   selectable. flake-parts itself resolves like every ecosystem, from
-  `ecosystemSrc`, `defaultEcosystemSrc.flake-parts` or the pinned
-  source named `flake-parts`, and is instantiated over the composed
-  library. The name of the configuration sets flake-parts'
+  `ecosystemSrc`, the source `defaultEcosystemSrc sources` returns for
+  `flake-parts`, or the pinned source named `flake-parts`, and is
+  instantiated over the composed library. The name of the configuration sets flake-parts'
   `moduleLocation`, so exported modules deduplicate across revisions.
 - `mkTopConfiguration`: the same arguments. It finalizes the
   configuration with `lib.caisson-core.finalizeTop`, under the name
@@ -2383,7 +2405,7 @@ mkConfiguration :
 mkConfiguration :
   { configModule  ? (the configuration registered under the name)
                   : module                                  # nixos class
-  , ecosystemSrc  ? null                                    # the nixpkgs source tree
+  , ecosystemSrc  ? null : sources -> source                # the source under the `nixos` key
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the nixos class registry
   , specialArgs   ? { }
@@ -2393,9 +2415,12 @@ mkConfiguration :
   Returns a configuration, a function of `{ name, parent }`, built
   with `lib.caisson-core.mkConfiguration`. A parent that declares it
   under `caisson.nixos.configurations.<name>` finalizes it, and
-  `mkTopConfiguration` finalizes it at a top. The evaluation is
-  `<ecosystemSrc>/nixos/lib/eval-config.nix` (a nixpkgs source tree)
-  over the selected class modules and the config module. When
+  `mkTopConfiguration` finalizes it at a top. `ecosystemSrc` resolves
+  under the `nixos` key (see
+  [Ecosystem sources](../concepts/ecosystem-sources.md)); the
+  evaluation is `<ecosystemSrc>/nixos/lib/eval-config.nix`, a nixpkgs
+  source tree, over the selected class modules and the config module.
+  When
   `configModule` is absent, the config module is the configuration
   registered under the configuration's name,
   `lib.caisson.configs.nixos.<name>`.
@@ -2774,7 +2799,7 @@ the class are registered under `modules/nixpkgsConfig/<name>`.
 lib.caisson.nixpkgs.mkConfiguration :
   { configModule  ? null : module      # the config's module
   , moduleImports ? null : registry -> listOf module
-  , ecosystemSrc  ? null : path        # the nixpkgs source tree
+  , ecosystemSrc  ? null : sources -> path  # the nixpkgs source tree for this config
   } -> configuration
 ```
 
@@ -2783,9 +2808,15 @@ defaults to the configuration registered under the name the config is
 declared under (`lib.caisson.configs.nixpkgsConfig.<name>`), and
 a config with neither evaluates with no module of the tree.
 `moduleImports` selects from the `nixpkgsConfig` module registry and
-defaults to every entry named `default`. `ecosystemSrc` is the
-nixpkgs tree, resolved from the composition's declarations when
-absent (see [Ecosystem sources](../concepts/ecosystem-sources.md)).
+defaults to every entry named `default`. `ecosystemSrc` is a function
+of `sources` returning the nixpkgs tree for this config, replacing
+the `nixpkgs` key for this evaluation and nothing else; a value given
+in place of the function is refused. A config on another nixpkgs
+revision writes
+`ecosystemSrc = sources: sources.nixpkgs-stable;`. When
+`ecosystemSrc` is absent, the tree resolves from the composition's
+declarations (see
+[Ecosystem sources](../concepts/ecosystem-sources.md)).
 
 It returns a configuration: a function `{ name, parent }: manifest`
 that `mkLib` calls. The manifest has `type = "nixpkgs"`, the config's
@@ -3580,13 +3611,16 @@ of the nvf and nixvim configurations declared inside it, with
 
 A system-manager configuration runs on the package set selected for it
 (`defaultPkgs`, else the set named `default`), as every other
-integration does, and on the nixpkgs the composition declares, as a
-NixOS configuration does. system-manager's flake publishes
-`makeSystemConfig` from its `nix/lib.nix` called with the nixpkgs the
-flake pins. caisson calls the same file with the composition's nixpkgs
-and the composed library, as the NixOS integration calls
-`nixos/lib/eval-config.nix`. The library, the NixOS modules
-system-manager imports and the evaluation all come from there.
+integration does, and on the source resolved under the `nixos` key,
+as a NixOS configuration does (see
+[Ecosystem sources](../concepts/ecosystem-sources.md)).
+system-manager's flake publishes `makeSystemConfig` from its
+`nix/lib.nix` called with the nixpkgs the flake pins. caisson calls
+the same file with the source resolved under the `nixos` key and the
+composed library, as the NixOS integration calls
+`nixos/lib/eval-config.nix`. The library and the evaluation come from
+the composed library; the NixOS modules system-manager imports come
+from the source resolved under the `nixos` key.
 
 `makeSystemConfig` makes `pkgs` itself and declares `nixpkgs.pkgs`
 read-only. caisson passes the selected set as the `pkgs` special

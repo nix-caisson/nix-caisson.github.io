@@ -88,6 +88,35 @@ The `nixpkgs` key needs no entry here: the source pinned under the
 input name `nixpkgs` already resolves there, through the exact-name
 fallback below.
 
+### The library of a project that other flakes list
+
+We recommend that a project other flakes list in `projects` take its
+library from the nixpkgs.lib mirror, a repository that holds only the
+`lib/` directory of nixpkgs:
+
+```nix
+inputs.nixpkgs-lib.url = "github:nix-community/nixpkgs.lib";
+```
+
+A flake that lists a project reads the outputs of that project, and
+reading them builds the lib of the project. Building that lib fetches
+the library source the project pins. The mirror is about 1.4 MB in the
+store, and a nixpkgs checkout is about 210 MB. A flake that lists
+several projects fetches the library source of each of them, once per
+distinct revision.
+
+The mirror follows the `master` branch of nixpkgs and is updated about
+once a week. Its revision is therefore rarely the revision of the
+nixpkgs a package set comes from. A project that only publishes
+modules and overlays runs only its registrations and its top
+configuration on its library. The flakes that list it evaluate its
+modules and overlays on their own lib, so the difference does not
+reach them. A project
+that also builds packages or configurations runs them on a library up
+to a week apart from its package set. Such a project can instead build
+them in a tree of its checks partition whose `nixpkgs-lib` and
+`nixpkgs` name the same checkout.
+
 ## Which integration uses which ecosystem
 
 One ecosystem may be wrapped by several integrations, each with a

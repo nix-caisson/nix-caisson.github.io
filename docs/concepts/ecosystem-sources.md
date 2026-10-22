@@ -115,10 +115,11 @@ reach them. A project that also builds packages or configurations runs
 them on a library up to a week apart from its package set.
 
 nixpkgs reads `lib.maintainers` and `lib.teams` from its `maintainers`
-directory, beside `lib/`. Those two attributes describe the packages
-of a package set. Inside a
-package set, the nixpkgs integration takes them from the source of
-that package set, so a package set builds on the mirror.
+directory, beside `lib/`. Those two attributes, `lib.licenses` and
+`lib.sourceTypes` describe the packages of a package set. Inside a
+package set, the nixpkgs integration takes all four from the source of
+that package set. A package set therefore builds on the mirror, and
+its packages see the licenses of their own revision.
 
 ## Which integration uses which ecosystem
 

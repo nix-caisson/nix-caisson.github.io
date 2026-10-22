@@ -63,13 +63,15 @@ Yes, you manage the ecosystem pins in your own flake, which is the
 point: a caisson integration is glue over the ecosystem's evaluator,
 composing with whatever ecosystem source version you give it, so
 caisson imposes no transitive pins and two consumers of the same
-caisson revision can run different nixpkgs revisions. Version skew within your
-ecosystems lives in your own locks, where you can see and manage it. A
-flake that uses one version of an ecosystem everywhere can set a
-flake-level default at `mkLib` (`defaultEcosystemSrc.nixpkgs = inputs.nixpkgs`). But it's
-also possible to explicitly pass it on each caisson call. The explicit
-argument wins, and a pinned source named exactly like the ecosystem
-is the final fallback (handy for leaf nodes).
+caisson revision can run different nixpkgs revisions. Version skew
+within your ecosystems lives in your locks, where you can see and
+manage it. A flake that uses one version of an ecosystem everywhere
+can set a flake-level default at `mkLib`, a function of `sources`
+(`defaultEcosystemSrc = sources: { nixos = sources.nixpkgs; };`). It
+is also possible to pass `ecosystemSrc`, also a function of
+`sources`, explicitly on each caisson call. The explicit argument
+wins, and a source named exactly like the key is the final fallback
+(handy for leaf nodes).
 
 
 ### What does this cost at evaluation time?

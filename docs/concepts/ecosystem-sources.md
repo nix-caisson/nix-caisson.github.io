@@ -111,11 +111,14 @@ nixpkgs a package set comes from. A project that only publishes
 modules and overlays runs only its registrations and its top
 configuration on its library. The flakes that list it evaluate its
 modules and overlays on their own lib, so the difference does not
-reach them. A project
-that also builds packages or configurations runs them on a library up
-to a week apart from its package set. Such a project can instead build
-them in a tree of its checks partition whose `nixpkgs-lib` and
-`nixpkgs` name the same checkout.
+reach them. A project that also builds packages or configurations runs
+them on a library up to a week apart from its package set.
+
+nixpkgs reads `lib.maintainers` and `lib.teams` from its `maintainers`
+directory, beside `lib/`. Those two attributes describe the packages
+of a package set. Inside a
+package set, the nixpkgs integration takes them from the source of
+that package set, so a package set builds on the mirror.
 
 ## Which integration uses which ecosystem
 

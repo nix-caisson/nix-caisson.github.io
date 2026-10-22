@@ -130,9 +130,10 @@ Inside a package set, the nixpkgs integration takes the package-set
 libraries from the source of that package set, together with the
 names nixpkgs publishes from them at the top level of its library,
 such as `lib.getExe` and `lib.callPackageWith`. The packages of a set
-are written against those libraries at the revision of the set. A
-package set on a stable release therefore builds on the mirror, which
-follows the unstable branch. nixpkgs reads `maintainers` and `teams`
+are written against those libraries at the revision of the set. The
+general utilities still come from the mirror, which follows the
+unstable branch, so a package set of a stable release meets the
+general utilities of a later revision wherever its packages call them. nixpkgs reads `maintainers` and `teams`
 from its `maintainers` directory beside `lib/`, so a package set
 needs them from the source of the package set in any case.
 

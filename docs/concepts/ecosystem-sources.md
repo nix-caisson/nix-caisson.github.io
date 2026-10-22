@@ -112,14 +112,33 @@ modules and overlays runs only its registrations and its top
 configuration on its library. The flakes that list it evaluate its
 modules and overlays on their own lib, so the difference does not
 reach them. A project that also builds packages or configurations runs
-them on a library up to a week apart from its package set.
+them on general utilities and a module system of the mirror revision.
 
-nixpkgs reads `lib.maintainers` and `lib.teams` from its `maintainers`
-directory, beside `lib/`. Those two attributes, `lib.licenses` and
-`lib.sourceTypes` describe the packages of a package set. Inside a
-package set, the nixpkgs integration takes all four from the source of
-that package set. A package set therefore builds on the mirror, and
-its packages see the licenses of their own revision.
+nixpkgs' library holds two kinds of library. The general utilities
+(`strings`, `lists`, `attrsets` and the rest) and the module system
+(`modules`, `options`, `types`) serve every evaluation, and a tree
+supplies them from its `nixpkgs-lib` key. The package-set libraries
+describe and build packages:
+
+- `systems` and `platforms`, the platform model;
+- `meta`, `licenses`, `sourceTypes`, `maintainers` and `teams`, the
+  package metadata;
+- `customisation`, which holds `callPackageWith` and `makeOverridable`;
+- `derivations`, `fetchers` and `versions`.
+
+Inside a package set, the nixpkgs integration takes the package-set
+libraries from the source of that package set, together with the
+names nixpkgs publishes from them at the top level of its library,
+such as `lib.getExe` and `lib.callPackageWith`. The packages of a set
+are written against those libraries at the revision of the set. A
+package set on a stable release therefore builds on the mirror, which
+follows the unstable branch. nixpkgs reads `maintainers` and `teams`
+from its `maintainers` directory beside `lib/`, so a package set
+needs them from the source of the package set in any case.
+
+The module system still comes from `nixpkgs-lib`. A NixOS
+configuration whose `nixos` key names a stable release runs that
+module collection on the module system of the mirror.
 
 ## Which integration uses which ecosystem
 

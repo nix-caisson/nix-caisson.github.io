@@ -2937,6 +2937,44 @@ asked for. Nix auto-calls a lambda and not a functor, so
 The set carries its manifest in `pkgs.lib.caisson-core.pkgsManifest`,
 whose parent is the config, so nothing else is added to it.
 
+#### `traced`, `traceChainOf`
+
+```
+<package config manifest>.traced.children.nixpkgs.<system>.value : pkgs
+lib.caisson.nixpkgs.traceChainOf : drv -> nullOr (listOf step)
+step = { step : "callPackage" | "override" | "overrideAttrs" | "overrideDerivation";
+         drvPath : str; from : nullOr str;
+         touched : nullOr (listOf str); position : nullOr { file; line; };
+         # on the callPackage step:
+         file : nullOr str; resolved : listOf str; set : { config : str; system : str; }; }
+```
+
+How each package of a package set was made. nixpkgs keeps no link
+from the result of an override to what it overrode, so the trace is
+recorded while a set is built. The manifest of a package config holds
+`traced`: the same sets, built on the same lib with `callPackageWith`
+replaced by a version that records each call. Only an inspection reads
+it, so an ordinary evaluation builds no traced set.
+
+In a traced set, every derivation a `callPackage` returns carries
+`caissonTrace`, and so does every derivation its `override`,
+`overrideAttrs` and `overrideDerivation` return. Each record names the
+step, the derivation it was applied to, the names the step was given,
+and the position of the argument set the caller wrote. The
+`callPackage` at the bottom also names the file of the package
+function, the arguments it took from the scope, and the set. The trace
+is attributes beside the derivation, so a traced package has the
+`drvPath` of the same package untraced.
+
+`traceChainOf` reads a trace as plain data, from the last step down to
+the `callPackage`, with each derivation given by its `drvPath`. It
+gives null for a value that carries no trace. For a `hello` made by
+`(hello.override { }).overrideAttrs (_: { pname = "hello-traced"; })`
+in the traced set of the `default` config, the steps are
+`overrideAttrs`, `override` and `callPackage`, and the last names
+`pkgs/by-name/he/hello/package.nix` and `{ config = "default"; system
+= "x86_64-linux"; }`.
+
 #### `pkgSets`
 
 ```

@@ -164,8 +164,11 @@ naming `mkLib` and pointing at the pattern.
   (`sources: { nixpkgs-lib = sources.nixpkgs; nixos = sources.nixpkgs; }`
   gives the library and the NixOS module collection from a checkout
   pinned under the `nixpkgs` key). An attribute set given in place of
-  the function is refused. mkLib captures the function in the
-  manifest, and the `nixpkgs-lib` entry it composes reads its source
+  the function is refused. mkLib records what the function selects in
+  the manifest as `defaultEcosystemSrc`, and the name of each selected
+  source among `sources` as `defaultEcosystemSrcNames`, null for a
+  value the function builds in another way. The `nixpkgs-lib` entry it
+  composes reads its source
   through `ecosystemSrc "nixpkgs-lib"`, the same resolution every
   ecosystem uses; the integrations interpret the rest.
 - `projects` consumes whole upstream contributions
@@ -1925,6 +1928,48 @@ configuration records:
   selected = [ "modules.homeManager.caisson/default" "modules.homeManager.nixos-parent" ];
 }
 ```
+
+#### `ecosystemAccountOf`
+
+```
+ecosystemAccountOf : { name : str; context : str; } -> { explicit ? null; manifest ? libManifest; } -> account
+account = { from : "ecosystemSrc" | "defaultEcosystemSrc" | "sources";
+            source : nullOr str; }
+```
+
+How an evaluation came by the source of the ecosystem `name`. It
+takes the arguments `resolveEcosystemSrc` takes and follows the same
+order. `from` names the declaration that supplied the source:
+`ecosystemSrc` for the selection of the configuration,
+`defaultEcosystemSrc` for the selection of the tree, and `sources` for
+the source the tree pins under exactly that name. `source` is the name
+of that source among the pinned sources of the tree, where
+`sources.<name>.pin` records its revision. It is null where a selection
+builds the value in another way, such as a directory inside a source.
+The name is read from the selection applied to the sources tagged with
+their names (`caisson-core.selectedSourceName`), so reading the
+account forces no source the selection does not read.
+
+The manifest of every configuration records `ecosystems`, an account
+for each part of the stack the evaluation used, keyed as the parts are
+resolved. `nixpkgs-lib` is always there, since every evaluation runs on
+the lib. An integration adds the ecosystems it resolves, and its
+`evaluate` returns them as `ecosystems`. For a NixOS configuration
+that selects its module collection, in a tree whose
+`defaultEcosystemSrc` names its `nixpkgs` input for the library:
+
+```nix
+{
+  nixpkgs-lib = { from = "defaultEcosystemSrc"; source = "nixpkgs"; };
+  nixos = { from = "ecosystemSrc"; source = "nixpkgs"; };
+}
+```
+
+A package config records `nixpkgs-lib` and `nixpkgs`. Its `nixpkgs`
+entry also holds `libraries`, the top-level names the lib of its sets
+takes from the source of the package set: the package-set libraries,
+their tables, and the functions nixpkgs publishes from them at the top
+level of its library.
 
 #### `pkgSetsForSystem`, `pkgSetOf`
 

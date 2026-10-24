@@ -2036,6 +2036,56 @@ constructors. In a
 flake it selects the `pkgs` of `perSystem`. A structural configuration
 runs on no package set and selects for what is beneath it.
 
+#### `pkgSetAccountOf`
+
+```
+pkgSetAccountOf : { own : bool; perSystem : bool; } -> manifest -> attrsOf pkgs -> account
+account = { name : nullOr str; level : nullOr namePath; }
+```
+
+Which package config a configuration runs on, and which configuration
+selected it. The manifest of every configuration records it as
+`pkgSet`. `name` is the name of the package config whose set the
+selection in force returns. It is read from the selection applied to
+the available sets tagged with their names, so it is null where the
+selection returns a set it builds in another way. `level` is the name
+path of the configuration that made the selection: the configuration
+itself when it was constructed with `defaultPkgs`, else the nearest
+configuration above that selected for the configurations beneath it,
+with its own `defaultPkgs` or with `caisson.forChildren.defaultPkgs`.
+The top has the empty name path, `[ ]`. Where no configuration
+selects, `name` is `default` and `level` is null.
+
+A configuration evaluated once for every system, such as a structural
+configuration or a flake, runs on no single set. Its `name` is null,
+and its `level` still says who selected for the configurations beneath
+it. For a NixOS configuration beneath a structural configuration
+`group` that selects `pkgSets: pkgSets.other`, the NixOS configuration
+records:
+
+```nix
+{
+  name = "other";
+  level = [ { type = "structural"; name = "group"; } ];
+}
+```
+
+#### `namespacesOf`
+
+```
+namespacesOf : lib -> { caisson : attrsOf (nullOr (listOf str)); caisson-core : listOf str; }
+```
+
+The names of the namespaces of a lib. The manifest of every
+configuration records them for the lib its evaluation runs on as
+`namespaces`. `caisson` holds, for each entry of `lib.caisson`, the
+names of its attributes where it is an attribute set, and null where it
+is not. `caisson-core` holds the names of `lib.caisson-core`. They are
+names only, so recording them forces nothing past the keys of the
+namespaces. `namespaces.caisson.nixos` lists `mkConfiguration`,
+`mkConfigurationWithEcosystemArgs`, `mkModule` and the rest of the
+nixos integration.
+
 #### `entriesOf`, `publish`, `recordOf`, `displayName`, `topValue`
 
 ```

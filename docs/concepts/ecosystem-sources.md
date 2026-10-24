@@ -204,3 +204,26 @@ it triggers an evaluation error.
 A NixOS configuration that selects another module collection with
 `ecosystemSrc` still runs its evaluation on the library of the tree;
 only the source under the `nixos` key changes.
+
+### Where each source came from
+
+The manifest of every configuration records `ecosystems`: for each
+part of the stack its evaluation used, which of the three places
+supplied the source and which pinned source it is.
+
+```nix
+{
+  nixpkgs-lib = { from = "defaultEcosystemSrc"; source = "nixpkgs"; };
+  nixos = { from = "ecosystemSrc"; source = "nixpkgs"; };
+}
+```
+
+`from` is `ecosystemSrc`, `defaultEcosystemSrc` or `sources`, in the
+order above. `source` is the name of the source among the pinned
+sources, where the manifest records its revision under
+`sources.<name>.pin`. It is null when a selection builds the value in
+another way, such as a directory inside a source. A package config
+also lists, under `nixpkgs.libraries`, the names its sets take from
+the source of the package set
+([`ecosystemAccountOf`](../reference/lib.md#ecosystemaccountof) has the
+details).

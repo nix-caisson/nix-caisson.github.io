@@ -429,21 +429,30 @@ childless manifest, then what each configuration beneath adds after
 the history it began with, so the history of a child always begins
 with the childless history of its parent. `manifest` is the name path
 of the configuration, the `{ type, name }` of each manifest beneath
-the top, which is its address under `children` of the top's manifest;
-a configuration evaluated per system has its system as a segment.
-The key of a `declaration` event says what the module is:
+the top, which gives its attribute path under `children` of the top's
+manifest; a configuration evaluated per system has its system as a
+segment. The key of a `declaration` event says what the module is:
 
 - the name of the ecosystem, such as `nixos`, for the module list of
   the ecosystem, recorded as a single event, with the source and the
   file the list comes from (`nixpkgs`, `nixos/modules/module-list.nix`);
 - `caisson.<class>` for the framework module of caisson, and
-  `caisson.<…>` for the other modules caisson adds;
+  `caisson.<class>.<purpose>` for each other module an integration
+  adds, such as `caisson.nixos.pkgSet`;
 - the registry key, such as `modules.nixos.default`, for a module
   selected from the registry, with the project that registered it;
+- `configs.<class>.<name>`, such as `configs.nixos.laptop`, for the
+  configuration module taken from the registry by the configuration's
+  name, with the project and the file that registered it;
 - the path, for a module given as a path;
 - `inline/<index>` for any other module, its position among the
   events of the evaluation, with the file the module names, where it
   names a file.
+
+A module recorded as `inline/<index>` was given to the configuration
+as a value, through `configModule` or a selection, rather than by a
+name. We recommend registering such a module and selecting it by name,
+so its history says where it came from.
 
 A file inside a source in the Nix store is written relative to that
 source.

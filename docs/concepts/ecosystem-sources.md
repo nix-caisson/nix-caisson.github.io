@@ -33,6 +33,11 @@ documents the shape it takes; in practice:
 - `caisson.caisson-colmena` and `caisson.colmena` take the colmena
   flake: they read the hive schema from its `lib.makeHive` and the
   deployment options from its `nixosModules`.
+- `caisson.caisson-nixops4` takes the NixOps4 flake: it imports
+  NixOps4's library from its `nix/lib/lib.nix` and reads the `local`
+  provider from its `modules`. caisson's `nixops4-apply` NixOS module
+  takes the nixops4-nixos flake, for the `apply` NixOS module in its
+  `modules`.
 - `caisson.caisson-disko` and `caisson.disko` take the disko flake or
   source tree: they build disko's type library from its
   `lib/default.nix`, and `caisson.disko` gives its machines the NixOS
@@ -159,6 +164,7 @@ below.
 | `caisson.hjem` | `hjem` | hjem flake or source tree |
 | `caisson.caisson-colmena` | `colmena` | colmena flake |
 | `caisson.colmena` | `colmena` | colmena flake |
+| `caisson.caisson-nixops4` | `nixops4`, and `nixops4-nixos` for its NixOS module | NixOps4 flake; nixops4-nixos flake |
 | `caisson.caisson-disko` | `disko` | disko flake or source tree |
 | `caisson.disko` | `disko` | disko flake or source tree |
 | `caisson.terranix` | `terranix` | terranix flake |

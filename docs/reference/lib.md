@@ -3365,97 +3365,216 @@ caisson-colmena does, and is published as `colmenaHive`.
 
 - **Source:** `lib-overlays/caisson-nixops4/default.nix`
 
-`caisson-nixops4` is the native NixOps4 integration. Its machines are
-NixOS configurations declared like any other, so they share modules
-through the registry and through structural groups, and they take their
-package sets from caisson's package configs.
+`caisson-nixops4` is the native NixOps4 integration, and the one we
+recommend for writing new deployments. It works with two integrations
+written beside it, `caisson-nixops4-composite` and
+`caisson-nixops4-resource`, below. The integration named `nixops4`
+exists for porting a deployment written for NixOps4 as it is.
 
-NixOps4 deploys from a root component: a module evaluation of the class
-`nixops4Component`, whose members are resources and further components.
-NixOps4 evaluates the root itself, again each time it learns the outputs
-of a resource, so a member can read the outputs of another. A nixops4
-configuration is a module of the `caisson-nixops4` class, a class caisson
-defines, which holds the module of that root component as `component`.
-It declares the machines NixOps4 deploys as NixOS configurations, under
-`caisson.nixos.configurations.<name>`, the way any configuration
-declares them:
+NixOps4 deploys from a root component. A component is a resource, one
+real thing a provider creates, updates and deletes, with `inputs` the
+provider receives and `outputs` it reports back after an apply, or a
+composite, which holds further components as its members. NixOps4
+evaluates the root when it deploys, and again each time it learns the
+outputs of a resource, so a component can read the outputs of another,
+and a composite can compute its members from them. The flake output
+`nixops4` holds the root: `_type`, `rootFunction`, which only NixOps4
+calls, and `getProviders`.
+
+A caisson-nixops4 configuration is the declaration of a deployment,
+evaluated when the flake is. It holds the root composite as a deferred
+configuration (see [Deferred configurations](#deferred-configurations))
+declared under the name `root`, finalized when NixOps4 calls
+`rootFunction` with the output values and the system it runs providers
+on. A composite declares its members as composites and resources
+beneath it, deferred in turn, and a resource may hold the caisson
+configurations it deploys, such as a NixOS configuration:
 
 ```nix
-caisson.caisson-nixops4.configurations.default = lib.caisson.caisson-nixops4.mkConfiguration {
+caisson.caisson-nixops4.configurations.nixops4 = lib.caisson.caisson-nixops4.mkConfiguration {
   configModule = { lib, ... }: {
-    caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
-      configModule = { /* ... */ };
-    };
-    component = { members, providers, ... }: {
-      members.nas-1.ssh.host = "nas-1.lan";
-      members.nas-1.ssh.hostPublicKey = "ssh-ed25519 AAAA...";
+    caisson.caisson-nixops4-composite.configurations.root = lib.caisson.caisson-nixops4-composite.mkConfiguration {
+      configModule = { lib, ... }: {
+        caisson.caisson-nixops4-resource.configurations.nas-1 = lib.caisson.caisson-nixops4-resource.mkConfiguration {
+          configModule = { lib, ... }: {
+            ssh.host = "nas-1.lan";
+            ssh.hostPublicKey = "ssh-ed25519 AAAA...";
+            caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
+              configModule = { /* ... */ };
+            };
+          };
+        };
+      };
     };
   };
 };
 ```
 
-The machines are the NixOS configurations the nixops4 configuration
-passes up, each under the name it is published under. Each machine is a
-member of the root component under that name: a resource of the `exec`
-type of NixOps4's `local` provider that copies the machine's toplevel to
-the host with `nix copy` and runs its `bin/apply switch` over SSH, as the
-NixOS resource of nixops4-nixos does. The member declares the SSH
-settings of that resource under the same names: `ssh.host` (the
-machine's name when unset), `ssh.user` (`root` when unset),
-`ssh.hostPublicKey` (the only key the SSH client accepts for the host),
-`ssh.opts`, `copy.substituteOnDestination` and `sudo.enable`. Its
-`nixos.configuration` is the machine as caisson evaluated it. The
-`component` module sets these settings, and may set them from the
-outputs of other resources, such as the address of a machine another
-resource creates. The machine is evaluated by caisson before NixOps4
-runs, so the modules of the machine cannot read the outputs of
-resources.
+The `nixops4` output holds a single value, so the caisson-nixops4
+configuration declared under the name of that output, `nixops4`, fills
+it, and another name is refused there. A configuration declares one
+root, and a composite declared under another name beneath it is refused.
 
-The root component gets NixOps4's `local` provider as `providers.local`
-unless the `component` module declares a provider under that name. The
-shell that runs the deployment comes from the package set caisson
-selects for the nixops4 configuration (`defaultPkgs`), for the system
-NixOps4 deploys from. The root is built with the `mkRoot` of NixOps4's
-library, which the integration imports from the NixOps4 source over the
-composed library, and its modules receive the composed library as `lib`
-and the composition's pinned sources as `inputs`.
+`getProviders { system }` finalizes the root with no output values and
+builds the providers the root declares, as NixOps4's `getProviders`
+does. A provider configured from an output is built when NixOps4
+applies.
 
-The default module of the class adds caisson's NixOS module
-`nixops4-apply` to the default selection of the NixOS configurations
-declared inside it. That module imports the `apply` NixOS module of
-nixops4-nixos, which adds `bin/apply` to the toplevel, from the source
-the composition declares or pins under the name `nixops4-nixos`. A NixOS
-configuration that passes `moduleImports` lists the module itself, as
-`caisson/nixops4-apply` in a flake that lists caisson in `projects`.
-
-The root refuses a machine whose name NixOps4's command could never
-address: a name that contains a `.`, which separates the names of a
-member path, or is empty. A machine is one evaluation, so the root also
-refuses a NixOS configuration evaluated per system for more than one
-system, and the message names the configuration and its systems.
-
-A nixops4 configuration is published as `nixops4`, the output NixOps4's
-command reads, which holds a single value, so the nixops4 configuration
-declared under the name `default` fills it, and another name is refused
-there. Its machines are published as `nixosConfigurations.<name>` as
-well, from the same evaluation, so `nixos-rebuild` and `nixops4 apply`
-build the same machine.
+Nothing beneath the root is evaluated at flake time, so a machine
+deployed through NixOps4 is not published as `nixosConfigurations`.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   modules of the caisson-nixops4 class.
 - `mkConfiguration : { configModule?, defaultPkgs?, ecosystemSrc?,
-  moduleImports?, extraModuleImports?, specialArgs? }`: a nixops4
-  configuration, a function of `{ name, parent }`, finalized by the
-  configuration that declares it under
+  moduleImports?, extraModuleImports?, specialArgs? }`: a
+  caisson-nixops4 configuration, a function of `{ name, parent }`,
+  finalized by the configuration that declares it under
   `caisson.caisson-nixops4.configurations.<name>`. `configModule`
   defaults to the configuration registered under its name in
   `configs/caisson-nixops4`. `ecosystemSrc` is the NixOps4 flake,
-  resolved from the composition when absent. `specialArgs` reaches the
-  modules of the nixops4 configuration and the modules of the root
-  component.
+  resolved from the composition under the name `nixops4` when absent.
+  `defaultPkgs` selects the package set of the deployment, which the
+  components and the configurations beneath them inherit.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
-  merged over the `evalModules` call of the nixops4 configuration.
-- `exportsTo`: how a nixops4 configuration is published.
+  merged over the `evalModules` call of the caisson-nixops4
+  configuration.
+- `exportsTo`, `rootOf`, `memberArgs`, `membersView`, `pkgsFor`,
+  `machineOf` and the other helpers the composite, resource and
+  `nixops4` integrations build on.
+
+### `caisson.caisson-nixops4-composite` (module class `caisson-nixops4-composite`)
+
+- **Source:** `lib-overlays/caisson-nixops4-composite/default.nix`
+
+A composite of a NixOps4 deployment, evaluated when NixOps4 deploys. It
+declares providers with NixOps4's own `providers` option, and its
+members as the caisson-nixops4-composite and caisson-nixops4-resource
+configurations declared beneath it. A name declared as both is refused.
+A composite has no `type` and no resource options, so a composite that
+sets them is refused where it sets them, as an undeclared option.
+
+A composite finalizes each member with the member's part of the output
+values, its view of the members and the deploying system. What NixOps4
+reads of it is its export: the exports of its members, by name. Its
+module reads the outputs of its members through the `members` module
+argument: `members.<name>.outputs`, `members.<name>.members` for a
+composite member, and `members.<name>.absoluteMemberPath`, which
+NixOps4's `state` option takes. A member's config is not reachable
+through it. A member reads the childless view of its composite, so data
+the members share is declared on the composite, as on any parent. Its
+modules receive the deploying system as `resourceProviderSystem`.
+
+Its `argsNeeded` names the deploying system and, once that is known,
+the outputs of its resources, by member path. An output is not
+cacheable unless its resource lists it in `cacheableOutputs`.
+
+- `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
+  extraModuleImports?, specialArgs? }`: a deferred configuration,
+  finalized by the composite that declares it under
+  `caisson.caisson-nixops4-composite.configurations.<name>`, or for
+  `root` by the caisson-nixops4 configuration.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
+- `compositeWith`: the builder the `nixops4` integration builds its
+  composites with, over another class, base modules and `members`
+  argument.
+
+### `caisson.caisson-nixops4-resource` (module class `caisson-nixops4-resource`)
+
+- **Source:** `lib-overlays/caisson-nixops4-resource/default.nix`
+
+A resource of a NixOps4 deployment, evaluated when NixOps4 deploys,
+with NixOps4's resource options (`inputs`, `outputs`, `state` and the
+rest), its `type` option and its `providers` option. `type` is a
+resource type of a provider, such as `providers.local.exec`. A resource
+holds no NixOps4 members: setting `members` is refused where it is set.
+It reads its own outputs as `config.outputs` and the outputs of the
+other members of its composite through `members`, as the composite
+does. `cacheableOutputs` lists the outputs a tool that evaluates the
+deployment ahead of time may keep in a cache only its user can read;
+NixOps4 marks no output as secret, so none is cacheable unless listed.
+
+A resource may hold caisson configurations beneath it. NixOps4 does not
+see them; a module of the class turns them into the resource's inputs.
+The NixOS adapter, registered as `nixos` in the class and selected by
+its default module, deploys the NixOS configuration declared beneath a
+resource as the NixOS resource of nixops4-nixos does. It makes the
+resource an `exec` resource of NixOps4's `local` provider unless the
+resource sets `type`, whose inputs copy the toplevel to the host with
+`nix copy` and run its `bin/apply switch` over SSH. The SSH settings
+take the names nixops4-nixos gives them: `ssh.host` (the name of the
+resource when unset), `ssh.user` (`root` when unset), `ssh.hostPublicKey`
+(the only key the SSH client accepts for the host), `ssh.opts`,
+`copy.substituteOnDestination` and `sudo.enable`. `nixos.configuration`
+is the NixOS configuration as caisson evaluated it. The shell that runs
+the script is `bash` from the package set caisson selects for the
+resource, for the deploying system. A resource deploys one NixOS
+configuration, evaluated for one system, and the adapter refuses more.
+
+The default module of the class also adds caisson's NixOS module
+`nixops4-apply` to the default selection of the nearest NixOS
+configurations beneath a resource. That module imports the `apply`
+NixOS module of nixops4-nixos, which adds `bin/apply` to the toplevel,
+from the source the composition declares or pins under the name
+`nixops4-nixos`. A NixOS configuration that passes `moduleImports`
+lists the module itself, as `caisson/nixops4-apply` in a flake that
+lists caisson in `projects`. Inside a resource, a NixOS configuration
+and the home-manager configurations in it keep their markers and drift
+checks as anywhere else; composites and resources have none.
+
+- `mkConfiguration : { configModule?, defaultPkgs?, ecosystemSrc?,
+  moduleImports?, extraModuleImports?, specialArgs? }`: a deferred
+  configuration, finalized by the composite that declares it under
+  `caisson.caisson-nixops4-resource.configurations.<name>`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
+- `resourceWith`: the builder the `nixops4` integration builds its
+  resources with.
+
+### `caisson.nixops4` (module class `nixops4`)
+
+- **Source:** `lib-overlays/nixops4/default.nix`
+
+`nixops4` is the upstream-compatible NixOps4 integration. It takes the
+root modules of a deployment as NixOps4 users write them for
+NixOps4's `mkRoot`, of the class `nixops4Component`, and caisson
+evaluates every component:
+
+```nix
+caisson.nixops4.configurations.nixops4 = lib.caisson.nixops4.mkConfiguration {
+  modules = [ ./deployment.nix ];
+};
+```
+
+Each component is evaluated with NixOps4's class name, so a module that
+sets `_class = "nixops4Component"` loads, and with NixOps4's resource,
+`type` and `providers` options. A composite collects the definitions of
+each member under `members.<name>` and decides what it becomes with
+upstream's test: a member whose `resourceType` is defined, which
+setting `type` does, becomes a caisson-nixops4-resource configuration
+beneath it, and any other a caisson-nixops4-composite configuration. A
+member that sets `type` and also declares members is refused, where
+NixOps4 drops the members. The `members` module argument of a composite
+holds the configs of its members, as NixOps4 gives it, so every
+composite sets `unsafeCrossChildReferences` for the class of its
+members.
+
+A member that imports the NixOS resource module of nixops4-nixos gets
+its `nixos.module` evaluated as a caisson NixOS configuration beneath
+it, under the member's name, with `nixos.specialArgs` as its special
+arguments, rather than by the `nixosSystem` call of nixops4-nixos: the
+module `nixos` of the `nixops4Component` class makes
+`nixpkgs.lib.nixosSystem` return that configuration. The shell of its
+deploy script comes from the package set caisson selects. For a module
+with nothing caisson adds to it, the NixOS configuration builds the
+system NixOS builds from the same module and the `apply` module of
+nixops4-nixos.
+
+- `mkConfiguration : { modules?, specialArgs?, cacheableOutputs?,
+  defaultPkgs?, ecosystemSrc?, moduleImports?, extraModuleImports? }`:
+  a nixops4 configuration, a function of `{ name, parent }`.
+  `specialArgs` reaches every component. `cacheableOutputs` is the
+  allow-list of outputs a tool may cache, by member path, the names from
+  the root joined with `.`: `{ "web.address" = [ "stdout" ]; }`.
+- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
 ### `caisson.caisson-disko` (module class `caisson-disko`)
 

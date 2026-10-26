@@ -457,6 +457,21 @@ so its history says where it came from.
 A file inside a source in the Nix store is written relative to that
 source.
 
+A configuration reads the childless view of its parent, which holds
+none of the configurations beneath the parent, so no loop between a
+configuration and its parent can be written. A level that sets
+`unsafeCrossChildReferences` for a class in `caisson.forChildren`,
+`caisson.forNearestChildren` or `caisson.forDirectChildren` gives the
+configurations of that class it reaches the full evaluation of the
+level instead, and they can reach every configuration beneath it. The
+manifest of such a configuration records that level as
+`crossChildLevel` and its name path as `crossChildLevelPath`; both are
+null otherwise. When several settings reach a configuration, the one
+through `forDirectChildren` wins over `forNearestChildren`, which wins
+over `forChildren`, and within one container the nearest parent that
+sets it wins. A loop among the configurations it reaches is a Nix
+infinite recursion.
+
 ### `definers`
 
 ```
@@ -587,7 +602,8 @@ with `builtins.functionArgs` and requires exactly `name` and
 refused there, with a message saying what a configuration is. `what`
 names the declaration in those messages. `mkLib` finalizes each
 `pkgSets` entry this way, and the `caisson.<integration>.configurations`
-options finalize each entry this way.
+options finalize each entry this way, except a deferred configuration,
+which they hold as an entry (below).
 
 ### `mkConfiguration`
 
@@ -740,6 +756,70 @@ declares it under an attribute, so its name is the name the composition
 declares on `mkLib`, absent when it declares none, and its parent is
 the lib's manifest. An integration's `mkTopConfiguration` is this
 followed by the step that turns the result into what a tool reads.
+
+### Deferred configurations
+
+```
+lib.caisson-core.mkDeferredConfiguration :
+  { type : str; class ? str; argsNeeded : attrs | ({ name, parent, args } -> attrs);
+    discoverArgs ? derivation; configuration : { name, parent, args } -> manifest; }
+  -> deferredConfiguration
+lib.caisson-core.deferChild :
+  { name : str; parent : manifest; what ? str; } -> deferredConfiguration -> entry
+lib.caisson-core.finalizeDeferredChild :
+  { name : str; parent : manifest; args : attrs; argsSource ? str; what ? str; }
+  -> deferredConfiguration -> manifest
+lib.caisson-core.finalizeDeferredTop : { args : attrs; argsSource ? str; } -> deferredConfiguration -> manifest
+lib.caisson-core.mkArg : { cacheable ? bool; type ? str; description ? str; } -> arg
+lib.caisson-core.argsNeededFor : entry -> attrs -> attrs
+lib.caisson-core.argNamesOf : attrs -> listOf (listOf str)
+lib.caisson-core.standInsFor : attrs -> attrs
+```
+
+A deferred configuration is a configuration whose evaluation waits for
+args: values supplied after the flake is evaluated, such as the
+outputs of the resources a NixOps4 deployment applies. Apart from that
+it is an ordinary configuration. It is declared under its parent,
+finalized against the parent's childless view, and inherits what any
+configuration declared there inherits. Its `type` and `class` are
+known at flake time, so the additions for the nearest configurations
+of its class connect at it.
+
+`configuration` is a function of exactly `{ name, parent, args }`
+returning a manifest, as a configuration is a function of exactly
+`{ name, parent }`, so neither can be finalized as the other.
+`argsNeeded` declares the args it takes, without their values: an
+attribute set whose leaves are made by `mkArg`, or a function of
+`{ name, parent, args }` returning one, for args whose existence
+depends on the args known so far or on what the configuration
+declares. `discoverArgs`, optional, is a derivation whose program
+prints the args it can find as JSON on its standard output.
+
+The `caisson.<integration>.configurations` options hold a deferred
+configuration as the entry `deferChild` makes, rather than finalizing
+it. The entry has `_type = "caisson-deferred"`, the name, type, class
+and parent, `argsNeeded`, `discoverArgs`, and `finalize { args;
+argsSource ? null; }`, which returns its manifest
+(`finalizeDeferredChild`). Nothing in it or beneath it is evaluated at
+flake time, the parent's `history` and `inputs` leave it out, and it
+passes nothing up. `isDeferred` and `isDeferredConfiguration` tell an
+entry and a deferred configuration from other values.
+
+The manifest of a finalized deferred configuration records
+`deferred = { argNames; source; }`: the name paths of the args it was
+given and where they came from, never their values.
+`finalizeDeferredTop` finalizes a deferred configuration as a top,
+against the manifest of the lib, as `finalizeTop` does.
+
+Each arg is cacheable or not, and not unless the integration or the
+user marks it. A tool that evaluates a deferred configuration ahead of
+time may keep a cacheable arg in a cache only its user can read. It
+passes stand-ins for the args it lacks: `standInsFor argsNeeded`
+returns the same shape, each leaf an error with the fixed text
+`caisson-deferred: needs <path>`, so the tool reads which arg blocked
+an evaluation from the error. `argsNeededFor entry known` reads the
+`argsNeeded` of an entry given the args known so far, and `argNamesOf`
+lists its name paths.
 
 ### `importApply`
 
@@ -1830,19 +1910,22 @@ configuration to what is published.
 `only` takes the manifest and says whether the configuration is
 published in that output at all. A configuration it leaves out is still
 passed up. The treefmt integration
-uses it to publish only the configuration named `default`.
+uses it to publish only the configuration named `formatter`.
 
 `single` says the output holds a single value rather than values by
-name, as `colmenaHive` does. The configuration declared under the name
-`default` is then the output's value, and a configuration declared
-under another name is refused there.
+name, as `colmenaHive` does. A configuration of such an integration is
+named for the output it fills: the configuration declared under the
+name of the output, `attrset`, is then the output's value, and a
+configuration declared under another name is refused there, with a
+message naming the name it takes. Its attribute path and its published
+name then agree.
 
 `bySystem` says the output is keyed by system first, as flakes key
 `packages` and `formatter`. Each configuration is published under the
 system of its evaluation, `<attrset>.<system>.<name>`, named by the
 usual rules over its path without the systems on it. With `single`
-too, the output holds the configuration named `default` for each
-system, as `formatter.<system>` does. A configuration with no system,
+too, the output holds the configuration named for it for each system,
+as `formatter.<system>` holds the configuration named `formatter`. A configuration with no system,
 one not evaluated per system, is refused in such an output.
 
 `name` is for an integration whose configurations are known by a name
@@ -3081,7 +3164,7 @@ NixOS configurations, under `caisson.nixos.configurations.<name>`, the
 way any configuration declares them:
 
 ```nix
-caisson.caisson-colmena.configurations.default = lib.caisson.caisson-colmena.mkConfiguration {
+caisson.caisson-colmena.configurations.colmenaHive = lib.caisson.caisson-colmena.mkConfiguration {
   configModule = { lib, ... }: {
     meta.allowApplyAll = false;
     caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
@@ -3120,7 +3203,8 @@ evaluation.
 
 A colmena configuration is published as `colmenaHive`, an output that
 holds a single value, so the colmena configuration declared under the
-name `default` fills it, and another name is refused there. Its nodes
+name of that output, `colmenaHive`, fills it, and another name is
+refused there. Its nodes
 are published as `nixosConfigurations.<name>` as well, from the same
 evaluation, so `nixos-rebuild` and `colmena apply` build the same
 machine.
@@ -3165,7 +3249,7 @@ becomes a caisson NixOS configuration declared beneath the colmena
 configuration, and is published as `nixosConfigurations.<node>`:
 
 ```nix
-caisson.colmena.configurations.default = lib.caisson.colmena.mkConfiguration {
+caisson.colmena.configurations.colmenaHive = lib.caisson.colmena.mkConfiguration {
   hive = {
     meta.nixpkgs = pkgSets.default;
     defaults = { name, ... }: { networking.hostName = name; };
@@ -3179,8 +3263,14 @@ assertion and key modules, the `defaults` of the hive and the modules
 of the node, with the special arguments `name`, `nodes`,
 `meta.specialArgs` and `meta.nodeSpecialArgs.<node>`. With `name`
 given, `deployment.targetHost` defaults to the name of the node, as in
-colmena. `nodes` holds every node evaluated again with type checking
-off, as colmena provides it, made only when a module reads it.
+colmena. `nodes` holds every node, itself included, by name: the NixOS
+configurations declared beneath the colmena configuration, as caisson
+evaluates them. A node reads them through the full evaluation of the
+colmena configuration, since the colmena configuration sets
+`caisson.forNearestChildren.unsafeCrossChildReferences.nixos`, so a
+node inside a structural group or a disk layout beneath it gets them
+too. Two nodes that read each other in a loop are a Nix infinite
+recursion, as they are in colmena.
 
 A node runs on `meta.nodeNixpkgs.<node>`, else `meta.nixpkgs`, else the
 package set caisson selects for it. Those values are package sets
@@ -3549,10 +3639,11 @@ type treefmt-nix's `submoduleWith` returns.
 | `programs` | the formatters by name |
 | `check` | a function from a source tree to a derivation that fails when the tree is not formatted |
 
-A tree registers the configuration as `configs/treefmt/default/default.nix`
+A tree registers the configuration as `configs/treefmt/formatter/default.nix`
 and declares it with
-`caisson.treefmt.configurations.default = lib.caisson.treefmt.mkConfiguration { };`.
-A top publishes only the configuration named `default`:
+`caisson.treefmt.configurations.formatter = lib.caisson.treefmt.mkConfiguration { };`.
+A top publishes only the configuration named for the output it fills,
+`formatter`:
 
 | Output | Value |
 | --- | --- |
@@ -3673,7 +3764,8 @@ nix-topology flake or source tree, resolved under the name
 `nix-topology`.
 
 The output is `output`, the rendered diagram. A top publishes the
-configuration named `default` as `topology.<system>`, the evaluation,
+configuration named for that output, `topology`, as
+`topology.<system>`, the evaluation,
 where nix-topology's flake module publishes it, so
 `nix build '.#topology.x86_64-linux.config.output'` builds the diagram.
 Its machines are published as `nixosConfigurations` like any NixOS

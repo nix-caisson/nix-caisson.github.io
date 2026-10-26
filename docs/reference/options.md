@@ -241,6 +241,70 @@ Set on a NixOS configuration for `x86_64-linux`, this evaluates the configuratio
 
 When the option is null, a configuration that is itself evaluated per system has its children evaluated for its system only, so a home-manager configuration inside a NixOS configuration for `x86_64-linux` is evaluated for `x86_64-linux`. Any other configuration passes on the list it was given.
 
+### `caisson.forChildren.unsafeCrossChildReferences`
+
+- **Type:** `attrsOf bool`, by class
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forChildren.nix`
+
+By class, whether the configurations of that class beneath this configuration, at any depth, read the full evaluation of this configuration, with its children, in place of the childless view of their parent. They can then reach every configuration beneath this one, and a loop between them is a Nix infinite recursion, which the childless view otherwise rules out. The manifest of a configuration it reaches records this configuration as `crossChildLevel`.
+
+A setting through `caisson.forDirectChildren` beats one through `caisson.forNearestChildren`, which beats this one, and within one container the nearest parent that sets it wins. This option reaches every depth, so it is rarely the one to use.
+
+### `caisson.forNearestChildren.extraDefaultModuleImports`
+
+- **Type:** `attrsOf (functionTo (listOf module))`, by class
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forNearestChildren.nix`
+
+Additions to the default selection of a class for the nearest configurations of that class beneath this configuration: a function of the lib of such a configuration returning registered modules. A configuration of the class is a nearest one when no other configuration of the class sits between it and this configuration. Configurations of other classes and systems between the two do not count, so an addition reaches a machine inside a structural group or a disk layout beneath this configuration.
+
+```nix
+{ ... }:
+{
+  caisson.forNearestChildren.extraDefaultModuleImports.nixos = lib: [ lib.caisson.modules.nixos.colmena-deployment ];
+}
+```
+
+A nearest configuration that passes no `moduleImports` gets every entry named `default`, then the additions of `caisson.forChildren.extraDefaultModuleImports` of the levels above it, then these, those of the levels above first. A configuration declared inside a nearest configuration does not get them. A configuration that passes `moduleImports` selects its modules itself and gets none of them.
+
+We recommend this option for what the nearest configurations of a class live on, such as the deployment of a node or the disk layout of a machine, and `caisson.forChildren.extraDefaultModuleImports` for what applies at any depth.
+
+### `caisson.forNearestChildren.unsafeCrossChildReferences`
+
+- **Type:** `attrsOf bool`, by class
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forNearestChildren.nix`
+
+By class, whether the nearest configurations of that class beneath this configuration read the full evaluation of this configuration, with its children, in place of the childless view of their parent. It passes through configurations of other classes, as the additions above do. A configuration it reaches can read every configuration beneath this one, and a loop between them is a Nix infinite recursion.
+
+```nix
+{ ... }:
+{
+  caisson.forNearestChildren.unsafeCrossChildReferences.nixos = true;
+}
+```
+
+The upstream-compatible colmena integration sets this for `nixos`, which is how each node gets every node as colmena's `nodes` argument. A setting through `caisson.forDirectChildren` beats this one, which beats one through `caisson.forChildren`, and within one container the nearest parent that sets it wins. This setting connects at the nearest configurations of its class whether or not it wins there.
+
+### `caisson.forDirectChildren.extraDefaultModuleImports`
+
+- **Type:** `attrsOf (functionTo (listOf module))`, by class
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forDirectChildren.nix`
+
+Additions to the default selection of a class for the configurations of that class declared directly beneath this configuration. A configuration evaluated per system and declared here is a direct child, since a system is no level of its own. Nothing here passes through a configuration of another class, and the configurations beneath a direct child do not get it.
+
+A direct child that passes no `moduleImports` gets every entry named `default`, then the additions of `caisson.forChildren.extraDefaultModuleImports` of the levels above it, then those of `caisson.forNearestChildren.extraDefaultModuleImports`, then these. Where an addition here and one of `forNearestChildren` are the same module, matched by its key, the module is applied once, from here.
+
+### `caisson.forDirectChildren.unsafeCrossChildReferences`
+
+- **Type:** `attrsOf bool`, by class
+- **Default:** `{ }`
+- **Source:** `modules/generic/core/caisson/forDirectChildren.nix`
+
+By class, whether the configurations of that class declared directly beneath this configuration read the full evaluation of this configuration, with its children, in place of its childless view. They can then reach every configuration beneath this one, and a loop between them is a Nix infinite recursion. This setting beats one through `caisson.forNearestChildren` or `caisson.forChildren`.
+
 ### `caisson.modules`
 
 - **Source:** `modules/generic/core/caisson/modules.nix`

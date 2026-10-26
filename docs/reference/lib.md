@@ -3466,10 +3466,24 @@ modules receive the deploying system as `resourceProviderSystem`.
 
 Its `argsNeeded` names the deploying system and, once that is known,
 the outputs of its resources, by member path. An output is not
-cacheable unless its resource lists it in `cacheableOutputs`.
+cacheable unless its resource lists it in `cacheableOutputs`. A
+finalized composite publishes `outputs.deferredChildArgs`, a function
+from a member's name to the args it gives that member, so a tool that
+walks the deployment, such as topside, finalizes a member's entry
+itself.
+
+The root composite may list `stateResources`, the member paths of the
+resources that hold the state of the deployment, as
+`nixops4 state dump` takes them, such as `default.state`. Its
+`discoverArgs` is then a program for each system a package config
+builds a set for. The program runs `nixops4 state dump` for each of
+them in the working directory, which NixOps4 finds the flake from, and
+prints the outputs NixOps4 recorded as `outputValues`, with the system
+as `resourceProviderSystem`. Only resources with a state have recorded
+outputs.
 
 - `mkConfiguration : { configModule?, ecosystemSrc?, moduleImports?,
-  extraModuleImports?, specialArgs? }`: a deferred configuration,
+  extraModuleImports?, specialArgs?, stateResources? }`: a deferred configuration,
   finalized by the composite that declares it under
   `caisson.caisson-nixops4-composite.configurations.<name>`, or for
   `root` by the caisson-nixops4 configuration.
@@ -3569,11 +3583,13 @@ system NixOS builds from the same module and the `apply` module of
 nixops4-nixos.
 
 - `mkConfiguration : { modules?, specialArgs?, cacheableOutputs?,
-  defaultPkgs?, ecosystemSrc?, moduleImports?, extraModuleImports? }`:
-  a nixops4 configuration, a function of `{ name, parent }`.
-  `specialArgs` reaches every component. `cacheableOutputs` is the
-  allow-list of outputs a tool may cache, by member path, the names from
-  the root joined with `.`: `{ "web.address" = [ "stdout" ]; }`.
+  stateResources?, defaultPkgs?, ecosystemSrc?, moduleImports?,
+  extraModuleImports? }`: a nixops4 configuration, a function of
+  `{ name, parent }`. `specialArgs` reaches every component.
+  `cacheableOutputs` is the allow-list of outputs a tool may cache, by
+  member path, the names from the root joined with `.`:
+  `{ "web.address" = [ "stdout" ]; }`. `stateResources` gives the root
+  its discovery program, as for a caisson-nixops4 root.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
 
 ### `caisson.caisson-disko` (module class `caisson-disko`)

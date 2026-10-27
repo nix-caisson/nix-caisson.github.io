@@ -249,7 +249,7 @@ When the option is null, a configuration that is itself evaluated per system has
 
 By class, whether the configurations of that class beneath this configuration, at any depth, read the full evaluation of this configuration, with its children, in place of the childless view of their parent. They can then reach every configuration beneath this one, and a loop between them is a Nix infinite recursion, which the childless view otherwise rules out. The manifest of a configuration it reaches records this configuration as `crossChildLevel`.
 
-A setting through `caisson.forDirectChildren` beats one through `caisson.forNearestChildren`, which beats this one, and within one container the nearest parent that sets it wins. This option reaches every depth, so it is rarely the one to use.
+A setting through `caisson.forDirectChildren` beats one through `caisson.forNearestChildren`, which beats this one, and within one container the nearest parent that sets it wins. This option reaches every depth. We recommend `caisson.forNearestChildren.unsafeCrossChildReferences` or `caisson.forDirectChildren.unsafeCrossChildReferences` where they reach the configurations that need the full evaluation.
 
 ### `caisson.forNearestChildren.extraDefaultModuleImports`
 
@@ -257,7 +257,7 @@ A setting through `caisson.forDirectChildren` beats one through `caisson.forNear
 - **Default:** `{ }`
 - **Source:** `modules/generic/core/caisson/forNearestChildren.nix`
 
-Additions to the default selection of a class for the nearest configurations of that class beneath this configuration: a function of the lib of such a configuration returning registered modules. A configuration of the class is a nearest one when no other configuration of the class sits between it and this configuration. Configurations of other classes and systems between the two do not count, so an addition reaches a machine inside a structural group or a disk layout beneath this configuration.
+Additions to the default selection of a class for the nearest configurations of that class beneath this configuration. Each addition is a function of the lib of such a configuration, and it returns registered modules. A configuration of the class is a nearest one when no other configuration of the class sits between it and this configuration. Configurations of other classes and systems between the two do not count, so an addition reaches a machine inside a structural group or a disk layout beneath this configuration.
 
 ```nix
 { ... }:

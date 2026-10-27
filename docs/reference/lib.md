@@ -3475,8 +3475,8 @@ itself.
 The root composite may list `stateResources`, the member paths of the
 resources that hold the state of the deployment, as
 `nixops4 state dump` takes them, such as `default.state`. Its
-`discoverArgs` is then a program for each system a package config
-builds a set for. The program runs `nixops4 state dump` for each of
+`discoverArgs` then gives a program built for the system of the tool
+that asks. The program runs `nixops4 state dump` for each of
 them in the working directory, which NixOps4 finds the flake from, and
 prints the outputs NixOps4 recorded as `outputValues`, with the system
 as `resourceProviderSystem`. Only resources with a state have recorded

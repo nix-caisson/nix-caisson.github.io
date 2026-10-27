@@ -761,8 +761,9 @@ followed by the step that turns the result into what a tool reads.
 
 ```
 lib.caisson-core.mkDeferredConfiguration :
-  { type : str; class ? str; argsNeeded : attrs | ({ name, parent, args } -> attrs);
-    discoverArgs ? derivation; configuration : { name, parent, args } -> manifest; }
+  { type : str; class ? str; argsNeeded : { name, parent, args } -> attrs;
+    discoverArgs ? { name, parent, system } -> nullOr derivation;
+    configuration : { name, parent, args } -> manifest; }
   -> deferredConfiguration
 lib.caisson-core.deferChild :
   { name : str; parent : manifest; what ? str; } -> deferredConfiguration -> entry
@@ -772,6 +773,7 @@ lib.caisson-core.finalizeDeferredChild :
 lib.caisson-core.finalizeDeferredTop : { args : attrs; argsSource ? str; } -> deferredConfiguration -> manifest
 lib.caisson-core.mkArg : { cacheable ? bool; type ? str; description ? str; } -> arg
 lib.caisson-core.argsNeededFor : entry -> attrs -> attrs
+lib.caisson-core.discoverArgsFor : entry -> str -> nullOr derivation
 lib.caisson-core.argNamesOf : attrs -> listOf (listOf str)
 lib.caisson-core.standInsFor : attrs -> attrs
 ```
@@ -788,12 +790,16 @@ of its class connect at it.
 `configuration` is a function of exactly `{ name, parent, args }`
 returning a manifest, as a configuration is a function of exactly
 `{ name, parent }`, so neither can be finalized as the other.
-`argsNeeded` declares the args it takes, without their values: an
-attribute set whose leaves are made by `mkArg`, or a function of
-`{ name, parent, args }` returning one, for args whose existence
-depends on the args known so far or on what the configuration
-declares. `discoverArgs`, optional, is a derivation whose program
-prints the args it can find as JSON on its standard output.
+`argsNeeded` declares the args it takes, without their values: a
+function of `{ name, parent, args }`, the args known so far, returning
+an attribute set whose leaves are made by `mkArg`, since which args
+exist may depend on other args and on what the configuration declares.
+`discoverArgs` is a function of `{ name, parent, system }` returning a
+derivation whose program, built for and run on `system`, the system of
+the tool that runs it, prints the args it can find as JSON on its
+standard output; or null where there is no such program. The default
+returns null. Each of the three functions is refused unless it takes
+exactly the arguments named here.
 
 The `caisson.<integration>.configurations` options hold a deferred
 configuration as the entry `deferChild` makes, rather than finalizing
@@ -814,12 +820,14 @@ against the manifest of the lib, as `finalizeTop` does.
 Each arg is cacheable or not, and not unless the integration or the
 user marks it. A tool that evaluates a deferred configuration ahead of
 time may keep a cacheable arg in a cache only its user can read. It
-passes stand-ins for the args it lacks: `standInsFor argsNeeded`
-returns the same shape, each leaf an error with the fixed text
+passes stand-ins for the args it lacks: `standInsFor needed` returns
+the shape of the args `needed`, each leaf an error with the fixed text
 `caisson-deferred: needs <path>`, so the tool reads which arg blocked
-an evaluation from the error. `argsNeededFor entry known` reads the
-`argsNeeded` of an entry given the args known so far, and `argNamesOf`
-lists its name paths.
+an evaluation from the error. `argsNeededFor entry known` calls the
+`argsNeeded` of an entry with the name and parent the entry holds and
+the args known so far, and `argNamesOf` lists the name paths of what it
+returns. `discoverArgsFor entry system` calls its `discoverArgs` with
+the system of the tool.
 
 ### `importApply`
 

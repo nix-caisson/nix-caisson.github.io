@@ -3488,7 +3488,7 @@ outputs.
   `caisson.caisson-nixops4-composite.configurations.<name>`, or for
   `root` by the caisson-nixops4 configuration.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
-- `compositeWith`: the builder the `nixops4` integration builds its
+- `mkCompositeConfiguration`: the builder the `nixops4` integration builds its
   composites with, over another class, base modules and `members`
   argument.
 
@@ -3540,7 +3540,7 @@ checks as anywhere else; composites and resources have none.
   configuration, finalized by the composite that declares it under
   `caisson.caisson-nixops4-resource.configurations.<name>`.
 - `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
-- `resourceWith`: the builder the `nixops4` integration builds its
+- `mkResourceConfiguration`: the builder the `nixops4` integration builds its
   resources with.
 
 ### `caisson.nixops4` (module class `nixops4`)

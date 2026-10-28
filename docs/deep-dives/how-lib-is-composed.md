@@ -28,7 +28,7 @@ an entry like everything else.
   entry. An overlay outside caisson
   that calls upstream's functions imports it by key from the caisson
   source tree:
-  `(mkLibOverlay (closure-inputs.caisson.outPath + "/lib-overlays/nixpkgs-lib")) // { key = "nixpkgs-lib"; }`.
+  `(mkLibOverlay (closure-sources.caisson.outPath + "/lib-overlays/nixpkgs-lib")) // { key = "nixpkgs-lib"; }`.
   A flake that declares no source fails only where that entry is
   composed, with a message naming the declaration.
 - `libOverlays`: the flake's overlay registrations, built with
@@ -229,7 +229,7 @@ adds the lib overlay to the library that `consumer` composes.
 
 The lib overlay was built with `mkLibOverlay`, in the flake whose
 source holds the overlay. `mkLibOverlay` gave the overlay
-`closure-inputs` and `closure-lib`: the pinned sources and the composed
+`closure-sources` and `closure-lib`: the pinned sources and the composed
 library of the flake that called `mkLibOverlay`. The overlay keeps
 both in the library of `consumer`.
 

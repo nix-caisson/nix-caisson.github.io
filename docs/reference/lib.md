@@ -104,7 +104,7 @@ on; the core lib keeps the original.
 `sources` and `root` come from a pin reader (see `pins` below); at a
 flake top, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
 sources root;`. The registered overlays and modules close over
-`sources` as `closure-inputs`, so the closure holds the pinned trees
+`sources` as `closure-sources`, so the closure holds the pinned trees
 under their input names and no `self`. The signature is the pattern
 of `mkLib`, with no `...`: a missing or unexpected argument, a
 leftover `inputs` included, is Nix's error at the call site,
@@ -235,7 +235,7 @@ The package overlay registry, recorded as
 `caisson-core.libManifest.pkgOverlays`. An entry has the lib overlay
 entry's shape with a nixpkgs overlay under `overlay`: a file handed to
 `mkPkgOverlay` takes the closure
-`{ closure-inputs, closure-lib, mkPkgOverlay, ... }` and returns
+`{ closure-sources, closure-lib, mkPkgOverlay, ... }` and returns
 `{ imports ? [ ], overlay }`. An entry imports a sibling from the
 registry of the composition that registered it,
 `closure-lib.caisson-core.libManifest.pkgOverlays.<name>`:
@@ -277,7 +277,7 @@ mkLibOverlay : freeformOverlay -> libOverlay
 
 freeformOverlay = path | (closure -> { imports ? listOf libOverlay
                                      ; overlay : overlayFn })
-closure = { closure-inputs     : attrs    # the defining composition's pinned sources
+closure = { closure-sources     : attrs    # the defining composition's pinned sources
           ; closure-lib        : lib      # the defining composition's lib, lazily bound
           ; mkLibOverlay       : freeformOverlay -> libOverlay
           ; mkModule           : string -> freeformModule -> module
@@ -306,7 +306,7 @@ ways modules enter it.
 mkModule : string -> freeformModule -> module
 
 freeformModule = path | (closure -> module)
-closure = { closure-inputs        : attrs    # the defining flake's pinned sources
+closure = { closure-sources        : attrs    # the defining flake's pinned sources
           ; closure-lib           : lib      # the defining flake's composed lib
           ; mkModule              : freeformModule -> module   # bound to the class
           }
@@ -3193,7 +3193,7 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
   `makeScope` wrapper handing the scope function its `callPackage`.
 - `mkPackagesOverlay : pkgsFn -> name -> overlayFn`: turns a scope
   function (or path; optionally context-taking
-  `{ callPackage, inputs, lib }`) into an overlay that merges the
+  `{ callPackage, sources, lib }`) into an overlay that merges the
   scope under attribute `name`.
 - `mkPolyfillOverlay : overlayFn -> name -> overlayFn`: wraps an
   overlay (or path; optionally context-taking) for registration

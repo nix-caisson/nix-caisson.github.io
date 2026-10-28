@@ -104,7 +104,7 @@ in
 The nested flake's declared inputs resolve by name (`overrides` first,
 then `follows` chains, then the pool), and an unresolvable input throws
 an error naming it and what to do. The contract is deliberately
-explicit, in the same spirit as closed inputs: nothing is fetched, no
+explicit, in the same spirit as closed-over sources: nothing is fetched, no
 lock is read, and you supply exactly the input graph you mean the test
 to see. One consumer's outputs can feed another's `overrides`, so
 chains of consumers (a flake consuming a flake that consumes yours) are

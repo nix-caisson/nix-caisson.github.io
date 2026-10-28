@@ -34,7 +34,7 @@ The `(prev.myProject or {}) // { ... }` pattern ensures that if multiple overlay
 
 caisson's `mkLibOverlay` automatically closes over the flake's `inputs` when registering an overlay. This binds each overlay to the specific set of inputs it was written against, rather than relying on the leaf flake to do the right thing. The result is that overlays from different upstream flakes don't interfere with each other's inputs, even when composed into the same final `lib`.
 
-See [Closed Inputs](./closed-inputs.md) for the full mechanism.
+See [Closed-over Sources](./closed-over-sources.md) for the full mechanism.
 
 ### Dependency Tracking
 
@@ -86,20 +86,20 @@ The most common case: adding namespaced functions to `lib`.
 
 ```nix
 # lib-overlays/default/default.nix
-{ closure-inputs, ... }:
+{ closure-sources, ... }:
 {
   imports = [ ];
   overlay = final: prev: {
     myProject = (prev.myProject or {}) // {
       greet = name: "Hello, ${name}!";
       double = x: x * 2;
-      upstreamVersion = closure-inputs.some-flake.lib.version;
+      upstreamVersion = closure-sources.some-flake.lib.version;
     };
   };
 }
 ```
 
-The closure arg list always comes first: `closure-inputs` here is the
+The closure arg list always comes first: `closure-sources` here is the
 *defining* flake's pinned sources, so `some-flake` resolves against the
 pins this overlay was written with, no matter which downstream flake
 eventually composes it. An overlay that needs nothing from the closure
@@ -150,5 +150,5 @@ libOverlays = lib: {
 ## Further Reading
 
 - [How `lib` is composed](../deep-dives/how-lib-is-composed.md): the whole composition pass
-- [Closed Inputs](./closed-inputs.md): how inputs are closed over in overlays and modules
+- [Closed-over Sources](./closed-over-sources.md): how overlays and modules close over the sources of the flake that defines them
 - `examples/literate-flake/`: a working example with a custom library overlay

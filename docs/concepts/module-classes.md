@@ -7,7 +7,7 @@ caisson models modules as class-keyed sets. A class is a string key used to grou
 - Registered modules live under `modules.<class>.<name>`
 - Exported modules are published under `flake.modules.<class>.<name>`
 
-This builds on flake-parts' `flake.modules` output, which publishes modules under any class name, and adds closed-inputs module normalization.
+This builds on flake-parts' `flake.modules` output, which publishes modules under any class name, and adds a normalization step that closes each module over the sources of the flake that registers it.
 
 ## Registering a module
 
@@ -81,7 +81,7 @@ imports it and adds the flake mechanics, so each class that forces it
 registers it as `core` in that class.
 
 The class-specific normalizer applies the closure attrset
-(`{ closure-inputs, closure-lib, mkModule, ... }`) as the module's first
+(`{ closure-sources, closure-lib, mkModule, ... }`) as the module's first
 arg list. The `mkModule` closure member is bound to the same class, so
 nested use of `mkModule` stays in that class.
 

@@ -16,7 +16,7 @@
 
 # Concepts
 
-- [Closed inputs](concepts/closed-inputs.md)
+- [Closed-over sources](concepts/closed-over-sources.md)
 - [Module classes](concepts/module-classes.md)
 - [Library overlays](concepts/library-overlays.md)
 - [Ecosystem sources](concepts/ecosystem-sources.md)
@@ -24,7 +24,7 @@
 # Deep dives
 
 - [How `lib` is composed](deep-dives/how-lib-is-composed.md)
-- [How inputs are closed over](deep-dives/how-inputs-are-closed-over.md)
+- [How sources are closed over](deep-dives/how-sources-are-closed-over.md)
 
 # Guides
 

@@ -16,9 +16,9 @@ module that other repositories can build upon" with an ecosystem of
 independent compatible modules.
 
 caisson is built on flake-parts and keeps all of it. What it adds is
-a set of enforced conventions on top: closed inputs (every registered
+a set of enforced conventions on top: closed-over sources (every registered
 file takes an explicit closure argument list instead of reaching for
-inputs ambiently), namespaced library overlays with declared
+flake inputs ambiently), namespaced library overlays with declared
 dependencies composed by caisson-core, class-keyed
 module registration and export, integrations that take their
 ecosystems as explicit `ecosystemSrc` arguments, and measured
@@ -71,7 +71,7 @@ values are read from the shared top-level `config` instead of
 caisson agrees with more of this than with the generators above:
 both build on flake-parts, both eliminate ambient `specialArgs`
 plumbing (dendritic through the shared top-level config, caisson
-through closed inputs and the composed library), and both group
+through closed-over sources and the composed library), and both group
 modules by the module system they belong to (dendritic by option
 path, caisson by class key). The differences are scope and
 mechanism. Dendritic organizes one repository's configurations by

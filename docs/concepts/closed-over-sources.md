@@ -1,10 +1,10 @@
-# Closed Inputs
+# Closed-over Sources
 
 ## Overview
 
 Nix flake modules often need access to the defining flake's `inputs`, but `flake-parts` does not provide a built-in mechanism for closing over them. This means every module and library overlay would need inputs threaded explicitly through its call site, a tedious and error-prone pattern.
 
-caisson solves this with an **explicit closure convention**: everything registered through `mkModule` or `mkLibOverlay` takes a closure attrset as its first arg list. Plain modules and already-built overlays are registered directly instead.
+caisson solves this with an **explicit closure convention**: everything registered through `mkModule` or `mkLibOverlay` takes a closure attrset as its first arg list. caisson calls the defining flake's pinned inputs its `sources`, the name `mkLib` takes them under, and the closure carries them as `closure-sources`. Plain modules and already-built overlays are registered directly instead.
 
 ## The Problem
 
@@ -34,7 +34,7 @@ Everything passed to the class-specific normalizer takes the closure attrset as 
 
 ```nix
 # Uses closure values
-{ closure-inputs, closure-lib, mkModule, ... }:
+{ closure-sources, closure-lib, mkModule, ... }:
 { config, lib, ... }:
 { ... }
 
@@ -48,7 +48,7 @@ The closure attrset contains:
 
 | Key | Value |
 |---|---|
-| `closure-inputs` | The defining flake's pinned sources, the `sources` it passed to `mkLib`: its inputs under their names, with no `self` (distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake) |
+| `closure-sources` | The defining flake's pinned sources, the `sources` it passed to `mkLib`: its inputs under their names, with no `self` (distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake) |
 | `closure-lib` | The defining flake's composed `lib` (distinct from the `lib` module arg); its registry, `closure-lib.caisson.modules.<class>`, is how a module imports a sibling by name |
 | `mkModule` | A normalizer bound to the same class, for nested composition |
 
@@ -58,10 +58,10 @@ Passing a non-function (attrset, path to a plain module, `null`) is an error: pl
 
 ### mkLibOverlay
 
-`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-inputs, closure-lib, mkLibOverlay, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`. `closure-lib` is the composed library of the composition that registered the overlay, bound lazily (read it inside the `overlay` function, never while the overlay is being registered); an integration reaches the registry of the composition that registered it through it:
+`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-sources, closure-lib, mkLibOverlay, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`. `closure-lib` is the composed library of the composition that registered the overlay, bound lazily (read it inside the `overlay` function, never while the overlay is being registered); an integration reaches the registry of the composition that registered it through it:
 
 ```nix
-{ closure-inputs, ... }:
+{ closure-sources, ... }:
 {
   imports = [ "some-flake/default" ];
   overlay = final: prev: { ... };
@@ -74,7 +74,7 @@ The string names an entry of the registry. `some-flake/default` is the lib overl
 
 | Function | Purpose |
 |---|---|
-| `mkModule` | Creates class-specific module normalizers with closed inputs |
+| `mkModule` | Creates class-specific module normalizers closed over the defining flake's sources |
 | `mkLibOverlay` | Applies the closure to registered library overlays |
 | `mkModules`, `mkLibOverlays` | Derive the registrations from `modules/<class>/<name>` (also `configs/`) and `lib-overlays/<name>`, applying `mkModule` and `mkLibOverlay` |
 | `importApply` | Applies static arguments to a module through the import chain |
@@ -83,7 +83,7 @@ The string names an entry of the registry. `some-flake/default` is the lib overl
 
 ## Further Reading
 
-- [How inputs are closed over](../deep-dives/how-inputs-are-closed-over.md): the mechanism behind this convention
-- [How `lib` is composed](../deep-dives/how-lib-is-composed.md): the whole composition pass
-- [Module Classes](./module-classes.md): class-keyed module registration and export
-- `examples/literate-flake/`: a working example demonstrating closed input wiring
+- [How sources are closed over](../deep-dives/how-sources-are-closed-over.md) traces the mechanism behind this convention.
+- [How `lib` is composed](../deep-dives/how-lib-is-composed.md) walks through the whole composition pass.
+- [Module Classes](./module-classes.md) describes class-keyed module registration and export.
+- The caisson repository keeps a working flake in `examples/literate-flake/`, and its registered files close over its sources.

@@ -78,9 +78,9 @@ Create
 ```
 
 Note the two argument lists: every registered file takes the closure
-attrset (`{ closure-inputs, ... }`) first, then its ordinary module
+attrset (`{ closure-sources, ... }`) first, then its ordinary module
 arguments. That convention is the subject of
-[Closed inputs](concepts/closed-inputs.md).
+[Closed-over sources](concepts/closed-over-sources.md).
 
 Check it:
 
@@ -280,7 +280,7 @@ import modules without composing anything.
 
 ## Where next
 
-- [Closed inputs](concepts/closed-inputs.md), the convention every
+- [Closed-over sources](concepts/closed-over-sources.md), the convention every
   registered file follows.
 - [How `lib` is composed](deep-dives/how-lib-is-composed.md): the
   whole composition pass, and caisson-core, the layer `lib.caisson` is

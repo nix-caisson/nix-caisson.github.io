@@ -18,8 +18,8 @@ directory conventions the documentation and examples assume.
 **Concepts** explain the machinery and the reasoning behind it, in
 reading order:
 
-- [Closed inputs](concepts/closed-inputs.md): how modules and library
-  overlays close over the defining flake's inputs, and the explicit
+- [Closed-over sources](concepts/closed-over-sources.md): how modules and library
+  overlays close over the defining flake's sources, and the explicit
   closure convention every registered thing follows.
 - [Module classes](concepts/module-classes.md): class-keyed module
   registration and export.
@@ -34,7 +34,7 @@ reading order:
 [How `lib` is composed](deep-dives/how-lib-is-composed.md) traces a
 `mkLib` call from arguments to finished attrset, including the rules
 that decide conflicts and composing through caisson-core directly.
-[How inputs are closed over](deep-dives/how-inputs-are-closed-over.md)
+[How sources are closed over](deep-dives/how-sources-are-closed-over.md)
 traces the closure attrset from `mkLib` to a registered file,
 including what each kind of registration receives and which values
 cross flake boundaries.

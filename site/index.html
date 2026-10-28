@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>caisson: the foundation framework for composable Nix flakes</title>
-<meta name="description" content="caisson is a structural framework for building composable Nix flakes on flake-parts: closed inputs, disciplined library overlays, and class-keyed module composition.">
+<meta name="description" content="caisson is a structural framework for building composable Nix flakes on flake-parts: closed-over sources, disciplined library overlays, and class-keyed module composition.">
 <meta property="og:title" content="caisson">
 <meta property="og:description" content="The foundation framework for composable Nix flakes.">
 <meta property="og:image" content="assets/social-card.png">
@@ -54,7 +54,7 @@
   <p class="lede">
     A caisson is sunk to bedrock, sealed, and becomes the foundation:
     the part of the bridge no one sees, and the part everything else
-    stands on. caisson can provide that structure for your flake: closed inputs,
+    stands on. caisson can provide that structure for your flake: closed-over sources,
     disciplined library composition, and module classes, based upon
     <a href="https://flake.parts">flake.parts</a>.
   </p>
@@ -160,21 +160,21 @@
   <section class="features">
     <article class="feature">
       <div class="feature-text">
-        <h2>Closed inputs</h2>
+        <h2>Closed-over sources</h2>
         <p>
-          Modules and overlays close over <em>your</em> flake's inputs, not
-          your consumer's. Downstream users are not required to re-declare
+          Modules and overlays close over the sources of <em>your</em> flake,
+          its pinned inputs, rather than the inputs of the flake consuming it. Downstream users are not required to re-declare
           your internal dependencies, and can still override any input
           through standard flake mechanisms.
         </p>
       </div>
 <pre><code><span class="c"># a module, closed over the</span>
-<span class="c"># defining flake's inputs</span>
-{ closure-inputs, ... }:
+<span class="c"># defining flake's sources</span>
+{ closure-sources, ... }:
 { ... }:
 {
   imports = [
-    closure-inputs.some-helper.modules.flake.default
+    closure-sources.some-helper.modules.flake.default
   ];
   <span class="c"># consumers are not required to declare</span>
   <span class="c"># their own dependency on some-helper</span>
@@ -192,10 +192,10 @@
         </p>
       </div>
 <pre><code><span class="c"># lib-overlays/default/default.nix</span>
-{ closure-inputs, ... }:
+{ closure-sources, ... }:
 {
   imports = [
-    closure-inputs.other-flake.libOverlays.default
+    closure-sources.other-flake.libOverlays.default
   ];
   overlay = final: prev: {
     my-flake = (prev.my-flake or { }) // {
@@ -257,7 +257,7 @@
       The <a href="https://github.com/nix-caisson/caisson">repository</a>'s
       <code>examples/literate-flake</code> walks the whole structure with
       commentary; <a href="docs/">the docs</a> explain each concept
-      (closed inputs, module classes, library overlays, and the library
+      (closed-over sources, module classes, library overlays, and the library
       lifecycle) with the reasoning behind the design, and the
       <a href="docs/layout.html">layout conventions</a> cover how a
       caisson repository is arranged.
@@ -268,7 +268,7 @@
     <h2>Integrations</h2>
     <p>
       caisson ships integrations that carry the same conventions
-      (closed inputs, library overlays, class-keyed modules) into
+      (closed-over sources, library overlays, class-keyed modules) into
       other module ecosystems, each registering its own module class.
       flake-parts itself is one of them:
     </p>

@@ -15,9 +15,9 @@ versions.
 Second, collisions: Overlays that write top-level attributes tend to
 fight over the same flat namespace.
 
-### What is `closure-inputs`, and who sets it?
+### What is `closure-sources`, and who sets it?
 
-`closure-inputs` is the `sources` your flake passes to `mkLib`: its
+`closure-sources` is the `sources` your flake passes to `mkLib`: its
 pinned inputs, under their input names and with no `self`.
 `inherit (caisson.lib.caisson.pins.flake inputs) sources root;` in the
 `mkLib` call passes them. The caisson framework threads it in:
@@ -26,7 +26,7 @@ file's first argument list. A file always receives the sources of the
 flake that registered it: an overlay or module consumed from another
 flake sees the sources of the flake it came from, not those of the
 flake consuming it.
-[Closed inputs](concepts/closed-inputs.md) is the full convention.
+[Closed-over sources](concepts/closed-over-sources.md) is the full convention.
 
 ### What happens when two overlays define the same thing?
 
@@ -53,7 +53,7 @@ spread file by file from there.
 A few things:
 
 - applies the closure argument list, so the module can use
-  `closure-inputs`
+  `closure-sources`
 - records the file's path as `_file`, for better error messages
 - gives path-registered modules a deduplication `key`.
 

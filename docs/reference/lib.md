@@ -836,7 +836,12 @@ throws `caisson-deferred: needs <path>` when it is read, where
 `<path>` is the names of the arg joined with `.`. A tool reads that
 text to learn which arg an evaluation is blocked on. The evaluation
 reads `argsNeeded` from its own result, so the names at each level of
-`argsNeeded` must not depend on the args beneath that level.
+`argsNeeded` must not depend on the args beneath that level. Args given
+as something other than an attribute set, where `argsNeeded` declares
+an attribute set of args, fail with an error that names the path they
+were given at. That error does not start with
+`caisson-deferred: needs`, so a tool reports it as a failure, not as a
+missing arg.
 
 `cacheable` says whether a tool may keep a value it found for the arg
 in a cache only its user can read. It is false unless the integration
@@ -3470,8 +3475,11 @@ The `argsNeeded` of a composite names `resourceProviderSystem`, which
 is cacheable. By member name, it names the outputs each member names
 in turn. An output is cacheable when its resource lists it in
 `cacheableOutputs`. The name and the kind of a member must not depend
-on args. The `outputsSkeleton` of a resource must not read the outputs
-of that resource. It may read the outputs of another member.
+on args. A composite whose members, or their kinds, read `members` or
+outputs fails with an error that names the composite. The
+`outputsSkeleton` of a resource must not read the outputs of that
+resource, and a resource that does fails with an error that names it.
+It may read the outputs of another member.
 
 The root gives `discoverArgs`, which reads the outputs NixOps4
 recorded. It reads the `state` option of each resource of the

@@ -457,6 +457,25 @@ so its history says where it came from.
 A file inside a source in the Nix store is written relative to that
 source.
 
+A configuration reads the childless view of its parent, which holds
+none of the configurations beneath the parent, so no loop between a
+configuration and its parent can be written. A level that sets
+`unsafeCrossChildReferences` for a class in `caisson.forChildren`,
+`caisson.forNearestChildren` or `caisson.forDirectChildren` gives the
+configurations of that class it reaches the full evaluation of the
+level instead. Those configurations can reach every configuration
+beneath the level. The manifest of such a configuration records the
+full manifest of that level as `crossChildLevel`. It records the name
+path of that level as `crossChildLevelPath`. On the manifest of any
+other configuration, both fields are null. The childless manifest of a
+level that sets `unsafeCrossChildReferences` for some class carries
+the full manifest of the level as `crossChildFull`, and on any other
+manifest that field is null. When several settings reach a
+configuration, the one through `forDirectChildren` wins over
+`forNearestChildren`, which wins over `forChildren`. Within one
+container, the nearest parent that sets it wins. A loop among the
+configurations it reaches is a Nix infinite recursion.
+
 ### `definers`
 
 ```
@@ -587,7 +606,9 @@ with `builtins.functionArgs` and requires exactly `name` and
 refused there, with a message saying what a configuration is. `what`
 names the declaration in those messages. `mkLib` finalizes each
 `pkgSets` entry this way, and the `caisson.<integration>.configurations`
-options finalize each entry this way.
+options finalize each entry this way. They hold a deferred
+configuration as an entry instead
+([Deferred configurations](#deferred-configurations)).
 
 ### `mkConfiguration`
 
@@ -595,7 +616,8 @@ options finalize each entry this way.
 lib.caisson-core.mkConfiguration :
   { type     : str                                 # the name of the integration
   , evaluate : { lib, manifest } ->
-               { value; outputs ? { }; children ? { }; forChildren ? { }; }
+               { value; outputs ? { }; children ? { }; forChildren ? { };
+                 argsNeeded ? { }; discoverArgs ? { system } -> nullOr derivation; }
   , record   ? { }                                 # plain data added to the manifest
   } -> configuration
 ```
@@ -610,6 +632,10 @@ when it is called; the manifest the configuration returns reads
 evaluation as the evaluator returned it (`value`), the integration's
 references into it (`outputs`) and the finalized configurations
 declared beneath it, by integration and then name (`children`).
+The manifest carries `argsNeeded` and `discoverArgs` from `evaluate`
+as well. A configuration whose `evaluate` returns neither takes no
+args, and its manifest has an empty `argsNeeded` and a `discoverArgs`
+that returns null ([Deferred configurations](#deferred-configurations)).
 
 The evaluation has a childless view and a full view. Each is a
 manifest, and each runs on the declaring lib rebuilt with that manifest
@@ -740,6 +766,102 @@ declares it under an attribute, so its name is the name the composition
 declares on `mkLib`, absent when it declares none, and its parent is
 the lib's manifest. An integration's `mkTopConfiguration` is this
 followed by the step that turns the result into what a tool reads.
+
+### Deferred configurations
+
+```
+lib.caisson-core.mkDeferredConfiguration :
+  { type : str; class ? str; record ? attrs;
+    configuration : { name, parent, args } -> manifest; }
+  -> deferredConfiguration
+lib.caisson-core.deferChild :
+  { name : str; parent : manifest; what ? str; } -> deferredConfiguration -> entry
+lib.caisson-core.mkArg : { cacheable ? bool; type ? str; description ? str; } -> arg
+lib.caisson-core.isDeferred : value -> bool
+lib.caisson-core.isDeferredConfiguration : value -> bool
+lib.caisson-core.isArg : value -> bool
+entry = record // { _type = "caisson-deferred"; name; type; class; parent;
+                    finalize : { args, argsSource } -> manifest; }
+```
+
+A deferred configuration is a configuration whose evaluation waits for
+args. Args are values a deployment tool supplies after the flake is
+evaluated, such as the outputs of the resources a NixOps4 deployment
+applies. A deferred configuration is a function of exactly
+`{ name, parent, args }`, where a configuration is a function of
+exactly `{ name, parent }`. The args reach it only through `args`.
+Apart from that, it is an ordinary configuration. It is declared under
+its parent, and it reads the childless view of its parent, as every
+configuration does. Its `type` and `class` are known at flake time, so
+the additions for the nearest configurations of its class connect at
+it.
+
+`mkDeferredConfiguration` makes a deferred configuration. `type` is
+the name of the integration, and `class` is the module class. `record`
+is plain data the entry carries, such as how the entry is published
+(`exportsTo`, under
+[`mkModuleConfiguration`](#frameworkmodules-mkmoduleconfiguration-ecosystemunit-inecosystem)).
+`configuration` returns a manifest. It is refused unless it is a
+function of exactly `{ name, parent, args }`, so neither kind of
+configuration can be finalized as the other.
+
+A parent cannot call a deferred configuration, because it has no args
+to give. The `caisson.<integration>.configurations` options hold the
+entry that `deferChild` makes in its place. The entry holds the
+`record`, the name, the type and the class. It holds the childless
+manifest of the parent as `parent`, and the function `finalize`.
+Nothing in the entry is evaluated at flake time. The parent's
+`history` and `inputs` leave the entry out, and the entry passes no
+registries up. `isDeferred` tells an entry from other values.
+`isDeferredConfiguration` tells a deferred configuration from other
+values.
+
+`finalize { args, argsSource }` calls the deferred configuration with
+its name, its parent and the args. It returns the manifest of the
+configuration with `argsSource` added. `argsSource` is a function from
+the path of an arg, a list of names, to a sentence saying where the
+value of that arg came from. A tool with one source of values passes a
+function that ignores the path, such as `_: "NixOps4"`. The manifest
+never carries the values of the args. Every caller that finalizes a
+deferred configuration calls `finalize`. Those callers are the
+deployment tool, a tool that walks the tree ahead of time, and a
+parent that has args of its own.
+
+Every manifest says which args its evaluation takes in `argsNeeded`.
+`argsNeeded` is an attribute set whose leaves are made by `mkArg`. It
+is empty for a configuration that takes no args. `finalize` fills the
+args against the `argsNeeded` of the manifest it returns. A given arg
+is passed on without being evaluated. An arg the caller did not give
+throws `caisson-deferred: needs <path>` when it is read, where
+`<path>` is the names of the arg joined with `.`. A tool reads that
+text to learn which arg an evaluation is blocked on. The evaluation
+reads `argsNeeded` from its own result, so the names at each level of
+`argsNeeded` must not depend on the args beneath that level.
+
+`cacheable` says whether a tool may keep a value it found for the arg
+in a cache only its user can read. It is false unless the integration
+or the user marks the arg. `type` and `description` are optional, for
+a tool that checks or shows the args a user gives.
+
+Every manifest also carries `discoverArgs`, a function of
+`{ system }`. It returns a derivation whose program prints the args it
+finds as JSON on its standard output, in the shape of `args`. The
+program is built for and run on `system`, the system of the tool that
+runs it. `discoverArgs` returns null where there is no such program,
+and it returns null for every configuration whose `evaluate` gives no
+`discoverArgs`. A tool reads `discoverArgs` from a finalized manifest,
+so it first calls `finalize` with the args it has. A tool keeps only
+the leaves marked `cacheable` in its cache.
+
+A finalized configuration gives each of its deferred children their
+part of its own args, by calling `finalize` on their entries. It holds
+the manifests `finalize` returns under `children`. A tool that walks
+the tree finds them as it finds any other child.
+
+Each deferred configuration has its own entry, its own `argsNeeded`
+and its own discovery program. Deferred configurations of several
+tools can therefore be declared side by side in one flake, and each
+entry is finalized on its own.
 
 ### `importApply`
 
@@ -1781,7 +1903,9 @@ It reads only the options that a module of the evaluation defines.
 ```
 frameworkModules      : str -> attrsOf module -> listOf module
 mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; selection ? null; evaluate : view -> evaluated; } -> configuration
-evaluated = { value; outputs ? { }; config ? value.config; modules ? listOf (module | unit); }
+evaluated = { value; outputs ? { }; config ? value.config; modules ? listOf (module | unit);
+              children ? attrsOf (attrsOf manifest); argsNeeded ? attrs;
+              discoverArgs ? { system } -> nullOr derivation; }
 ecosystemUnit : { key : str; project : str; file : nullOr str; } -> unit
 inEcosystem   : { name : str; src : path; } -> listOf module -> listOf (module | unit)
 exportsTo = export | listOf export
@@ -1830,19 +1954,22 @@ configuration to what is published.
 `only` takes the manifest and says whether the configuration is
 published in that output at all. A configuration it leaves out is still
 passed up. The treefmt integration
-uses it to publish only the configuration named `default`.
+uses it to publish only the configuration named `formatter`.
 
 `single` says the output holds a single value rather than values by
-name, as `colmenaHive` does. The configuration declared under the name
-`default` is then the output's value, and a configuration declared
-under another name is refused there.
+name, as `colmenaHive` does. A configuration of such an integration is
+named for the output it fills. The configuration declared under the
+name of the output, `attrset`, is the output's value. A configuration
+declared under another name is refused there, with a message naming
+the name it takes. The attribute path of the configuration and its
+published name therefore agree.
 
 `bySystem` says the output is keyed by system first, as flakes key
 `packages` and `formatter`. Each configuration is published under the
 system of its evaluation, `<attrset>.<system>.<name>`, named by the
 usual rules over its path without the systems on it. With `single`
-too, the output holds the configuration named `default` for each
-system, as `formatter.<system>` does. A configuration with no system,
+too, the output holds the configuration named for it for each system,
+as `formatter.<system>` holds the configuration named `formatter`. A configuration with no system,
 one not evaluated per system, is refused in such an output.
 
 `name` is for an integration whose configurations are known by a name
@@ -1858,6 +1985,13 @@ A structural or flake-parts configuration is built with no `exportsTo`
 and is not published under a name. The configurations declared inside
 it are published, with its segment on their paths.
 
+The entry of a deferred configuration is published in the same way,
+from the `exportsTo` its `record` holds
+([Deferred configurations](#deferred-configurations)). `value` and
+`only` then receive the entry, which holds the name, the type, the
+class and the parent. Nothing beneath the entry is evaluated at flake
+time, so the entry passes nothing else up.
+
 The configuration holds configurations of any integration beneath
 it: those its modules declare under
 `caisson.<integration>.configurations` are its children, and
@@ -1865,6 +1999,16 @@ it: those its modules declare under
 output. What its modules define under `caisson.forChildren` is what
 it registers for the configurations beneath it
 (`lib.caisson-core.mkConfiguration`).
+
+An integration whose evaluation finalizes its children itself returns
+them from `evaluate` as `children`, by integration and then name. They
+are then the children of the configuration in place of the values of
+`caisson.<integration>.configurations`. A deferred configuration
+finalizes the deferred configurations declared beneath it this way,
+each with its part of the args of the deferred configuration.
+`evaluate` may also return `argsNeeded` and `discoverArgs`, which the
+manifest carries as caisson-core describes them. A configuration whose
+`evaluate` returns neither takes no args.
 
 `frameworkModules` takes a class and its registry and returns the
 framework module of the class, which every evaluation of the class
@@ -3081,7 +3225,7 @@ NixOS configurations, under `caisson.nixos.configurations.<name>`, the
 way any configuration declares them:
 
 ```nix
-caisson.caisson-colmena.configurations.default = lib.caisson.caisson-colmena.mkConfiguration {
+caisson.caisson-colmena.configurations.colmenaHive = lib.caisson.caisson-colmena.mkConfiguration {
   configModule = { lib, ... }: {
     meta.allowApplyAll = false;
     caisson.nixos.configurations.nas-1 = lib.caisson.nixos.mkConfiguration {
@@ -3120,7 +3264,8 @@ evaluation.
 
 A colmena configuration is published as `colmenaHive`, an output that
 holds a single value, so the colmena configuration declared under the
-name `default` fills it, and another name is refused there. Its nodes
+name of that output, `colmenaHive`, fills it, and another name is
+refused there. Its nodes
 are published as `nixosConfigurations.<name>` as well, from the same
 evaluation, so `nixos-rebuild` and `colmena apply` build the same
 machine.
@@ -3165,7 +3310,7 @@ becomes a caisson NixOS configuration declared beneath the colmena
 configuration, and is published as `nixosConfigurations.<node>`:
 
 ```nix
-caisson.colmena.configurations.default = lib.caisson.colmena.mkConfiguration {
+caisson.colmena.configurations.colmenaHive = lib.caisson.colmena.mkConfiguration {
   hive = {
     meta.nixpkgs = pkgSets.default;
     defaults = { name, ... }: { networking.hostName = name; };
@@ -3179,8 +3324,15 @@ assertion and key modules, the `defaults` of the hive and the modules
 of the node, with the special arguments `name`, `nodes`,
 `meta.specialArgs` and `meta.nodeSpecialArgs.<node>`. With `name`
 given, `deployment.targetHost` defaults to the name of the node, as in
-colmena. `nodes` holds every node evaluated again with type checking
-off, as colmena provides it, made only when a module reads it.
+colmena. `nodes` holds every node by name, the node that reads it
+included. Each node in it is a NixOS configuration declared beneath
+the colmena configuration, as caisson evaluates it. A node reads them
+through the full evaluation of the colmena configuration, since the
+colmena configuration sets
+`caisson.forNearestChildren.unsafeCrossChildReferences.nixos`. A node
+inside a structural group or a disk layout beneath the colmena
+configuration therefore gets them too. Two nodes that read each other in a loop are a Nix infinite
+recursion, as they are in colmena.
 
 A node runs on `meta.nodeNixpkgs.<node>`, else `meta.nixpkgs`, else the
 package set caisson selects for it. Those values are package sets
@@ -3549,10 +3701,11 @@ type treefmt-nix's `submoduleWith` returns.
 | `programs` | the formatters by name |
 | `check` | a function from a source tree to a derivation that fails when the tree is not formatted |
 
-A tree registers the configuration as `configs/treefmt/default/default.nix`
+A tree registers the configuration as `configs/treefmt/formatter/default.nix`
 and declares it with
-`caisson.treefmt.configurations.default = lib.caisson.treefmt.mkConfiguration { };`.
-A top publishes only the configuration named `default`:
+`caisson.treefmt.configurations.formatter = lib.caisson.treefmt.mkConfiguration { };`.
+A top publishes only the configuration named for the output it fills,
+`formatter`:
 
 | Output | Value |
 | --- | --- |
@@ -3673,7 +3826,8 @@ nix-topology flake or source tree, resolved under the name
 `nix-topology`.
 
 The output is `output`, the rendered diagram. A top publishes the
-configuration named `default` as `topology.<system>`, the evaluation,
+configuration named for that output, `topology`, as
+`topology.<system>`, the evaluation,
 where nix-topology's flake module publishes it, so
 `nix build '.#topology.x86_64-linux.config.output'` builds the diagram.
 Its machines are published as `nixosConfigurations` like any NixOS

@@ -24,7 +24,7 @@ Create a directory with this `flake.nix`:
     inputs@{ caisson, ... }:
     let
       lib = caisson.lib.caisson.mkLib {
-        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+        inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
         name = "my-flake";
         systems = [ "x86_64-linux" ];
         projects = {
@@ -78,9 +78,9 @@ Create
 ```
 
 Note the two argument lists: every registered file takes the closure
-attrset (`{ closure-inputs, ... }`) first, then its ordinary module
+attrset (`{ closure-lib, ... }`) first, then its ordinary module
 arguments. That convention is the subject of
-[Closed inputs](concepts/closed-inputs.md).
+[Closed-over Dependencies](concepts/closed-over-dependencies.md).
 
 Check it:
 
@@ -112,7 +112,7 @@ in the config module. `lib.caisson.mkLibOverlays ./lib-overlays` reads
 
 ```nix
       lib = caisson.lib.caisson.mkLib {
-        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+        inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
         name = "my-flake";
         systems = [ "x86_64-linux" ];
         projects = {
@@ -149,7 +149,7 @@ by creating its directory:
 
 ```nix
       lib = caisson.lib.caisson.mkLib {
-        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+        inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
         name = "my-flake";
         systems = [ "x86_64-linux" ];
         projects = {
@@ -189,7 +189,7 @@ selection, and export.
 
 Integrations bring the same conventions to other module ecosystems
 and take their ecosystem as an explicit `ecosystemSrc`, a function of
-the tree's `sources`. A NixOS
+the tree's `dependencies`. A NixOS
 configuration takes its systems and its package set from the
 composition: it is evaluated per system, once for each system `mkLib`
 declares, on the
@@ -200,7 +200,7 @@ the evaluated configuration. At the top level of the config module:
 
 ```nix
   flake.nixosConfigurations.example = lib.caisson.nixos.mkTopConfiguration {
-    ecosystemSrc = sources: sources.nixpkgs;
+    ecosystemSrc = dependencies: dependencies.nixpkgs;
     configModule =
       { ... }:
       {
@@ -217,9 +217,9 @@ the evaluated configuration. At the top level of the config module:
 Instead of passing `ecosystemSrc` at every call, the `mkLib` call can
 declare a default for the `nixos` key, the key a NixOS configuration
 reads
-(`defaultEcosystemSrc = sources: { nixos = sources.nixpkgs; };`), and
+(`defaultEcosystemSrc = dependencies: { nixos = dependencies.nixpkgs; };`), and
 the argument can be dropped; an explicit argument still wins, and the
-source named exactly `nixos` in the `sources` passed to `mkLib` is the
+source named exactly `nixos` in the `dependencies` passed to `mkLib` is the
 last fallback. See
 [Ecosystem sources](concepts/ecosystem-sources.md).
 
@@ -255,7 +255,7 @@ A consumer registers your exported overlay the same way:
     inputs@{ caisson, my-flake, ... }:
     let
       lib = caisson.lib.caisson.mkLib {
-        inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+        inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
         name = "consumer";
         systems = [ "x86_64-linux" ];
         projects = {
@@ -280,7 +280,7 @@ import modules without composing anything.
 
 ## Where next
 
-- [Closed inputs](concepts/closed-inputs.md), the convention every
+- [Closed-over Dependencies](concepts/closed-over-dependencies.md), the convention every
   registered file follows.
 - [How `lib` is composed](deep-dives/how-lib-is-composed.md): the
   whole composition pass, and caisson-core, the layer `lib.caisson` is

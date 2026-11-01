@@ -34,7 +34,7 @@ Type notation used below:
 
 ```
 mkLib :
-  { sources           : attrs                              # the tree's pinned sources, as a pin reader returns them
+  { dependencies      : attrs                              # the tree's pinned trees, as a pin reader returns them
   , root              ? null : root                        # the tree's identity; null for a composition that is not a top
   , name              ? null : str                         # the project's name, also the namespace it contributes
   , modules           ? (lib: { })
@@ -51,8 +51,8 @@ mkLib :
                       : lib -> attrsOf pkgOverlay          # given the bootstrap lib
   , pkgSets           ? (lib: { })
                       : lib -> attrsOf configuration       # package configs by name, given the registered lib
-  , defaultEcosystemSrc ? (sources: { })
-                      : sources -> attrs                   # the tree's default source per ecosystem key, as a function of sources
+  , defaultEcosystemSrc ? (dependencies: { })
+                      : dependencies -> attrs              # the tree's default source per ecosystem key, as a function of dependencies
   , systems           ? null : listOf str                  # the platforms the tree builds on
   , projects          ? { } : attrs                        # consumed upstream contributions, by project name
   } -> lib
@@ -66,10 +66,10 @@ names win over overlay-borne contributions) and the manifest. In a
 flake that uses caisson, the selected overlays include the
 `nixpkgs-lib` entry, which is the `lib` of nixpkgs loaded from the
 source `ecosystemSrc "nixpkgs-lib"` resolves: the source
-`defaultEcosystemSrc sources` returns for the `nixpkgs-lib` key, else
-the source pinned under exactly that name in `sources`. The caisson
+`defaultEcosystemSrc dependencies` returns for the `nixpkgs-lib` key, else
+the source pinned under exactly that name in `dependencies`. The caisson
 integration overlays import it. Every source arrives as an argument
-or a declaration; the exact-name fallback over `sources` applies to
+or a declaration; the exact-name fallback over `dependencies` applies to
 ecosystem resolution only (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
 
@@ -101,11 +101,13 @@ reads, so a module imports a sibling by name. A registration under a
 `caisson-core/<name>` key replaces that entry from the bootstrap stage
 on; the core lib keeps the original.
 
-`sources` and `root` come from a pin reader (see `pins` below); at a
+`dependencies` and `root` come from a pin reader (see `pins` below); at a
 flake top, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
-sources root;`. The registered overlays and modules close over
-`sources` as `closure-inputs`, so the closure holds the pinned trees
-under their input names and no `self`. The signature is the pattern
+dependencies root;`. The manifest records `dependencies` as
+`lib.caisson-core.libManifest.dependencies`, and the registered overlays
+and modules read them as `closure-lib.caisson.dependencies`, so a
+registered file sees the pinned trees under their input names and no
+`self`. The signature is the pattern
 of `mkLib`, with no `...`: a missing or unexpected argument, a
 leftover `inputs` included, is Nix's error at the call site,
 naming `mkLib` and pointing at the pattern.
@@ -127,7 +129,7 @@ naming `mkLib` and pointing at the pattern.
   name rather than by a path out of their directory.
 - `libOverlays` receives the core lib and returns the registered
   overlays. An entry is made with `lib.caisson-core.mkLibOverlay`,
-  which closes it over the sources of the composition;
+  which closes it over the composition;
   `lib: lib.caisson-core.mkLibOverlays ./lib-overlays` reads the
   layout.
 - `pkgOverlays` receives the bootstrap lib and returns the registered
@@ -158,15 +160,15 @@ naming `mkLib` and pointing at the pattern.
   it keeps the default.
   Registration also feeds export, so what is registered and what is
   selected can differ.
-- `defaultEcosystemSrc` is a function of `sources` returning the
+- `defaultEcosystemSrc` is a function of `dependencies` returning the
   tree's default source per ecosystem key, keyed by the exact names
   the integrations resolve
-  (`sources: { nixpkgs-lib = sources.nixpkgs; nixos = sources.nixpkgs; }`
+  (`dependencies: { nixpkgs-lib = dependencies.nixpkgs; nixos = dependencies.nixpkgs; }`
   gives the library and the NixOS module collection from a checkout
   pinned under the `nixpkgs` key). An attribute set given in place of
   the function is refused. mkLib records what the function selects in
   the manifest as `defaultEcosystemSrc`, and the name of each selected
-  source among `sources` as `defaultEcosystemSrcNames`, null for a
+  source among `dependencies` as `defaultEcosystemSrcNames`, null for a
   value the function builds in another way. The `nixpkgs-lib` entry it
   composes reads its source
   through `ecosystemSrc "nixpkgs-lib"`, the same resolution every
@@ -235,7 +237,7 @@ The package overlay registry, recorded as
 `caisson-core.libManifest.pkgOverlays`. An entry has the lib overlay
 entry's shape with a nixpkgs overlay under `overlay`: a file handed to
 `mkPkgOverlay` takes the closure
-`{ closure-inputs, closure-lib, mkPkgOverlay, ... }` and returns
+`{ closure-lib, mkPkgOverlay, ... }` and returns
 `{ imports ? [ ], overlay }`. An entry imports a sibling from the
 registry of the composition that registered it,
 `closure-lib.caisson-core.libManifest.pkgOverlays.<name>`:
@@ -277,8 +279,7 @@ mkLibOverlay : freeformOverlay -> libOverlay
 
 freeformOverlay = path | (closure -> { imports ? listOf libOverlay
                                      ; overlay : overlayFn })
-closure = { closure-inputs     : attrs    # the defining composition's pinned sources
-          ; closure-lib        : lib      # the defining composition's lib, lazily bound
+closure = { closure-lib        : lib      # the defining composition's lib, lazily bound
           ; mkLibOverlay       : freeformOverlay -> libOverlay
           ; mkModule           : string -> freeformModule -> module
           }
@@ -294,9 +295,13 @@ that registered the overlay, bound lazily: read it inside the
 `overlay` function or a function it defines, never while the overlay
 is being registered. An integration reaches the registry of its
 composition through it (`closure-lib.caisson.modules.<class>`),
-wherever it is later composed. The closure's `mkModule` is bound to
-the defining composition, so modules an overlay makes close over the
-definer's inputs and library. A lib overlay does not add to the
+wherever it is later composed, and reads the pinned trees of that
+composition as `closure-lib.caisson.dependencies.<name>`, a view of
+`closure-lib.caisson-core.libManifest.dependencies`. The `imports`
+list is read during registration, so it names registry entries as
+strings and never reads `closure-lib`. The closure's `mkModule` is
+bound to the defining composition, so modules an overlay makes close
+over the dependencies and library of the definer. A lib overlay does not add to the
 registry; see [Module classes](../concepts/module-classes.md) for the
 ways modules enter it.
 
@@ -306,15 +311,14 @@ ways modules enter it.
 mkModule : string -> freeformModule -> module
 
 freeformModule = path | (closure -> module)
-closure = { closure-inputs        : attrs    # the defining flake's pinned sources
-          ; closure-lib           : lib      # the defining flake's composed lib
+closure = { closure-lib           : lib      # the defining flake's composed lib
           ; mkModule              : freeformModule -> module   # bound to the class
           }
 ```
 
 Factory for class-specific module normalizers. Given a class name, returns a normalizer that applies the closure attrset to a module given as a function or a path to it; the module takes the closure as its first arg list (`{ ... }:` when unused). Plain modules are imported/registered directly rather than wrapped. Path modules gain `_file` and a path-based dedup `key`.
 
-The `mkModule` closure member is bound to the same class, so nested module composition stays in that class. A module imports a sibling by name through `closure-lib.caisson.modules.<class>.<name>`, the registry of the composition that registered it.
+The `mkModule` closure member is bound to the same class, so nested module composition stays in that class. A module imports a sibling by name through `closure-lib.caisson.modules.<class>.<name>`, the registry of the composition that registered it, and reads a pinned tree of that composition as `closure-lib.caisson.dependencies.<name>`.
 
 ### `modules`
 
@@ -339,12 +343,12 @@ manifest : { _type : "caisson-manifest"; type : "lib";
              name ? str;
              entries : listOf { key : str; opaque : bool; };
              history : listOf event;
-             sources : attrs; root : nullOr root;
+             dependencies : attrs; root : nullOr root;
              modules : attrsOf (attrsOf module);
              configs : attrsOf (attrsOf module);
              libOverlays : attrsOf libOverlay;
              pkgOverlays : attrsOf pkgOverlay;
-             defaultEcosystemSrc : sources -> attrs; systems : nullOr (listOf str);
+             defaultEcosystemSrc : dependencies -> attrs; systems : nullOr (listOf str);
              projects : attrs;
              childless : bool; inputs : list; parent : nullOr manifest;
              ancestors : listOf manifest; nearest : attrsOf manifest;
@@ -365,7 +369,7 @@ manifest lists only the `caisson-core` entries in `entries`.
 `pkgSets` holds the package configs declared in the `pkgSets`
 argument, each the manifest its configuration returned, with the
 registered manifest as its `parent`.
-`sources`, `root`, `defaultEcosystemSrc`, `systems`,
+`dependencies`, `root`, `defaultEcosystemSrc`, `systems`,
 `projects` and `configs` are the `mkLib` arguments as given, except
 that a directory reader's pin files are stated relative to the root
 when the directory lies in the root's tree (`pin.dir` is kept
@@ -559,7 +563,7 @@ lib.caisson-core.ecosystemSrc : name -> source | null
 
 `ecosystemSrc` takes an ecosystem name and returns the source the
 composition supplies for exactly that name. That is the source
-`defaultEcosystemSrc sources` selects for that name, or else the
+`defaultEcosystemSrc dependencies` selects for that name, or else the
 source it pins under that name, or else null. The result is fixed by
 the arguments of the `mkLib` call.
 
@@ -674,7 +678,7 @@ ones and ones beneath a system included.
 Both views carry `type`, `name`, `parent`, `ancestors` (the parent's
 list with the parent appended), `nearest` (the parent's attrset with
 the parent under its integration; a lib is not among them), `inputs`,
-and the parent's `sources`, `root`, `systems`, `projects`,
+and the parent's `dependencies`, `root`, `systems`, `projects`,
 `defaultEcosystemSrc`, `pkgSets` and registries. A `record` that names
 a field `mkConfiguration` writes is refused.
 
@@ -879,7 +883,7 @@ Applies static arguments to a module through `_file`/`imports` wrappers while pr
 ### `compose`, `resolve`
 
 `compose` composes entries by key. `resolve` resolves an ecosystem
-source from `explicit`, `defaults` and `sources`, in that order. See
+source from `explicit`, `defaults` and `dependencies`, in that order. See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
 the documentation of caisson-core.
 
@@ -898,7 +902,7 @@ caisson's registered flake modules are listed here too.
 
 ```nix
 lib = caisson.lib.caisson.mkLib {
-  inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+  inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
   projects = { inherit caisson; };
   modules = lib: lib.caisson.mkModules ./modules;
   configs = lib: lib.caisson.mkModules ./configs;
@@ -949,14 +953,14 @@ names or as entries, and both registries treat them the same way.
 ### `pins`
 
 ```
-lib.caisson.pins.flake        : inputs -> { sources; root; }
-lib.caisson.pins.flake-compat : path -> { sources; }
-lib.caisson.pins.npins        : path -> { sources; }
+lib.caisson.pins.flake        : inputs -> { dependencies; root; }
+lib.caisson.pins.flake-compat : path -> { dependencies; }
+lib.caisson.pins.npins        : path -> { dependencies; }
 lib.caisson.pins.gitRoot      : path -> root
 ```
 
 `pins` holds a reader per pin system. Each reads the files of its pin
-system into `sources`: the pinned source trees, each as its pin system
+system into `dependencies`: the pinned source trees, each as its pin system
 hands it over (a flake input keeps its outputs), with `pin`, the
 record of how it is pinned.
 
@@ -1007,13 +1011,13 @@ tree, or `dirty = true` with `dirtyRev` for a dirty working tree.
 
 ```nix
 # flake.nix outputs
-inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
 
 # test-only pins beside the pins of the flake
-inherit (lib.caisson.pins.flake-compat ./tests/dependencies) sources;
+inherit (lib.caisson.pins.flake-compat ./tests/dependencies) dependencies;
 
 # a flakeless top pinned with npins
-inherit (lib.caisson.pins.npins ./npins) sources;
+inherit (lib.caisson.pins.npins ./npins) dependencies;
 root = lib.caisson.pins.gitRoot ./.;
 ```
 
@@ -1828,7 +1832,7 @@ lib.caisson.integrations.selectedEcosystemSrc : context -> manifest -> explicit 
 ```
 
 `selectedEcosystemSrc` applies a configuration's `ecosystemSrc`
-argument, a function of `sources` or null, to the `sources` of
+argument, a function of `dependencies` or null, to the `dependencies` of
 `manifest`. It returns null for a null `explicit`, and refuses an
 `explicit` that is not a function. `context` names the caller in that
 refusal's message.
@@ -1842,10 +1846,10 @@ resolveEcosystemSrc : { name, context } -> { explicit ? null, manifest ? libMani
 `resolveEcosystemSrc` finds the source of an ecosystem in the layered
 order that [Ecosystem sources](../concepts/ecosystem-sources.md)
 describes: `selectedEcosystemSrc` applied to the explicit argument
-first, then the source `defaultEcosystemSrc sources` returns for the
+first, then the source `defaultEcosystemSrc dependencies` returns for the
 name, then the pinned source named exactly `<name>`. The first call
 names the ecosystem and the caller; the second supplies the explicit
-argument and the manifest to read the sources and the declarations
+argument and the manifest to read the dependencies and the declarations
 from.
 When nothing provides a source, it throws a message that names the
 caller and those places.
@@ -2091,7 +2095,7 @@ configuration records:
 
 ```
 ecosystemAccountOf : { name : str; context : str; } -> { explicit ? null; manifest ? libManifest; } -> account
-account = { from : "ecosystemSrc" | "defaultEcosystemSrc" | "sources";
+account = { from : "ecosystemSrc" | "defaultEcosystemSrc" | "dependencies";
             source : nullOr str; }
 ```
 
@@ -2099,10 +2103,10 @@ How an evaluation came by the source of the ecosystem `name`. It
 takes the arguments `resolveEcosystemSrc` takes and follows the same
 order. `from` names the declaration that supplied the source:
 `ecosystemSrc` for the selection of the configuration,
-`defaultEcosystemSrc` for the selection of the tree, and `sources` for
+`defaultEcosystemSrc` for the selection of the tree, and `dependencies` for
 the source the tree pins under exactly that name. `source` is the name
-of that source among the pinned sources of the tree, where
-`sources.<name>.pin` records its revision. It is null where a selection
+of that source among the pinned dependencies of the tree, where
+`dependencies.<name>.pin` records its revision. It is null where a selection
 builds the value in another way, such as a directory inside a source.
 The name is read from the selection applied to the sources tagged with
 their names (`caisson-core.selectedSourceName`), so reading the
@@ -2452,11 +2456,11 @@ every ecosystem, flake-parts included, is resolved from the
 composition of the consumer.
 
 An adapter's ecosystem source resolves in layers: the explicit
-`ecosystemSrc` argument first, applied to `sources` through
-`selectedEcosystemSrc`; then the source `defaultEcosystemSrc sources`
+`ecosystemSrc` argument first, applied to `dependencies` through
+`selectedEcosystemSrc`; then the source `defaultEcosystemSrc dependencies`
 returns for `<name>` (`defaultEcosystemSrc` is an mkLib argument,
 carried by the manifest); then the source named exactly `<name>` in
-the `sources` passed to mkLib. The name is the integration's
+the `dependencies` passed to mkLib. The name is the integration's
 ecosystem, and a single ecosystem may serve several integrations:
 `nixos` for the nixos and nixos-minimal integrations, `nixpkgs` for
 the nixpkgs integration, `colmena` for the caisson-colmena and colmena
@@ -2594,7 +2598,7 @@ mkConfiguration :
   { configModule  ? (the configuration registered under the name)
                   : module                                  # flake class
   , pkgSets       ? null                                    # the `pkgSets` special argument
-  , ecosystemSrc  ? null : sources -> source                # the flake-parts source
+  , ecosystemSrc  ? null : dependencies -> source           # the flake-parts source
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the flake class registry
   , specialArgs   ? { }                                     # beside `lib`, the composed library
@@ -2612,17 +2616,17 @@ mkConfiguration :
   holds the configurations declared beneath it. When `configModule` is
   absent, the config module is the configuration registered under the
   configuration's name, `lib.caisson.configs.flake.<name>`.
-  flake-parts' `inputs` are the manifest's pinned `sources`, and the
+  flake-parts' `inputs` are the manifest's pinned `dependencies`, and the
   integration ties `self` the way Nix does for a flake: the
   evaluation's outputs with the root's source info (out path,
-  revision, last-modified) beside them and `self.inputs` the sources,
+  revision, last-modified) beside them and `self.inputs` the dependencies,
   so flake-parts modules receive `self`, `self'` and `inputs` as they
   would under Nix's flake evaluation. `moduleImports` selects over
   the `flake` class of `lib.caisson.modules`, the same registry
   every adapter selects from, so modules arriving by local
   registration, overlay contribution, or consumed project are all
   selectable. flake-parts itself resolves like every ecosystem, from
-  `ecosystemSrc`, the source `defaultEcosystemSrc sources` returns for
+  `ecosystemSrc`, the source `defaultEcosystemSrc dependencies` returns for
   `flake-parts`, or the pinned source named `flake-parts`, and is
   instantiated over the composed library. The name of the configuration sets flake-parts'
   `moduleLocation`, so exported modules deduplicate across revisions.
@@ -2658,7 +2662,7 @@ mkConfiguration :
 mkConfiguration :
   { configModule  ? (the configuration registered under the name)
                   : module                                  # nixos class
-  , ecosystemSrc  ? null : sources -> source                # the source under the `nixos` key
+  , ecosystemSrc  ? null : dependencies -> source           # the source under the `nixos` key
   , moduleImports ? (every entry named default)
                   : attrsOf module -> listOf module          # selection from the nixos class registry
   , specialArgs   ? { }
@@ -3052,7 +3056,7 @@ the class are registered under `modules/nixpkgsConfig/<name>`.
 lib.caisson.nixpkgs.mkConfiguration :
   { configModule  ? null : module      # the config's module
   , moduleImports ? null : registry -> listOf module
-  , ecosystemSrc  ? null : sources -> path  # the nixpkgs source tree for this config
+  , ecosystemSrc  ? null : dependencies -> path  # the nixpkgs source tree for this config
   } -> configuration
 ```
 
@@ -3062,11 +3066,11 @@ declared under (`lib.caisson.configs.nixpkgsConfig.<name>`), and
 a config with neither evaluates with no module of the tree.
 `moduleImports` selects from the `nixpkgsConfig` module registry and
 defaults to every entry named `default`. `ecosystemSrc` is a function
-of `sources` returning the nixpkgs tree for this config, replacing
+of `dependencies` returning the nixpkgs tree for this config, replacing
 the `nixpkgs` key for this evaluation and nothing else; a value given
 in place of the function is refused. A config on another nixpkgs
 revision writes
-`ecosystemSrc = sources: sources.nixpkgs-stable;`. When
+`ecosystemSrc = dependencies: dependencies.nixpkgs-stable;`. When
 `ecosystemSrc` is absent, the tree resolves from the composition's
 declarations (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
@@ -3197,12 +3201,15 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
 - `mkScope : pkgs -> (callPackage -> attrs) -> scope`: a
   `makeScope` wrapper handing the scope function its `callPackage`.
 - `mkPackagesOverlay : pkgsFn -> name -> overlayFn`: turns a scope
-  function (or path; optionally context-taking
-  `{ callPackage, inputs, lib }`) into an overlay that merges the
-  scope under attribute `name`.
+  function (or path; optionally taking the named arguments
+  `{ callPackage, lib }`) into an overlay that merges the
+  scope under attribute `name`. The function reads the pinned trees of
+  the composition as `lib.caisson.dependencies.<name>`.
 - `mkPolyfillOverlay : overlayFn -> name -> overlayFn`: wraps an
-  overlay (or path; optionally context-taking) for registration
-  alongside package overlays; the name is ignored.
+  overlay (or path; optionally taking the named argument `{ lib }`)
+  for registration alongside package overlays, and the overlay
+  function reads the pinned trees as `lib.caisson.dependencies.<name>`.
+  The name is ignored.
 - `types.nixpkgsOverlay`, `types.nixpkgs`: option types.
 
 ### `caisson.caisson-colmena` (module class `caisson-colmena`)

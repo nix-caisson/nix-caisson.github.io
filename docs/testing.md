@@ -73,7 +73,7 @@ as documented. They are written as completely normal flakes:
 A small lock-bearing flake whose only job is to pin the inputs that
 tests (and formatters) need, so the main `flake.lock` stays free of
 test-only pins. The checks partition takes its inputs as
-`(lib.caisson.pins.flake-compat ./tests/dependencies).sources`,
+`(lib.caisson.pins.flake-compat ./tests/dependencies).dependencies`,
 the flake-compat pin reader, which resolves the lock without
 evaluating the flake.
 
@@ -104,7 +104,7 @@ in
 The nested flake's declared inputs resolve by name (`overrides` first,
 then `follows` chains, then the pool), and an unresolvable input throws
 an error naming it and what to do. The contract is deliberately
-explicit, in the same spirit as closed inputs: nothing is fetched, no
+explicit, in the same spirit as closed-over dependencies: nothing is fetched, no
 lock is read, and you supply exactly the input graph you mean the test
 to see. One consumer's outputs can feed another's `overrides`, so
 chains of consumers (a flake consuming a flake that consumes yours) are

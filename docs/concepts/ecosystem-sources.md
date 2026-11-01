@@ -69,7 +69,7 @@ from a separate key, with no fallback between keys:
   collection.
 
 A key a tree does not declare resolves to the source pinned under
-exactly that name in `sources`. A tree that takes several parts from
+exactly that name in `dependencies`. A tree that takes several parts from
 one checkout names that checkout under each key. Every tree uses
 `nixpkgs-lib`; a tree with package sets uses `nixpkgs`; a tree with
 NixOS or system-manager configurations uses `nixos`. The parts may
@@ -83,10 +83,10 @@ A tree with a single nixpkgs checkout, pinned under the input name
 
 ```nix
 caisson.lib.caisson.mkLib {
-  inherit sources root;
-  defaultEcosystemSrc = sources: {
-    nixpkgs-lib = sources.nixpkgs;
-    nixos = sources.nixpkgs;
+  inherit dependencies root;
+  defaultEcosystemSrc = dependencies: {
+    nixpkgs-lib = dependencies.nixpkgs;
+    nixos = dependencies.nixpkgs;
   };
 };
 ```
@@ -188,22 +188,22 @@ the `nixpkgs-lib` key.
 A source comes from one of these places, in priority order:
 
 1. **Explicit argument.** `ecosystemSrc` at the call site always
-   wins. It is a function of the tree's `sources`, returning the
+   wins. It is a function of the tree's `dependencies`, returning the
    source for that call; a value given in place of the function is
-   refused. `ecosystemSrc = sources: sources.nixpkgs;` names an input
+   refused. `ecosystemSrc = dependencies: dependencies.nixpkgs;` names an input
    called `nixpkgs` explicitly. It replaces the source for that
    evaluation and nothing else: a level cannot set sources for the
    levels beneath it. A package config on a different nixpkgs
    revision writes
-   `ecosystemSrc = sources: sources.nixpkgs-stable;`.
+   `ecosystemSrc = dependencies: dependencies.nixpkgs-stable;`.
 2. **Composition default.** `defaultEcosystemSrc` on `mkLib` is a
-   function of `sources`, returning the source of each ecosystem by
+   function of `dependencies`, returning the source of each ecosystem by
    its exact key:
-   `defaultEcosystemSrc = sources: { nixpkgs-lib = sources.nixpkgs; nixos = sources.nixpkgs; };`.
+   `defaultEcosystemSrc = dependencies: { nixpkgs-lib = dependencies.nixpkgs; nixos = dependencies.nixpkgs; };`.
    An attribute set given in place of the function is refused.
 3. **Exact-name source.** As a final fallback, the source named
    exactly like the key (`nixpkgs`, `home-manager`, and the rest) in
-   the `sources` passed to `mkLib` is used. For a flake that declares
+   the `dependencies` passed to `mkLib` is used. For a flake that declares
    that input anyway, this is the common case.
 
 If none of these places can provide a needed ecosystem source,
@@ -226,10 +226,10 @@ supplied the source and which pinned source it is.
 }
 ```
 
-`from` is `ecosystemSrc`, `defaultEcosystemSrc` or `sources`, in the
+`from` is `ecosystemSrc`, `defaultEcosystemSrc` or `dependencies`, in the
 order above. `source` is the name of the source among the pinned
-sources, where the manifest records its revision under
-`sources.<name>.pin`. It is null when a selection builds the value in
+dependencies, where the manifest records its revision under
+`dependencies.<name>.pin`. It is null when a selection builds the value in
 another way, such as a directory inside a source. A package config
 also lists, under `nixpkgs.libraries`, the names its sets take from
 the source of the package set

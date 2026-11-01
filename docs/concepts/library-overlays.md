@@ -30,11 +30,11 @@ This means two independent projects do not collide unless the project names do: 
 
 The `(prev.myProject or {}) // { ... }` pattern ensures that if multiple overlays contribute to the same namespace (e.g., a base overlay and an extension overlay within the same project), their contributions are merged rather than one silently replacing the other. This is the standard Nix overlay contract, and it matters: it means overlays compose additively.
 
-### Input Closure
+### Dependency Closure
 
-caisson's `mkLibOverlay` automatically closes over the flake's `inputs` when registering an overlay. This binds each overlay to the specific set of inputs it was written against, rather than relying on the leaf flake to do the right thing. The result is that overlays from different upstream flakes don't interfere with each other's inputs, even when composed into the same final `lib`.
+caisson's `mkLibOverlay` automatically closes over the flake's dependencies when registering an overlay. This binds each overlay to the specific set of pinned trees it was written against, rather than relying on the leaf flake to do the right thing. The result is that overlays from different upstream flakes don't interfere with each other's dependencies, even when composed into the same final `lib`.
 
-See [Closed Inputs](./closed-inputs.md) for the full mechanism.
+See [Closed-over Dependencies](./closed-over-dependencies.md) for the full mechanism.
 
 ### Dependency Tracking
 
@@ -86,21 +86,22 @@ The most common case: adding namespaced functions to `lib`.
 
 ```nix
 # lib-overlays/default/default.nix
-{ closure-inputs, ... }:
+{ closure-lib, ... }:
 {
   imports = [ ];
   overlay = final: prev: {
     myProject = (prev.myProject or {}) // {
       greet = name: "Hello, ${name}!";
       double = x: x * 2;
-      upstreamVersion = closure-inputs.some-flake.lib.version;
+      upstreamVersion = closure-lib.caisson.dependencies.some-flake.lib.version;
     };
   };
 }
 ```
 
-The closure arg list always comes first: `closure-inputs` here is the
-*defining* flake's pinned sources, so `some-flake` resolves against the
+The closure arg list always comes first: `closure-lib` here is the
+composed library of the *defining* flake, so
+`closure-lib.caisson.dependencies.some-flake` resolves against the
 pins this overlay was written with, no matter which downstream flake
 eventually composes it. An overlay that needs nothing from the closure
 still takes the arg list, as `{ ... }:`.
@@ -150,5 +151,5 @@ libOverlays = lib: {
 ## Further Reading
 
 - [How `lib` is composed](../deep-dives/how-lib-is-composed.md): the whole composition pass
-- [Closed Inputs](./closed-inputs.md): how inputs are closed over in overlays and modules
+- [Closed-over Dependencies](./closed-over-dependencies.md): how dependencies are closed over in overlays and modules
 - `examples/literate-flake/`: a working example with a custom library overlay

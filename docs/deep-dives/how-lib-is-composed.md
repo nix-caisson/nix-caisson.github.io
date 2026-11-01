@@ -12,7 +12,7 @@ without `mkLib` when you want to.
 the seed is the empty attribute set, and nixpkgs' library arrives as
 an entry like everything else.
 
-- `defaultEcosystemSrc`: a function of the tree's `sources`,
+- `defaultEcosystemSrc`: a function of the tree's `dependencies`,
   returning the tree's default source per ecosystem key (see
   [Ecosystem sources](../concepts/ecosystem-sources.md)). An
   attribute set given in place of the function is refused. A tree
@@ -26,9 +26,8 @@ an entry like everything else.
   the flake whose `mkLib` call composes it, including when that flake
   consumes caisson as a project. The caisson integrations import the
   entry. An overlay outside caisson
-  that calls upstream's functions imports it by key from the caisson
-  source tree:
-  `(mkLibOverlay (closure-inputs.caisson.outPath + "/lib-overlays/nixpkgs-lib")) // { key = "nixpkgs-lib"; }`.
+  that calls upstream's functions imports it by its registry name,
+  `imports = [ "caisson/nixpkgs-lib" ];`, when `projects` lists caisson.
   A flake that declares no source fails only where that entry is
   composed, with a message naming the declaration.
 - `libOverlays`: the flake's overlay registrations, built with
@@ -229,9 +228,9 @@ adds the lib overlay to the library that `consumer` composes.
 
 The lib overlay was built with `mkLibOverlay`, in the flake whose
 source holds the overlay. `mkLibOverlay` gave the overlay
-`closure-inputs` and `closure-lib`: the pinned sources and the composed
-library of the flake that called `mkLibOverlay`. The overlay keeps
-both in the library of `consumer`.
+`closure-lib`: the composed library of the flake that called
+`mkLibOverlay`, whose `caisson.dependencies` are the pinned trees of
+that flake. The overlay keeps it in the library of `consumer`.
 
 By default, `producer` exports the lib overlays that `producer`
 registers itself. For those, the flake that called `mkLibOverlay` is
@@ -240,8 +239,9 @@ registers itself. For those, the flake that called `mkLibOverlay` is
 `producer` can also list a flake `upstream` in `projects`, and name a
 lib overlay of `upstream` in the `exported` selector of `producer`.
 For that lib overlay, the flake that called `mkLibOverlay` is
-`upstream`. In the library of `consumer`, the overlay keeps the pinned
-sources and the composed library of `upstream`.
+`upstream`. In the library of `consumer`, the overlay keeps the
+composed library of `upstream`, and with it the pinned trees of
+`upstream`.
 
 ## Inspecting the result
 

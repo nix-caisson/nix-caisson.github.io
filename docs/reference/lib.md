@@ -1563,6 +1563,23 @@ imports, as an activation step before `writeBoundary`. The option
 [`caisson.drift.warn`](./options.md#caissondriftwarn) of the
 home-manager configuration removes the step.
 
+**Profiles the machine sets.** The identity of a machine leaves out the
+home-manager configurations inside it. A machine that installs the
+packages of a home-manager configuration with
+[`caisson.useUserPackages`](./options.md#caissonuseuserpackages) writes
+one more field into its marker, `profiles`. For each such home-manager
+configuration, under the name of its marker file, it holds the digest
+of the `home.path` the machine installed:
+`{ "identity": "<digest>", "profiles": { "home-manager-<name>.json": { "packages": "<digest>" } } }`.
+`lib.caisson.integrations.machineProfilesOf` reads these digests from
+the profile adapter of the home-manager configuration. The check of
+that home-manager configuration also compares the digest with its own
+`home.path`, and prints a warning when they differ. A
+`home-manager switch` of a version other than the one the machine
+installed then says that the packages are those of the machine. A
+machine without such a home-manager configuration writes the marker
+with `identity` alone.
+
 **When the configuration above activates it.** The marker then already
 belongs to the generation being activated, so the two are equal, and
 the check prints nothing.

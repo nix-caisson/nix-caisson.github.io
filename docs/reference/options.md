@@ -14,7 +14,7 @@ The options are declared by the `core` module of caisson, which is imported into
 - **Default:** the composed library's `caisson-core.evalManifest`, or its `caisson-core.libManifest` in an evaluation that has none
 - **Source:** `modules/generic/core/caisson/manifest.nix`
 
-The manifest of this evaluation: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `dependencies`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural, flake-parts and NixOS configurations have a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` outputs are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems`, the empty list when the composition declares none, so such a flake has no per-system outputs (`modules/flake/core/caisson/systems.nix`).
+The manifest of this evaluation result: its `type`, `name`, `parent` and `children`, and the registries and declared facts of the composition it is declared under, which are `dependencies`, `defaultEcosystemSrc`, `systems` and `projects` as given to `mkLib`, plus the registered `libOverlays` and `modules` dictionaries (project entries under `<project>/<name>`, locals winning). Structural, flake-parts and NixOS configurations have a manifest. Reading it type-checks the manifest; the `flake.modules` and `flake.libOverlays` outputs are drawn from it, and flake-parts' `systems` defaults to the manifest's `systems`, the empty list when the composition declares none, so such a flake has no per-system outputs (`modules/flake/core/caisson/systems.nix`).
 
 ### `caisson.<integration>.configurations`
 
@@ -31,9 +31,9 @@ The configurations of an integration declared inside this configuration, by name
 }
 ```
 
-Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this evaluation as its parent. An entry of an integration that evaluates a configuration per system (nixos) reads back as its evaluations by system, `config.caisson.nixos.configurations.laptop.x86_64-linux`, a manifest for each system the configuration is evaluated for. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
+Each entry is finalized when it is read, with the attribute it is declared under as its name and the childless manifest of this configuration as its parent. An entry of an integration that evaluates a configuration per system (nixos) reads back as its evaluation results by system, `config.caisson.nixos.configurations.laptop.x86_64-linux`, a manifest for each system the configuration is evaluated for. The names are known without finalizing anything, so `builtins.attrNames config.caisson.structural.configurations` evaluates no configuration.
 
-A configuration declared inside this configuration sees its childless evaluation, which leaves out the configurations declared inside it. In the childless evaluation an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson.evalManifest.childless`:
+A configuration declared inside this configuration reads the result of its childless evaluation, which leaves out the configurations declared inside it. In the childless evaluation an entry's result is not readable, and reading it fails with a message saying so. A definition that reads an entry is therefore written under `!lib.caisson.evalManifest.childless`:
 
 ```nix
 # an option of this configuration, defined from a configuration declared inside it
@@ -74,7 +74,7 @@ The configurations themselves are passed up as well, each with its path, and the
 
 publishes `nixosConfigurations.laptop` from a flake-parts or structural top. A name that is alone stays bare. Names that collide gain the segments that tell them apart, from the segment nearest the top: `host-1` declared in the structural configurations `a` and `b` is published as `a/host-1` and `b/host-1`, and a configuration evaluated for several systems as `x86_64-linux/laptop` and `aarch64-linux/laptop`. Configurations that still share a name are refused, with their paths. An integration may give its configurations a different name first: a home-manager configuration declared as `chris` inside the NixOS configuration `laptop` is published as `homeConfigurations."chris@laptop"`.
 
-`caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the evaluation that holds the configurations: it is absent from the childless view, and from an evaluation that has no manifest.
+`caisson.structural.exported = _: { };` passes up none, and a selector returning a subset passes up those. The merge is made in the full evaluation, which holds the configurations. It is absent from the result of the childless evaluation, and from an evaluation result that has no manifest.
 
 The top records what it published in the export record, `exportRecord` of the manifest it publishes as `caisson.manifest`, keyed as the outputs are. The entry for a name holds the path to the configuration by the names declared, the sentences that say how the name came about, and the positions of the code that made it, among them the file that defines this selector when it is not left at its default.
 
@@ -98,7 +98,7 @@ A sentence saying what `caisson.<integration>.exported` does to the configuratio
     lib.mapAttrs' (name: lib.nameValuePair "office-${name}") (
       lib.filterAttrs (name: _: !lib.hasPrefix "lab-" name) configurations
     );
-  caisson.nixos.exportNote = "office machines carry the site prefix; lab machines stay unpublished";
+  caisson.nixos.exportNote = "office configurations carry the site prefix; lab configurations stay unpublished";
 }
 ```
 
@@ -111,11 +111,11 @@ publishes `nixosConfigurations.office-nas-1`, and its entry in the export record
 - **Source:** `modules/nixos/home-manager-activation/`
 - **Declared in:** a NixOS configuration that imports `caisson/home-manager-activation`, which `caisson/default` for the `nixos` class does
 
-The users that have an account on this machine although `users.users` does not declare it.
+The users that have an account on the system of this NixOS configuration although `users.users` does not declare it.
 
-A NixOS configuration activates the home-manager configurations declared inside it. It expects the account of the user of each home-manager configuration in `users.users`, and it refuses a home-manager configuration whose user has no account there. Such a home-manager configuration is usually a mistake: a misspelled user name, or a home-manager configuration declared on the wrong machine.
+A NixOS configuration activates the home-manager configurations declared inside it. It expects the account of the user of each home-manager configuration in `users.users`, and it refuses a home-manager configuration whose user has no account there. Such a home-manager configuration is usually a mistake: a misspelled user name, or a home-manager configuration declared inside the wrong NixOS configuration.
 
-An account that systemd-homed manages is not in `users.users`. systemd-homed keeps the record of the account, and the machine must not declare it a second time. List the user here:
+An account that systemd-homed manages is not in `users.users`. systemd-homed keeps the record of the account, and the NixOS configuration must not declare it a second time. List the user here:
 
 ```nix
 { lib, ... }:
@@ -132,7 +132,7 @@ An account that systemd-homed manages is not in `users.users`. systemd-homed kee
 }
 ```
 
-The home-manager configuration of a listed user is not refused. It is activated by a user unit that runs when the user logs in, which is when systemd-homed mounts the home directory. The home-manager configuration sets its home directory itself, because the machine has no account to read it from.
+The home-manager configuration of a listed user is not refused. It is activated by a user unit that runs when the user logs in, which is when systemd-homed mounts the home directory. The home-manager configuration sets its home directory itself, because the NixOS configuration has no account to read it from.
 
 A user that is listed here and also declared in `users.users` is refused, because the two statements contradict each other.
 
@@ -145,11 +145,11 @@ See [`modules.nixos."caisson/home-manager-activation"`](./lib.md#modulesnixoscai
 - **Source:** `modules/homeManager/nixos-parent/`
 - **Declared in:** a home-manager configuration that imports `caisson/nixos-parent`, which a home-manager configuration declared inside a NixOS configuration imports by default
 
-Whether the NixOS machine installs the packages of this home-manager configuration in `/etc/profiles/per-user/<user>`.
+Whether the NixOS configuration installs the packages of this home-manager configuration in `/etc/profiles/per-user/<user>`.
 
-When it is false, the activation of the home-manager configuration installs its packages, `home.path`, into a Nix profile in the home directory, `~/.nix-profile`. The activation runs as the user, and it can write the home directory only while the home directory is mounted and unlocked. On a machine whose home directories are encrypted, or managed by systemd-homed, that is only while the user is logged in. A switch of the machine then changes the packages of the user at the next login.
+When it is false, the activation of the home-manager configuration installs its packages, `home.path`, into a Nix profile in the home directory, `~/.nix-profile`. The activation runs as the user, and it can write the home directory only while the home directory is mounted and unlocked. On a computer whose home directories are encrypted, or managed by systemd-homed, that is only while the user is logged in. A switch to the NixOS configuration then changes the packages of the user at the next login.
 
-When it is true, the machine builds `/etc/profiles/per-user/<user>` from `home.path` as part of the system. Every switch of the machine changes the packages, whether the user is logged in or not. NixOS puts `/etc/profiles/per-user/$USER` on the `PATH` of every login shell:
+When it is true, the NixOS configuration builds `/etc/profiles/per-user/<user>` from `home.path` as part of the system. Every switch to the NixOS configuration changes the packages, whether the user is logged in or not. NixOS puts `/etc/profiles/per-user/$USER` on the `PATH` of every login shell:
 
 ```nix
 { lib, ... }:
@@ -167,21 +167,21 @@ When it is true, the machine builds `/etc/profiles/per-user/<user>` from `home.p
 }
 ```
 
-home-manager's NixOS option `home-manager.useUserPackages` does the same for every home-manager configuration it embeds. The caisson option sets the home-manager option `submoduleSupport.externalPackageInstall` of one home-manager configuration, and the machine installs `home.path` for that home-manager configuration.
+home-manager's NixOS option `home-manager.useUserPackages` does the same for every home-manager configuration it embeds. The caisson option sets the home-manager option `submoduleSupport.externalPackageInstall` of a single home-manager configuration, and the NixOS configuration installs `home.path` for that home-manager configuration.
 
 With the option set, the home-manager commands show this:
 
 | Command | What it shows or does |
 | --- | --- |
 | `home-manager generations` | the generations of the home-manager profile in the home directory, as without the option; the activation records a generation each time it activates a new version |
-| `home-manager switch` | links the files of the version it builds and records its generation; the packages of that version are installed for the user at the next switch of the machine. When that version is the version the machine activated, it activates the same generation and warns of nothing. When its `home.path` differs from the `home.path` the machine installed, the activation prints a warning that the `packages` profile holds another version (see [`caisson.drift.warn`](#caissondriftwarn)) |
+| `home-manager switch` | links the files of the version it builds and records its generation; the packages of that version are installed for the user at the next switch to the NixOS configuration. When that version is the version the NixOS configuration activated, it activates the same generation and warns of nothing. When its `home.path` differs from the `home.path` the NixOS configuration installed, the activation prints a warning that the `packages` profile holds another version (see [`caisson.drift.warn`](#caissondriftwarn)) |
 | `home-manager expire-generations` | removes generations of the home-manager profile; the packages are kept by the generations of the system |
 | `home-manager news` | the news of the home-manager configuration, as without the option |
 | `home-manager packages` | nothing, and it exits with status 1, because it looks for `home-manager-path` in `~/.nix-profile` |
 
 The first activation with the option set removes `home-manager-path` from `~/.nix-profile`, which an earlier activation installed there.
 
-A system-manager machine refuses a home-manager configuration that sets this option. `topside profiles` prints where the profiles of a home-manager configuration are and what sets each.
+A system-manager configuration refuses a home-manager configuration that sets this option. `topside profiles` prints where the profiles of a home-manager configuration are and what sets each.
 
 ### `caisson.drift.warn`
 
@@ -190,11 +190,11 @@ A system-manager machine refuses a home-manager configuration that sets this opt
 - **Source:** `modules/homeManager/activation-drift/`, `modules/nvf/default/`
 - **Declared in:** a home-manager configuration that imports `caisson/activation-drift`, which the home-manager `default` module imports; an nvf or nixvim configuration that imports the `default` module of its class
 
-Whether the activation of this home-manager configuration, or `activate` of this nvf or nixvim configuration, prints a warning when it was built for a version of the configuration it is declared inside, such as its machine or its home-manager configuration, that differs from the version that is applied.
+Whether the activation of this home-manager configuration, or `activate` of this nvf or nixvim configuration, prints a warning when it was built for a version of the configuration it is declared inside, such as its NixOS configuration or its home-manager configuration, that differs from the version that is applied.
 
-The configuration above records what it applied in a marker file, `/etc/caisson/marker.json` on a machine. The activation of the home-manager configuration compares the marker with the configuration above as it is in the source the home-manager configuration was built from.
+The configuration above records what it applied in a marker file, `/etc/caisson/marker.json` for a NixOS configuration. The activation of the home-manager configuration compares the marker with the configuration above as it is in the source the home-manager configuration was built from.
 
-The comparison leaves out the configurations declared inside the configuration above. A change to a home-manager configuration does not cause a warning, with one case apart. A home-manager configuration that sets [`caisson.useUserPackages`](#caissonuseuserpackages) has its packages installed by the machine, and the marker of the machine also records the digest of the `home.path` it installed. The activation of that home-manager configuration warns when its `home.path` differs from that digest. The warning does not stop the activation.
+The comparison leaves out the configurations declared inside the configuration above. A change to a home-manager configuration does not cause a warning, with one case apart. A home-manager configuration that sets [`caisson.useUserPackages`](#caissonuseuserpackages) has its packages installed by the NixOS configuration, and the marker of the NixOS configuration also records the digest of the `home.path` it installed. The activation of that home-manager configuration warns when its `home.path` differs from that digest. The warning does not stop the activation.
 
 ```nix
 { ... }:
@@ -212,7 +212,7 @@ See [drift detection](./lib.md#drift-detection-caissonactivation-marker-modulesh
 - **Type:** `attrsOf str`
 - **Default:** `{ }`
 - **Source:** `modules/*/profile-activation/`
-- **Declared in:** a NixOS, darwin or system-manager machine, a home-manager configuration or a hjem configuration that imports `caisson/profile-activation`, which the `default` module of each of these classes imports
+- **Declared in:** a NixOS, nix-darwin or system-manager configuration, a home-manager configuration or a hjem configuration that imports `caisson/profile-activation`, which the `default` module of each of these classes imports
 
 By the variable that chooses among them, the profile a shell runs when it sets no other, as `<kind>/<name>`. `nvf/editor` is the nvf configuration declared as `editor`.
 
@@ -248,7 +248,7 @@ A configuration that passes no `moduleImports` gets every entry named `default` 
 
 The name says that the option adds to the default selection, as `extraModuleImports` adds to a selection. The options `defaultPkgs` and `systems` below replace the value a configuration declared inside would otherwise get.
 
-A configuration with a configuration declared inside it is evaluated in both views, since what it gives is read from the childless view.
+caisson evaluates a configuration with a configuration declared inside it twice, in the childless evaluation and in the full evaluation, since what it gives is read from the result of the childless evaluation.
 
 ### `caisson.forChildren.defaultPkgs`
 
@@ -273,7 +273,7 @@ Here the default for the configurations declared inside this configuration is th
 - **Default:** `null`
 - **Source:** `modules/generic/core/caisson/forChildren.nix`
 
-The systems the configurations declared inside this configuration are evaluated for. It applies to configurations that are evaluated per system, such as a NixOS configuration or a home-manager configuration: each gets one evaluation per system listed.
+The systems the configurations declared inside this configuration are evaluated for. It applies to configurations that are evaluated per system, such as a NixOS configuration or a home-manager configuration. Each of them has an evaluation result for each system listed.
 
 ```nix
 { ... }:
@@ -282,7 +282,7 @@ The systems the configurations declared inside this configuration are evaluated 
 }
 ```
 
-Set on a NixOS configuration for `x86_64-linux`, this evaluates the configurations declared inside it for `aarch64-linux`. A machine that builds an image for an `aarch64-linux` device is an example. Set on a structural or flake level, it limits the systems the configurations inside that level are evaluated for. The systems have to be among those allowed where this configuration is declared, and a system that is not among them is refused.
+Set on a NixOS configuration for `x86_64-linux`, this evaluates the configurations declared inside it for `aarch64-linux`. A NixOS configuration that builds an image for an `aarch64-linux` device is an example. Set on a structural or flake level, it limits the systems the configurations inside that level are evaluated for. The systems have to be among those allowed where this configuration is declared, and a system that is not among them is refused.
 
 When the option is null, a configuration that is itself evaluated per system has its children evaluated for its system only, so a home-manager configuration inside a NixOS configuration for `x86_64-linux` is evaluated for `x86_64-linux`. Any other configuration passes on the list it was given.
 
@@ -292,7 +292,7 @@ When the option is null, a configuration that is itself evaluated per system has
 - **Default:** `{ }`
 - **Source:** `modules/generic/core/caisson/forChildren.nix`
 
-By class, whether the configurations of that class declared inside this configuration, directly or inside other configurations, read the full evaluation of this configuration, with its children, in place of the childless view of their parent. They can then read any configuration declared inside this configuration, and a loop between them is a Nix infinite recursion, which the childless view otherwise rules out. The manifest of a configuration it reaches records this configuration as `crossChildLevel`.
+By class, whether the configurations of that class declared inside this configuration, directly or inside other configurations, read the result of the full evaluation of this configuration, with its children, in place of the result of the childless evaluation of their parent. They can then read any configuration declared inside this configuration, and a loop between them is a Nix infinite recursion, which the childless evaluation otherwise rules out. The manifest of a configuration it reaches records this configuration as `crossChildLevel`.
 
 A setting through `caisson.forDirectChildren` beats a setting through `caisson.forNearestChildren`, which beats a setting through this option, and within one container the nearest parent that sets it wins. This option applies through every level of nesting inside this configuration. We recommend `caisson.forNearestChildren.unsafeCrossChildReferences` or `caisson.forDirectChildren.unsafeCrossChildReferences` where they cover the configurations that need the full evaluation.
 
@@ -302,7 +302,7 @@ A setting through `caisson.forDirectChildren` beats a setting through `caisson.f
 - **Default:** `{ }`
 - **Source:** `modules/generic/core/caisson/forNearestChildren.nix`
 
-Additions to the default selection of a class for the nearest configurations of that class declared inside this configuration. Each addition is a function of the lib of such a configuration, and it returns registered modules. A configuration of the class is a nearest configuration when no other configuration of the class sits between it and this configuration. Configurations of other classes and systems between the two do not count, so a machine inside a structural group, or a disk layout declared inside this configuration, gets the additions.
+Additions to the default selection of a class for the nearest configurations of that class declared inside this configuration. Each addition is a function of the lib of such a configuration, and it returns registered modules. A configuration of the class is a nearest configuration when no other configuration of the class sits between it and this configuration. Configurations of other classes and systems between the two do not count, so a NixOS configuration inside a structural group, or a disk layout declared inside this configuration, gets the additions.
 
 ```nix
 { ... }:
@@ -313,7 +313,7 @@ Additions to the default selection of a class for the nearest configurations of 
 
 A nearest configuration that passes no `moduleImports` gets every entry named `default`, then the additions of `caisson.forChildren.extraDefaultModuleImports` of the levels above it, then these, those of the levels above first. A configuration declared inside a nearest configuration does not get them. A configuration that passes `moduleImports` selects its modules itself and gets none of them.
 
-We recommend this option for what the nearest configurations of a class live on, such as the deployment of a node or the disk layout of a machine, and `caisson.forChildren.extraDefaultModuleImports` for what applies to the configurations of a class at every level of nesting.
+We recommend this option for what the nearest configurations of a class live on, such as the deployment of a node or the disk layout of a NixOS configuration, and `caisson.forChildren.extraDefaultModuleImports` for what applies to the configurations of a class at every level of nesting.
 
 ### `caisson.forNearestChildren.unsafeCrossChildReferences`
 
@@ -321,7 +321,7 @@ We recommend this option for what the nearest configurations of a class live on,
 - **Default:** `{ }`
 - **Source:** `modules/generic/core/caisson/forNearestChildren.nix`
 
-By class, whether the nearest configurations of that class declared inside this configuration read the full evaluation of this configuration, with its children, in place of the childless view of their parent. It passes through configurations of other classes, as the additions above do. A configuration it applies to can read any configuration declared inside this configuration, and a loop between them is a Nix infinite recursion.
+By class, whether the nearest configurations of that class declared inside this configuration read the result of the full evaluation of this configuration, with its children, in place of the result of the childless evaluation of their parent. It passes through configurations of other classes, as the additions above do. A configuration it applies to can read any configuration declared inside this configuration, and a loop between them is a Nix infinite recursion.
 
 ```nix
 { ... }:
@@ -348,7 +348,7 @@ A direct child that passes no `moduleImports` gets every entry named `default`, 
 - **Default:** `{ }`
 - **Source:** `modules/generic/core/caisson/forDirectChildren.nix`
 
-By class, whether the configurations of that class declared directly inside this configuration read the full evaluation of this configuration, with its children, in place of its childless view. They can then read any configuration declared inside this configuration, and a loop between them is a Nix infinite recursion. This setting beats one through `caisson.forNearestChildren` or `caisson.forChildren`.
+By class, whether the configurations of that class declared directly inside this configuration read the result of the full evaluation of this configuration, with its children, in place of the result of its childless evaluation. They can then read any configuration declared inside this configuration, and a loop between them is a Nix infinite recursion. This setting beats one through `caisson.forNearestChildren` or `caisson.forChildren`.
 
 ### `caisson.modules`
 

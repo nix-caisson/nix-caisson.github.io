@@ -48,7 +48,7 @@ anywhere in this chain: the only dependencies a registration can see
 are those the registering flake passed to `mkLib`. They do not include
 `self`. The manifest records them as
 `lib.caisson-core.libManifest.dependencies`, and a registration reads
-them as `closure-lib.caisson.dependencies`, a view of that field. A
+them as `closure-lib.caisson.dependencies`, which is read from that field. A
 registration reads the identity of its flake from
 `closure-lib.caisson.libManifest.root` and a sibling module from
 `closure-lib.caisson.modules`.

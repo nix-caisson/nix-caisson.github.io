@@ -42,8 +42,8 @@ documents the shape it takes; in practice:
   for the `apply` NixOS module in its `modules`.
 - `caisson.caisson-disko` and `caisson.disko` take the disko flake or
   source tree: they build disko's type library from its
-  `lib/default.nix`, and `caisson.disko` gives its machines the NixOS
-  module in its `module.nix`.
+  `lib/default.nix`, and `caisson.disko` gives its NixOS configurations
+  the NixOS module in its `module.nix`.
 - `caisson.terranix` and `caisson.system-manager` take their project's
   flake (they call `lib.terranixConfiguration` and
   `lib.makeSystemConfig` on it). `caisson.system-manager` also takes
@@ -211,13 +211,13 @@ If none of these places can provide a needed ecosystem source,
 it triggers an evaluation error.
 
 A NixOS configuration that selects another module collection with
-`ecosystemSrc` still runs its evaluation on the library of the flake;
+`ecosystemSrc` is still evaluated on the library of the flake;
 only the source under the `nixos` key changes.
 
 ### Where each source came from
 
 The manifest of every configuration records `ecosystems`: for each
-part of the stack its evaluation used, which of the three places
+part of the stack the configuration used, which of the three places
 supplied the source and which pinned source it is.
 
 ```nix

@@ -24,7 +24,7 @@ under their input names, with no `self`, and
 the `mkLib` call passes them. `closure-lib` is a member of the
 closure attrset that `mkLibOverlay` and `mkModule` apply to each
 registered file as its first argument list, and
-`closure-lib.caisson.dependencies` is a view of
+`closure-lib.caisson.dependencies` is read from
 `closure-lib.caisson-core.libManifest.dependencies`. A file always
 reads the dependencies of the flake that registered it. An overlay or
 module consumed from another flake sees the dependencies of the flake

@@ -138,6 +138,51 @@ A user that is listed here and also declared in `users.users` is refused, becaus
 
 See [`modules.nixos."caisson/home-manager-activation"`](./lib.md#modulesnixoscaissonhome-manager-activation) for the units.
 
+### `caisson.useUserPackages`
+
+- **Type:** `bool`
+- **Default:** `false`
+- **Source:** `modules/homeManager/nixos-parent/`
+- **Declared in:** a home-manager configuration that imports `caisson/nixos-parent`, which a home-manager configuration declared inside a NixOS configuration imports by default
+
+Whether the NixOS machine installs the packages of this home-manager configuration in `/etc/profiles/per-user/<user>`.
+
+When it is false, the activation of the home-manager configuration installs its packages, `home.path`, into a Nix profile in the home directory, `~/.nix-profile`. The activation runs as the user, and it can write the home directory only while the home directory is mounted and unlocked. On a machine whose home directories are encrypted, or managed by systemd-homed, that is only while the user is logged in. A switch of the machine then changes the packages of the user at the next login.
+
+When it is true, the machine builds `/etc/profiles/per-user/<user>` from `home.path` as part of the system. Every switch of the machine changes the packages, whether the user is logged in or not. NixOS puts `/etc/profiles/per-user/$USER` on the `PATH` of every login shell:
+
+```nix
+{ lib, ... }:
+{
+  services.homed.enable = true;
+
+  caisson.home-manager.activation.usersDeclaredElsewhere = [ "chris" ];
+
+  caisson.home-manager.configurations.chris = lib.caisson.home-manager.mkConfiguration {
+    configModule = {
+      home.homeDirectory = "/home/chris";
+      caisson.useUserPackages = true;
+    };
+  };
+}
+```
+
+home-manager's NixOS option `home-manager.useUserPackages` does the same for every home-manager configuration it embeds. The caisson option sets the home-manager option `submoduleSupport.externalPackageInstall` of one home-manager configuration, and the machine installs `home.path` for that one.
+
+With the option set, home-manager's own tools show this:
+
+| Command | What it shows or does |
+| --- | --- |
+| `home-manager generations` | the generations of the home-manager profile in the home directory, as without the option; the activation records a generation each time it activates a new version |
+| `home-manager switch` | links the files of the version it builds and records its generation; the packages of that version reach the user at the next switch of the machine. When that version is the one the machine activated, it activates the same generation and warns of nothing. When its `home.path` differs from the one the machine installed, the activation prints a warning that the `packages` profile holds another version (see [`caisson.drift.warn`](#caissondriftwarn)) |
+| `home-manager expire-generations` | removes generations of the home-manager profile; the packages are kept by the generations of the system |
+| `home-manager news` | the news of the home-manager configuration, as without the option |
+| `home-manager packages` | nothing, and it exits with status 1, because it looks for `home-manager-path` in `~/.nix-profile` |
+
+The first activation with the option set removes `home-manager-path` from `~/.nix-profile`, which an earlier activation installed there.
+
+A system-manager machine refuses a home-manager configuration that sets this option. `topside profiles` prints where the profiles of a home-manager configuration are and what sets each.
+
 ### `caisson.drift.warn`
 
 - **Type:** `bool`
@@ -149,7 +194,7 @@ Whether the activation of this home-manager configuration, or `activate` of this
 
 The configuration above records what it applied in a marker file, `/etc/caisson/marker.json` on a machine. The activation of the home-manager configuration compares the marker with the configuration above as it is in the source the home-manager configuration was built from.
 
-The comparison leaves out the configurations declared inside the configuration above. A change to a home-manager configuration does not cause a warning. The warning does not stop the activation.
+The comparison leaves out the configurations declared inside the configuration above. A change to a home-manager configuration does not cause a warning, with one case apart. A home-manager configuration that sets [`caisson.useUserPackages`](#caissonuseuserpackages) has its packages installed by the machine, and the marker of the machine also records the digest of the `home.path` it installed. The activation of that home-manager configuration warns when its own `home.path` differs from that digest. The warning does not stop the activation.
 
 ```nix
 { ... }:

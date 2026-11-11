@@ -1,7 +1,7 @@
 # Getting started
 
 A step-by-step first flake: create it, add a library overlay, register
-a module, use an integration, then consume your flake from a second
+a module, use an integration, then consume the flake from a second
 flake. The finished shape of each step also exists as a working flake
 under `examples/literate-flake/` in the repository, with commentary.
 
@@ -179,8 +179,8 @@ by creating its directory:
 config module: `moduleImports` returns the list to apply, like
 `libOverlayImports`, and when it is omitted every registered entry
 named `default` applies, here this flake's `default` and
-`caisson/default` (the default module of caisson, which carries the
-nixpkgs integration's module layer). The entries named `core` apply
+`caisson/default` (the default module of caisson, which holds the
+module layer of the nixpkgs integration). The entries named `core` apply
 to every evaluation of the class regardless.
 [Module classes](concepts/module-classes.md) covers registration,
 selection, and export.
@@ -189,7 +189,7 @@ selection, and export.
 
 Integrations bring the same conventions to other module ecosystems
 and take their ecosystem as an explicit `ecosystemSrc`, a function of
-the tree's `dependencies`. A NixOS
+the `dependencies` of the flake. A NixOS
 configuration takes its systems and its package set from the
 composition: it is evaluated per system, once for each system `mkLib`
 declares, on the
@@ -240,7 +240,7 @@ per item over the combined dictionary:
 The [library reference](reference/lib.md) documents
 the integration namespaces.
 
-## 5. Consume your flake from another flake
+## 5. Consume the flake from another flake
 
 A consumer registers your exported overlay the same way:
 
@@ -275,7 +275,7 @@ with it, and your exported modules land in the consumer's registry
 under `my-flake/<name>`, selectable at each use site. A consumer who
 wants only part of your project selects with
 `libOverlayImports`, as shown above; the
-`my-flake.modules.<class>.<name>` flake outputs serve consumers who
+`my-flake.modules.<class>.<name>` flake outputs are for consumers who
 import modules without composing anything.
 
 ## Where next

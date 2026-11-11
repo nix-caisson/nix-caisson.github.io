@@ -68,16 +68,16 @@ from a separate key, with no fallback between keys:
   not the Linux distribution; the distribution is one use of the
   collection.
 
-A key a tree does not declare resolves to the source pinned under
-exactly that name in `dependencies`. A tree that takes several parts from
-one checkout names that checkout under each key. Every tree uses
-`nixpkgs-lib`; a tree with package sets uses `nixpkgs`; a tree with
+A key a flake does not declare resolves to the source pinned under
+exactly that name in `dependencies`. A flake that takes several parts from
+one checkout names that checkout under each key. Every flake that uses
+caisson uses `nixpkgs-lib`; a flake with package sets uses `nixpkgs`; a flake with
 NixOS or system-manager configurations uses `nixos`. The parts may
 come from different sources on purpose: the nixpkgs.lib mirror
 supplies the library, and one revision of the module collection runs
 on the library of another revision.
 
-A tree with a single nixpkgs checkout, pinned under the input name
+A flake with a single nixpkgs checkout, pinned under the input name
 `nixpkgs`, names that checkout under the other two keys with
 `defaultEcosystemSrc`:
 
@@ -107,23 +107,24 @@ inputs.nixpkgs-lib.url = "github:nix-community/nixpkgs.lib";
 
 A flake that lists a project reads the outputs of that project, and
 reading them builds the lib of the project. Building that lib fetches
-the library source the project pins. The mirror is about 1.4 MB in the
+the library source the project pins. The nixpkgs.lib mirror is about 1.4 MB in the
 store, and a nixpkgs checkout is about 210 MB. A flake that lists
 several projects fetches the library source of each of them, once per
 distinct revision.
 
-The mirror follows the `master` branch of nixpkgs and is updated about
+The nixpkgs.lib mirror follows the `master` branch of nixpkgs and is updated about
 once a week. Its revision is therefore rarely the revision of the
 nixpkgs a package set comes from. A project that only publishes
 modules and overlays runs only its registrations and its top
 configuration on its library. The flakes that list it evaluate its
 modules and overlays on their own lib, so the difference does not
-reach them. A project that also builds packages or configurations runs
-them on general utilities and a module system of the mirror revision.
+affect them. A project that also builds packages or configurations runs
+them on general utilities and a module system of the revision of the
+nixpkgs.lib mirror.
 
 nixpkgs' library holds two kinds of library. The general utilities
 (`strings`, `lists`, `attrsets` and the rest) and the module system
-(`modules`, `options`, `types`) serve every evaluation, and a tree
+(`modules`, `options`, `types`) are used by every evaluation, and a flake
 supplies them from its `nixpkgs-lib` key. The package-set libraries
 describe and build packages:
 
@@ -138,7 +139,7 @@ libraries from the source of that package set, together with the
 names nixpkgs publishes from them at the top level of its library,
 such as `lib.getExe` and `lib.callPackageWith`. The packages of a set
 are written against those libraries at the revision of the set. The
-general utilities still come from the mirror, which follows the
+general utilities still come from the nixpkgs.lib mirror, which follows the
 unstable branch, so a package set of a stable release meets the
 general utilities of a later revision wherever its packages call them. nixpkgs reads `maintainers` and `teams`
 from its `maintainers` directory beside `lib/`, so a package set
@@ -146,7 +147,7 @@ needs them from the source of the package set in any case.
 
 The module system still comes from `nixpkgs-lib`. A NixOS
 configuration whose `nixos` key names a stable release runs that
-module collection on the module system of the mirror.
+module collection on the module system of the nixpkgs.lib mirror.
 
 ## Which integration uses which ecosystem
 
@@ -188,12 +189,12 @@ the `nixpkgs-lib` key.
 A source comes from one of these places, in priority order:
 
 1. **Explicit argument.** `ecosystemSrc` at the call site always
-   wins. It is a function of the tree's `dependencies`, returning the
+   wins. It is a function of the `dependencies` of the flake, returning the
    source for that call; a value given in place of the function is
    refused. `ecosystemSrc = dependencies: dependencies.nixpkgs;` names an input
    called `nixpkgs` explicitly. It replaces the source for that
-   evaluation and nothing else: a level cannot set sources for the
-   levels beneath it. A package config on a different nixpkgs
+   evaluation and nothing else: a configuration cannot set sources for
+   the configurations declared inside it. A package config on a different nixpkgs
    revision writes
    `ecosystemSrc = dependencies: dependencies.nixpkgs-stable;`.
 2. **Composition default.** `defaultEcosystemSrc` on `mkLib` is a
@@ -210,7 +211,7 @@ If none of these places can provide a needed ecosystem source,
 it triggers an evaluation error.
 
 A NixOS configuration that selects another module collection with
-`ecosystemSrc` still runs its evaluation on the library of the tree;
+`ecosystemSrc` still runs its evaluation on the library of the flake;
 only the source under the `nixos` key changes.
 
 ### Where each source came from

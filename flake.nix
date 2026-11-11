@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 {
 
-  description = "The website of the caisson family";
+  description = "The website of caisson and the nix-caisson projects";
 
   inputs = {
     caisson.url = "github:nix-caisson/caisson";

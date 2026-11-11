@@ -32,7 +32,7 @@ entry is a directory holding a `default.nix`, a symlink to such a
 directory included; anything else in a directory being read is an
 error, so a stray file cannot silently vanish from a registry.
 
-A tree with another layout writes the registration by hand, with the
+A flake with another layout writes the registration by hand, with the
 `mkModule` of the integration that owns the class applied to the
 module's path:
 
@@ -155,7 +155,7 @@ caisson.flakeOutputs.modules =
   modules: modules // { nixos = removeAttrs modules.nixos [ "needs-caisson" ]; };
 ```
 
-For flake-parts compatibility, `flake.flakeModules` mirrors
+For flake-parts compatibility, `flake.flakeModules` is a copy of
 `flake.modules.flake`, and the `flake` class always exports a `default`
 entry (an empty module unless the selection provides it) so
 `flakeModules.default` exists for consumers that import it by

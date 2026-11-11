@@ -107,7 +107,8 @@ an error naming it and what to do. The contract is deliberately
 explicit, in the same spirit as closed-over dependencies: nothing is fetched, no
 lock is read, and you supply exactly the input graph you mean the test
 to see. One consumer's outputs can feed another's `overrides`, so
-chains of consumers (a flake consuming a flake that consumes yours) are
+chains of consumers (a flake that consumes a flake that consumes the
+flake under test) are
 plain data flow.
 
 See [`callConsumerFlake`](reference/lib.md#callconsumerflake) for the

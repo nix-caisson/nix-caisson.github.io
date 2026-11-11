@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 168" width="640" height="168">
-  <!-- caisson wordmark, night variant — for dark surfaces (transparent
+  <!-- caisson wordmark, night variant for dark surfaces (transparent
        background); moonlit waterline, the rivet stays lit -->
   <text x="24" y="108" font-family="Inter, 'IBM Plex Sans', 'DejaVu Sans', system-ui, sans-serif"
         font-size="96" font-weight="500" letter-spacing="-2" fill="#D8DBDE">caisson</text>

@@ -164,7 +164,8 @@ error messages would no longer point at the file.
 ## Seeing it in the example
 
 `examples/literate-flake/` wires all of this in a working flake: its
-overlay reads `closure-lib.caisson.dependencies`, and its modules take the two argument
-lists. Step 5 of [Getting started](../getting-started.md) shows the
+`flake.nix` passes the dependencies to `mkLib` and explains in a comment
+how a file reads them as `closure-lib.caisson.dependencies`, and its
+modules take the two argument lists. Step 5 of [Getting started](../getting-started.md) shows the
 consuming side, a second flake that imports the exports without
 declaring the definer's dependencies.

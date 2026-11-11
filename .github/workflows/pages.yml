@@ -17,20 +17,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@v22
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
         with:
           # Upstream Nix, not Determinate Nix: the action has
           # defaulted determinate to true since v21, and this
           # project targets the Nix everyone else runs.
           determinate: false
-      - run: nix run 'nixpkgs#mdbook' -- build
-      # The brand sources are published alongside the site so other
-      # repositories can reference them by URL.
-      - run: cp -r assets/brand site/assets/brand
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      # The flake's `site` package runs mdBook from the nixpkgs that
+      # flake.lock pins. Its output is the directory Pages serves.
+      - run: nix build -L '.#site'
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
-          path: site
+          path: result/
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

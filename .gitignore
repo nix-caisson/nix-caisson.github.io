@@ -1,8 +1,13 @@
-# Built by CI (mdBook build-dir); never committed
+# Built by `mdbook serve` (mdBook build-dir); never committed
 /site/docs/
 
-# Copied from assets/brand/ by CI; never committed
+# Copied from assets/brand/ when a build runs in the working tree;
+# never committed
 /site/assets/brand/
+
+# Links to the output of `nix build`
+result
+result-*
 
 # Claude Code
 /.claude/

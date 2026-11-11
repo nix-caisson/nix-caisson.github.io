@@ -1,0 +1,22 @@
+# The flake checks: the website's package, whose build runs mdBook on
+# docs/, and the formatting check of the Nix files.
+name: check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+        with:
+          # Upstream Nix, not Determinate Nix: the action has
+          # defaulted determinate to true since v21, and this
+          # project targets the Nix everyone else runs.
+          determinate: false
+      - run: nix flake check -L

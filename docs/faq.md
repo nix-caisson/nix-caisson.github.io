@@ -21,7 +21,7 @@ A registered file reads them as `closure-lib.caisson.dependencies.<name>`.
 The dependencies are the pinned trees your flake passes to `mkLib`
 under their input names, with no `self`, and
 `inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;` in
-the `mkLib` call passes them. `closure-lib` is the first member of the
+the `mkLib` call passes them. `closure-lib` is a member of the
 closure attrset that `mkLibOverlay` and `mkModule` apply to each
 registered file as its first argument list, and
 `closure-lib.caisson.dependencies` is a view of

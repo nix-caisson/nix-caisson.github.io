@@ -15,18 +15,22 @@ versions.
 Second, collisions: Overlays that write top-level attributes tend to
 fight over the same flat namespace.
 
-### What is `closure-inputs`, and who sets it?
+### Where does a registered file find the dependencies of its flake?
 
-`closure-inputs` is the `sources` your flake passes to `mkLib`: its
-pinned inputs, under their input names and with no `self`.
-`inherit (caisson.lib.caisson.pins.flake inputs) sources root;` in the
-`mkLib` call passes them. The caisson framework threads it in:
-`mkLibOverlay` and `mkModule` apply it to each registered file as the
-file's first argument list. A file always receives the sources of the
-flake that registered it: an overlay or module consumed from another
-flake sees the sources of the flake it came from, not those of the
-flake consuming it.
-[Closed inputs](concepts/closed-inputs.md) is the full convention.
+A registered file reads them as `closure-lib.caisson.dependencies.<name>`.
+The dependencies are the pinned trees your flake passes to `mkLib`
+under their input names, with no `self`, and
+`inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;` in
+the `mkLib` call passes them. `closure-lib` is a member of the
+closure attrset that `mkLibOverlay` and `mkModule` apply to each
+registered file as its first argument list, and
+`closure-lib.caisson.dependencies` is a view of
+`closure-lib.caisson-core.libManifest.dependencies`. A file always
+reads the dependencies of the flake that registered it. An overlay or
+module consumed from another flake sees the dependencies of the flake
+it came from, not those of the flake consuming it.
+[Closed-over Dependencies](concepts/closed-over-dependencies.md) is the
+full convention.
 
 ### What happens when two overlays define the same thing?
 
@@ -53,7 +57,7 @@ spread file by file from there.
 A few things:
 
 - applies the closure argument list, so the module can use
-  `closure-inputs`
+  `closure-lib`, including `closure-lib.caisson.dependencies`
 - records the file's path as `_file`, for better error messages
 - gives path-registered modules a deduplication `key`.
 
@@ -66,10 +70,10 @@ caisson imposes no transitive pins and two consumers of the same
 caisson revision can run different nixpkgs revisions. Version skew
 within your ecosystems lives in your locks, where you can see and
 manage it. A flake that uses one version of an ecosystem everywhere
-can set a flake-level default at `mkLib`, a function of `sources`
-(`defaultEcosystemSrc = sources: { nixos = sources.nixpkgs; };`). It
+can set a flake-level default at `mkLib`, a function of `dependencies`
+(`defaultEcosystemSrc = dependencies: { nixos = dependencies.nixpkgs; };`). It
 is also possible to pass `ecosystemSrc`, also a function of
-`sources`, explicitly on each caisson call. The explicit argument
+`dependencies`, explicitly on each caisson call. The explicit argument
 wins, and a source named exactly like the key is the final fallback
 (handy for leaf nodes).
 

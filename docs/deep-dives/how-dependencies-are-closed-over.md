@@ -1,4 +1,4 @@
-# How inputs are closed over
+# How dependencies are closed over
 
 Every file registered through caisson takes a closure attrset as its
 first argument list. This page traces the mechanism behind that
@@ -12,10 +12,10 @@ A registered file is a function of two argument lists: the closure
 attrset first, then whatever the file ordinarily takes.
 
 ```nix
-{ closure-inputs, ... }:          # the closure arg list
+{ closure-lib, ... }:            # the closure arg list
 { config, lib, pkgs, ... }:      # the ordinary module arg list
 {
-  services.foo.package = closure-inputs.foo-flake.packages.x86_64-linux.default;
+  services.foo.package = closure-lib.caisson.dependencies.foo-flake.packages.${pkgs.stdenv.hostPlatform.system}.default;
 }
 ```
 
@@ -29,24 +29,27 @@ The flake defines the closure by calling `mkLib`:
 
 ```nix
 lib = caisson.lib.caisson.mkLib {
-  inherit (caisson.lib.caisson.pins.flake inputs) sources root;
+  inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
   libOverlays = lib: { ... };
   modules = lib: { ... };
 };
 ```
 
-`mkLib` builds registration helpers closed over the `sources` it was
-given, the flake's pinned inputs as the flake pin reader returns them,
-and hands them to the registration arguments inside the lib each
+`mkLib` builds registration helpers closed over the `dependencies` it
+was given, the flake's pinned trees as the flake pin reader returns
+them, and hands them to the registration arguments inside the lib each
 receives. `libOverlays` receives the core lib, which contains the
 closed `lib.caisson.mkLibOverlay`, and `modules` receives the
 bootstrap lib,
 whose helpers (`lib.caisson.flake-parts.mkModule`,
 `lib.caisson.nixos.mkModule`, and the `lib.caisson.mkModule` they
 are bound from) are closed the same way. There is no ambient lookup
-anywhere in this chain: the only sources a registration can see are
-those the registering flake passed to `mkLib`. They do not include
-`self`. A registration reads the identity of its flake from
+anywhere in this chain: the only dependencies a registration can see
+are those the registering flake passed to `mkLib`. They do not include
+`self`. The manifest records them as
+`lib.caisson-core.libManifest.dependencies`, and a registration reads
+them as `closure-lib.caisson.dependencies`, a view of that field. A
+registration reads the identity of its flake from
 `closure-lib.caisson.libManifest.root` and a sibling module from
 `closure-lib.caisson.modules`.
 
@@ -56,23 +59,24 @@ At registration time, not at evaluation time. `mkLibOverlay` and
 `mkModule` call the registered function with the closure attrset
 immediately and keep the result, so what sits in the registry, and
 what the flake exports, is an ordinary overlay or module with the
-closure values already baked in.
+closure already applied. `closure-lib` is the one lazy value in it:
+it is the composed library of the registering composition, and a file
+reads it inside a module body or an overlay function.
 
 This timing is what makes export work. A consumer who imports
 `my-flake.modules.nixos.my-service` receives a plain NixOS module;
 the closure was applied when my-flake registered the file, so the
-module references my-flake's inputs without the consumer declaring,
-`follows`-pinning, or even knowing about them.
+module references my-flake's dependencies without the consumer
+declaring, `follows`-pinning, or even knowing about them.
 
 ## What the closure contains
 
 The contents differ by registration kind, because the kinds are
 evaluated at different times.
 
-A library overlay's closure contains registration helpers, sources and
-the library of the defining composition:
+A library overlay's closure contains registration helpers and the
+library of the defining composition:
 
-- `closure-inputs`: the pinned sources of the defining flake.
 - `closure-lib`: the composed library of the defining flake, bound
   lazily. Inside the `overlay` function, `final` and `prev` are the
   composition being built, which may belong to a consumer;
@@ -80,21 +84,26 @@ the library of the defining composition:
   reaches the registry of the composition that registered it (its
   `core` module, for example) wherever it is composed. It is read inside
   the overlay function or a function the overlay defines, never while
-  the overlay is being registered.
+  the overlay is being registered. The `imports` list is read during
+  registration, so it names registry entries as strings such as
+  `"some-flake/default"`. The dependencies of the defining flake are
+  `closure-lib.caisson.dependencies`.
 - `mkLibOverlay`: the same helper, for building nested overlays.
 - `mkModule`: the module normalizer bound to the defining
-  composition, so modules the overlay makes close over the inputs and
-  library of the definer.
+  composition, so modules the overlay makes close over the
+  dependencies and library of the definer.
 
 A module's closure contains the definer's finished world:
 
-- `closure-inputs`: the pinned sources of the defining flake.
 - `closure-lib`: the composed library of the defining flake. This is
   not the `lib` module argument; see the next section. Its registry,
   `closure-lib.caisson.modules.<class>`, is how a module imports
-  a sibling by name.
+  a sibling by name, and `closure-lib.caisson.dependencies` holds the
+  pinned trees of the definer.
 - `mkModule`: a normalizer bound to the same class, so nested module
   composition stays in that class.
+
+A package overlay's closure contains `closure-lib` and `mkPkgOverlay`.
 
 Plain values bypass the mechanism: an already-built overlay (another
 flake's export) and a plain module are registered directly, because
@@ -107,7 +116,7 @@ scope, and they answer different questions:
 
 | Value | Whose world |
 |---|---|
-| `closure-inputs` | The flake that registered the file |
+| `closure-lib.caisson.dependencies` | The flake that registered the file |
 | `closure-lib` | The flake that registered the file |
 | `inputs` module arg | The flake being evaluated |
 | `lib` module arg | The flake being evaluated |
@@ -123,12 +132,12 @@ configuration it is being evaluated into wants the ordinary
 arguments.
 
 The same split governs version skew. An exported module built against
-`closure-inputs.nixpkgs` uses the definer's nixpkgs pin even when the
-consumer runs a different pin. Each flake's files run against the
+`closure-lib.caisson.dependencies.nixpkgs` uses the definer's nixpkgs
+pin even when the consumer runs a different pin. Each flake's files run against the
 pins that flake tested with, the pins are visible in each flake's
 lock, and nothing forces every repository to upgrade in lockstep. Where a consumer
 does want to override a definer's pin, flake-level `follows` on the
-definer's input still works, because `closure-inputs` holds the
+definer's input still works, because the dependencies hold the
 definer's inputs as its flake resolved them and `follows` rewrites
 what that resolution contains.
 
@@ -155,7 +164,8 @@ error messages would no longer point at the file.
 ## Seeing it in the example
 
 `examples/literate-flake/` wires all of this in a working flake: its
-overlay reads `closure-inputs`, and its modules take the two argument
-lists. Step 5 of [Getting started](../getting-started.md) shows the
+`flake.nix` passes the dependencies to `mkLib` and explains in a comment
+how a file reads them as `closure-lib.caisson.dependencies`, and its
+modules take the two argument lists. Step 5 of [Getting started](../getting-started.md) shows the
 consuming side, a second flake that imports the exports without
 declaring the definer's dependencies.

@@ -887,6 +887,44 @@ source from `explicit`, `defaults` and `dependencies`, in that order. See
 [How `lib` is composed](../deep-dives/how-lib-is-composed.md) and
 the documentation of caisson-core.
 
+### `types`
+
+- **Source:** `modules/generic/core/types.nix` in caisson, published
+  by the `integrations` overlay of caisson
+
+The option types the core module of caisson declares its options
+with. caisson-core is written on builtins alone, and an option type
+is built on the library of nixpkgs. So caisson adds these types to
+the `caisson-core` namespace, in every library that composes an
+integration of caisson, beside the manifests they type.
+
+- `types.libOverlay`: a built library overlay. Its `check` verifies
+  the structure recursively: an attrset with an `overlay` function
+  and a (possibly absent) `imports` list whose entries are themselves
+  valid `libOverlay`s.
+- `types.pkgOverlay`: a registered package overlay, an attrset with an
+  `overlay` function.
+- `types.libOverlays`, `types.pkgOverlays`: the registered overlays by
+  name, as a configuration exports them. The definitions are joined
+  with `//`, and an entry is checked when it is read. Used by options
+  that carry overlays, such as `caisson.exports.libOverlays`.
+- `types.manifest`: a structural type for the caisson-core lib
+  manifest (`{ dependencies, root, modules, libOverlays,
+  defaultEcosystemSrc, projects, systems }`). The core module reads
+  the manifest of the evaluation through `caisson.manifest`, an
+  option of this type, before it projects the exports and the
+  `flake.modules` output.
+
+```nix
+{ lib, ... }:
+{
+  options.extraOverlays = lib.mkOption {
+    type = lib.caisson-core.types.libOverlays;
+    default = { };
+  };
+}
+```
+
 ## The caisson namespace
 
 The functions, registries and manifests a flake uses are under
@@ -2336,8 +2374,12 @@ declaration. The result has the part `namespace`.
 
 `namespace` is the value to publish as `lib.caisson.<name>`. It holds
 `mkConfiguration`, `mkConfigurationWithEcosystemArgs`, `mkModule`,
-`configurationsModule`, `mkTopConfiguration` when the declaration
-gives `top`, and everything in `extra`. The entry points come from the declaration,
+`types`, `configurationsModule`, `mkTopConfiguration` when the
+declaration gives `top`, and everything in `extra`. `types` holds
+`module`, the option type of a module of `class`, and
+`configuration`, the option type of a configuration of `name`
+(`lib.caisson.integrations.typesOf`, described under
+[Integration namespaces](#integration-namespaces)). The entry points come from the declaration,
 written as pattern functions whose body is
 `mkEvaluation { compose, evaluate }` applied to the admitted
 arguments. The pattern of `mkConfiguration` names the arguments
@@ -2409,8 +2451,8 @@ mkAltIntegration :
 another integration owns. `over` is that owning integration, reached
 through the lib. The result is the value to publish as
 `lib.caisson.<name>`: the entry points of the declaration, pattern
-functions as for an owner, `mkTopConfiguration` when the declaration
-gives `top`, and `extra`. It has no `mkModule`, because modules of the
+functions as for an owner, the `types` of the owner,
+`mkTopConfiguration` when the declaration gives `top`, and `extra`. It has no `mkModule`, because modules of the
 class are registered through the owner, and no
 `configurationsModule`, because its configurations are configurations
 of the owner. The composition its entry points evaluate over is expected
@@ -2480,6 +2522,37 @@ Common conventions:
   class's modules with (`caisson-core.mkModule` bound to the class).
   Target-specific variants and helpers sit beside them under the same
   namespace.
+- Every integration exports `types`, the option types that
+  `mkIntegration` builds from its name and its class. `types.module`
+  is the option type of a module of the class. It is the
+  `deferredModule` type of nixpkgs, and it refuses a definition whose
+  module states another class. A module states its class with
+  `_class`. A module read from the registry states its class in its
+  key, `modules.<class>.<name>@<project>`. A function or a path states
+  no class, and the type takes it as it is. `types.configuration` is
+  the option type of a configuration of the integration, and it takes
+  what the `mkConfiguration` of the integration returns. A
+  configuration of another integration is refused when it is
+  finalized, and the message names the option and the file that
+  define it. The type reads the integration of a configuration from
+  the `type` of its manifest, and it forces nothing more of the
+  manifest. An integration that evaluates a class another integration
+  owns, such as `caisson.nixos-minimal`, exports the `types` of the
+  owner.
+
+  ```nix
+  { lib, ... }:
+  {
+    options.hostModules = lib.mkOption {
+      type = lib.types.listOf lib.caisson.nixos.types.module;
+      default = [ ];
+    };
+  }
+  ```
+
+  A definition of `hostModules` that holds
+  `lib.caisson.modules.homeManager.default` fails with a message that
+  names the definition, the class `homeManager` and the class `nixos`.
 - `configModule`: the top-level module of the configuration, always a
   single module (compose several with `imports`); the framework's
   selected class modules are applied beside it.
@@ -2639,18 +2712,6 @@ mkConfiguration :
 - `mkConfigurations`: a configuration for every configuration
   registered in the class, each as `mkConfiguration` builds it without
   `configModule`.
-- `types.libOverlay`: a module-system option type for built library
-  overlays. Its `check` verifies the structure recursively: an
-  attrset with an `overlay` function and a (possibly absent)
-  `imports` list whose entries are themselves valid `libOverlay`s.
-  Used by options that carry overlays, such as
-  `caisson.libOverlays.exported`.
-- `types.manifest`: a structural option type for the caisson-core
-  lib manifest (`{ inputs, modules, libOverlays, ecosystems, projects,
-  systems }`). The export-side check: the core flake-parts module
-  reads the manifest of the evaluation
-  through an option of this type before projecting the
-  exports and the `flake.modules` output.
 
 ### `caisson.nixos` (module class `nixos`)
 

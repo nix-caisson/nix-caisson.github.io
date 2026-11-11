@@ -1283,6 +1283,7 @@ configuration:
 | `nix.enable` | `nix.enable` of the machine |
 | `nix.package` | `nix.package` of the machine, when the machine has Nix enabled |
 | `submoduleSupport.enable` | `true`, which home-manager reads to tell that a machine activates the home-manager configuration |
+| `submoduleSupport.externalPackageInstall` | [`caisson.useUserPackages`](./options.md#caissonuseuserpackages) of the home-manager configuration, `false` by default |
 | `home.packages` | home-manager's command-line program, when the home-manager configuration sets `programs.home-manager.enable` |
 
 `<user>` is `home.username` of the home-manager configuration.
@@ -1388,6 +1389,27 @@ behavior: the script also updates the home-manager profile of the
 user. The user can then run `home-manager switch` and `home-manager
 generations` on the same profile. home-manager's NixOS module passes `--driver-version 1`,
 which leaves the profile alone.
+
+**The packages of the home-manager configuration.** By default the
+`activate` script also installs the packages of the home-manager
+configuration, `home.path`, into `~/.nix-profile`. A home-manager
+configuration that sets
+[`caisson.useUserPackages`](./options.md#caissonuseuserpackages)
+leaves its packages to the machine. The module then installs
+`home.path` in `/etc/profiles/per-user/<user>`, which NixOS builds as
+part of the system:
+
+| | Account in `users.users` | User listed as declared elsewhere |
+| --- | --- | --- |
+| How | `home.path` is added to `users.users.<user>.packages`, as home-manager's NixOS module does with `home-manager.useUserPackages` | the module builds `/etc/profiles/per-user/<user>` from `home.path`, as NixOS builds it from `users.users.<user>.packages` |
+
+The module also adds `/etc/profile.d` to `environment.pathsToLink`, so
+the profile holds the file with the session variables of the
+home-manager configuration. A system-manager machine refuses a
+home-manager configuration that sets the option. The module reads where
+the profile is and what it holds from the profile adapter of the
+home-manager configuration, `activation.profileAdapter` on its
+manifest, which `topside profiles` prints too.
 
 **Two home-manager configurations for one user.** A machine that would
 activate two home-manager configurations with the same

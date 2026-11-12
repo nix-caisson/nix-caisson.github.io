@@ -35,7 +35,7 @@ Type notation used below:
 ```
 mkLib :
   { dependencies      : attrs                              # the tree's pinned trees, as a pin reader returns them
-  , root              ? null : root                        # the tree's identity; null for a composition that is not a top
+  , root              ? null : root                        # the tree's identity; null for a composition that is not a caisson top
   , name              ? null : str                         # the project's name, also the namespace it contributes
   , modules           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
@@ -101,8 +101,8 @@ reads, so a module imports a sibling by name. A registration under a
 `caisson-core/<name>` key replaces that entry from the bootstrap stage
 on; the core lib keeps the original.
 
-`dependencies` and `root` come from a pin reader (see `pins` below); at a
-flake top, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
+`dependencies` and `root` come from a pin reader (see `pins` below); in a
+flake, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
 dependencies root;`. The manifest records `dependencies` as
 `lib.caisson-core.libManifest.dependencies`, and the registered overlays
 and modules read them as `closure-lib.caisson.dependencies`, so a
@@ -124,7 +124,7 @@ naming `mkLib` and pointing at the pattern.
   layout `configs/<class>/<name>` on disk (colmena's class is
   `caisson-colmena`); `lib: lib.caisson-core.mkModules ./configs` reads that
   layout. They come back in the manifest, which
-  `lib.caisson.configs.<class>.<name>` reads, so a top and a
+  `lib.caisson.configs.<class>.<name>` reads, so a caisson top and a
   configuration that evaluates another configuration declared inside
   it read them by name rather than by a path out of their directory.
 - `libOverlays` receives the core lib and returns the registered
@@ -407,7 +407,7 @@ and `pkgOverlays` registrations. A layer event carries `prev` and
 `result` as the stage that recorded it composed them.
 
 ```
-event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib and the top
+event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib and the caisson top
           type : str;                                        # "lib", or the integration
           operation : "registry" | "layer" | "declaration";
           key : str; index : int;                            # index within its operation
@@ -433,8 +433,8 @@ childless manifest, then what each configuration declared inside it
 adds after the history it began with, so the history of a child always
 begins with the childless history of its parent. `manifest` is the name
 path of the configuration, the `{ type, name }` of each manifest on the
-way from the top to the configuration, which gives its attribute path under `children` of the top's
-manifest; a configuration evaluated per system has its system as a
+way from the caisson top to the configuration, which gives its attribute path under `children` of the manifest of
+the caisson top; a configuration evaluated per system has its system as a
 segment. The key of a `declaration` event says what the module is:
 
 - the name of the ecosystem, such as `nixos`, for the module list of
@@ -510,7 +510,7 @@ manifestOf : any -> nullOr manifest
 ```
 
 Finds the manifest in whatever a file returns, so that a tool reading
-a flakeless top needs only its `default.nix`. The value may be:
+a flakeless caisson top needs only its `default.nix`. The value may be:
 
 - a manifest, returned as it is;
 - an attrset carrying a manifest at `caisson.manifest`;
@@ -525,7 +525,7 @@ a flakeless top needs only its `default.nix`. The value may be:
 A value carrying none of these returns null.
 
 ```nix
-manifestOf (import ./.)   # the manifest of a flakeless top
+manifestOf (import ./.)   # the manifest of a flakeless caisson top
 manifestOf lib            # lib.caisson-core.libManifest
 ```
 
@@ -671,7 +671,7 @@ They are read from the result of the childless evaluation and recorded on the
 manifest as `forChildren`. A configuration declared inside inherits
 the selections of its parent, extended by them. Its manifest holds
 the selections added above it as `defaultModuleImports`, those from
-the top first, each a record `{ select; file; level; }`: `select` is
+the caisson top first, each a record `{ select; file; level; }`: `select` is
 the selection, `file` the file that defines it, and `level` the name
 path of the level that added it. Each level extends them in turn, so
 the configurations declared inside the level that added a selection
@@ -736,7 +736,7 @@ lib.caisson-core.elide : listOf path -> listOf (listOf str)
 path = listOf { type : str; name : str; }
 ```
 
-The naming rule. A path is the list of segments from a top down to a
+The naming rule. A path is the list of segments from a caisson top down to a
 thing, ending in the name of the thing; a system is a segment of type
 `system`. For each path, in order, `elide` returns the segments
 needed to tell the thing apart from the others, as strings in path
@@ -745,7 +745,7 @@ order.
 It keeps the last segment of every path, and beyond it only the
 segments where paths that end in the same name fork. Among those
 paths it drops the prefix they share, keeps the segment at which they
-first differ, the segment nearest the top that separates them, and
+first differ, the segment nearest the caisson top that separates them, and
 does the same within each branch.
 
 ```nix
@@ -770,7 +770,7 @@ are for whoever publishes them (`caisson.integrations.publish`).
 lib.caisson-core.finalizeTop : configuration -> manifest
 ```
 
-Finalizes the configuration a top ends with. A top has no parent that
+Finalizes the configuration a caisson top ends with. A caisson top has no parent that
 declares it under an attribute, so its name is the name the composition
 declares on `mkLib`, absent when it declares none, and its parent is
 the lib's manifest. An integration's `mkTopConfiguration` is this
@@ -1047,7 +1047,7 @@ each null where the reader has no value for it. The names are fixed
 and the values lazy, since inside a flake's `outputs` asking which
 attributes `self` has forces the outputs being computed. The names of
 a flake input's `pin` are fixed for the same reason, and `pin.url` and
-`pin.follows` are null where they do not apply. A flakeless top in a
+`pin.follows` are null where they do not apply. A flakeless caisson top in a
 git working tree reads its root with `pins.gitRoot ./.` under an
 impure evaluation. The result has the revision of a clean working
 tree, or `dirty = true` with `dirtyRev` for a dirty working tree.
@@ -1059,7 +1059,7 @@ inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
 # test-only pins beside the pins of the flake
 inherit (lib.caisson.pins.flake-compat ./tests/dependencies) dependencies;
 
-# a flakeless top pinned with npins
+# a flakeless caisson top pinned with npins
 inherit (lib.caisson.pins.npins ./npins) dependencies;
 root = lib.caisson.pins.gitRoot ./.;
 ```
@@ -1744,7 +1744,7 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 | a hjem configuration inside a nix-darwin configuration | the same | a step of `postActivation`, as the user, after the hjem agents are restarted |
 | a hjem configuration with no NixOS, nix-darwin or system-manager configuration above it, on Linux | the same | the systemd user service `caisson-profiles` in the files of the hjem configuration, when the systemd of the user starts and at each `hjem standalone switch` |
 | a hjem configuration with no NixOS, nix-darwin or system-manager configuration above it, on macOS | the same | the launchd agent `org.caisson.profiles` in the files of the hjem configuration, when launchd loads it at login and at each `hjem standalone switch` |
-| nothing (a top) | the same | running `activate` by hand |
+| nothing (a caisson top) | the same | running `activate` by hand |
 
 `<kind>` is `nvf` or `nixvim`. A hjem configuration has no activation
 step that a configuration can add to. A NixOS, nix-darwin or
@@ -2147,8 +2147,8 @@ them:
 - `moduleImports` replaces the default of the class. With none given,
   the selection is that default: every entry named `default`,
   followed by what the levels above the configuration added with
-  `caisson.forChildren.extraDefaultModuleImports`, those from the top
-  first, each applied to the lib of the evaluation.
+  `caisson.forChildren.extraDefaultModuleImports`, those from the
+  caisson top first, each applied to the lib of the evaluation.
 - `extraModuleImports` is appended to the selection, whichever it is.
   A configuration that adds a module with it keeps the default of its
   class.
@@ -2270,7 +2270,7 @@ configurations of any integration. A configuration that selects no set
 runs on what the nearest configuration above it selected. A module of a
 configuration selects for the configurations declared inside it, and not for
 the configuration itself, with the `caisson.forChildren.defaultPkgs`
-option. Where no configuration from the top down selects, a configuration runs on the set named
+option. Where no configuration from the caisson top down selects, a configuration runs on the set named
 `default`, and a composition that declares no `default` and selects
 nothing is told so, with the sets it declares.
 
@@ -2323,7 +2323,7 @@ itself when it was constructed with `defaultPkgs`, else the nearest
 configuration above that selected for the configurations declared
 inside it, with the `defaultPkgs` it was constructed with or with
 `caisson.forChildren.defaultPkgs`.
-The top has the empty name path, `[ ]`. Where no configuration
+The caisson top has the empty name path, `[ ]`. Where no configuration
 selects, `name` is `default` and `level` is null.
 
 A configuration evaluated once for every system, such as a structural
@@ -2392,37 +2392,37 @@ flake-parts and system levels on the way are segments of the path.
 caisson's core module defines `caisson.exports.configurations` with
 `entriesOf`.
 
-`publish` is what a top does with the entries. It groups them by the
+`publish` is what a caisson top does with the entries. It groups them by the
 output attribute set named in each entry, computes the names in each
 group from `lib.caisson-core.elide` over the paths, and returns the
 values by attribute set and name. Entries that still share a name are
-refused, with their paths. The flake-parts top writes the
-result into the flake outputs, and the structural top into what it
+refused, with their paths. The flake-parts caisson top writes the
+result into the flake outputs, and the structural caisson top into what it
 returns.
 
 `recordOf` is the export record of the same entries, keyed as
 `publish` keys the values. For each name published, `from.namePath`
-is the path from the top to the configuration by the names the
+is the path from the caisson top to the configuration by the names the
 configurations are declared under, before any `exported` renamed
 them, so it is the address of the configuration's manifest under the
-`children` of the top's manifest. `notes` holds the sentence the
+`children` of the manifest of the caisson top. `notes` holds the sentence the
 integration's `exportsTo.name` wrote, when it wrote a sentence, and
 then the `exportNote` of each level the configuration passed through.
 `code` holds the files that define each level's `exported`, and the
 file and line number where the integration gives its `exportsTo`, in
-the same order, from the configuration up to the top. A position is
+the same order, from the configuration up to the caisson top. A position is
 `{ file; line; }`, with the line number in `line`. The module system
 records the file of each definition of an option but not its
 line number, so the position of an `exported` has a `line` of null. Both
-tops publish their manifest as `caisson.manifest`,
+caisson tops publish their manifest as `caisson.manifest`,
 carrying the record as `exportRecord`.
 
 `displayName` writes the kept segments out as a name: in path order,
 separated by `/`. Every name caisson publishes is written by it.
 
-`topValue` is what a tool reads from a top that is a configuration
+`topValue` is what a tool reads from a caisson top that is a configuration
 evaluated per system, given its evaluation results by system. They are
-named as anything published is, and the name of the top, which the
+named as anything published is, and the name of the caisson top, which the
 file that returns it stands for, is left out of each: a single
 evaluation is its value, and several are the values by system.
 
@@ -2678,9 +2678,9 @@ Common conventions:
 The empty integration: it wraps no ecosystem, and its class holds
 nothing but the `core` module of caisson: the manifest, the
 configurations declared inside it, the registry selectors and
-`caisson.exports`. A structural configuration is the top of a
+`caisson.exports`. A structural configuration is the caisson top of a
 repository whose point is what it exports (the `default.nix` of
-caisson is such a top), and a layer declared inside another
+caisson is such a caisson top), and a layer declared inside another
 configuration under `caisson.structural.configurations`.
 
 - `mkModule : freeformModule -> module`: the registration form for
@@ -2701,7 +2701,7 @@ mkConfiguration :
 Returns a configuration, a function of `{ name, parent }`, built with
 `lib.caisson-core.mkConfiguration`. The parent that declares it under
 `caisson.structural.configurations.<name>` finalizes it, and
-`mkTopConfiguration` finalizes it at a top. Nothing is evaluated
+`mkTopConfiguration` finalizes it at a caisson top. Nothing is evaluated
 until the manifest is read.
 
 caisson evaluates the framework module (every `core` of the class,
@@ -2752,7 +2752,7 @@ mkConfiguration :
   Returns a configuration, a function of `{ name, parent }`, built
   with `lib.caisson-core.mkConfiguration`. A parent that declares it
   under `caisson.flake-parts.configurations.<name>` finalizes it, and
-  `mkTopConfiguration` finalizes it at a top. The evaluator's call is
+  `mkTopConfiguration` finalizes it at a caisson top. The evaluator's call is
   flake-parts' `evalFlakeModule` over the lib of the evaluation in
   progress. The manifest's `value` is the evaluation result (`config`,
   `options`), `outputs.flake` is what flake-parts' `mkFlake` returns
@@ -2778,7 +2778,7 @@ mkConfiguration :
   configuration with `lib.caisson-core.finalizeTop`, under the name
   the composition declares on `mkLib`, and returns its flake outputs
   (`outputs.flake`). It is what a `flake.nix` returns from `outputs`,
-  and what a flakeless top that keeps flake-parts returns from
+  and what a flakeless caisson top that keeps flake-parts returns from
   `default.nix`.
 - `mkConfigurations`: a configuration for every configuration
   registered in the class, each as `mkConfiguration` builds it without
@@ -2804,7 +2804,7 @@ mkConfiguration :
   Returns a configuration, a function of `{ name, parent }`, built
   with `lib.caisson-core.mkConfiguration`. A parent that declares it
   under `caisson.nixos.configurations.<name>` finalizes it, and
-  `mkTopConfiguration` finalizes it at a top. `ecosystemSrc` resolves
+  `mkTopConfiguration` finalizes it at a caisson top. `ecosystemSrc` resolves
   under the `nixos` key (see
   [Ecosystem sources](../concepts/ecosystem-sources.md)); the
   evaluation is `<ecosystemSrc>/nixos/lib/eval-config.nix`, a nixpkgs
@@ -2816,7 +2816,7 @@ mkConfiguration :
 
   A NixOS configuration is evaluated per system, so the integration
   passes `perSystem`. A declared configuration has an evaluation result
-  for each system its parent evaluates its children for (at the top,
+  for each system its parent evaluates its children for (at the caisson top,
   `systems` on `mkLib`), each under its name below its system in the
   tree of manifests. There are as many as there are systems, also for
   a single system, and none where the parent evaluates its children
@@ -2844,7 +2844,7 @@ mkConfiguration :
 
   A NixOS configuration records `exportsTo` as `nixosConfigurations`,
   the value being the evaluated configuration: a flake-parts or
-  structural top
+  structural caisson top
   publishes the NixOS configurations declared inside it there, under
   names from their paths.
 - `mkTopConfiguration`: the same arguments. It finalizes the
@@ -2899,7 +2899,7 @@ inside it.
   The system and the package set come from the composition as they do
   there.
 - `mkTopConfiguration`: the same arguments; finalizes the
-  configuration at a top and returns the evaluation result.
+  configuration at a caisson top and returns the evaluation result.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`
   (`prefix`, `modules`, `specialArgs`).
 
@@ -2971,7 +2971,7 @@ running machine is not tested.
   tree, resolved from the composition under the name `nix-darwin` when
   absent.
 - `mkTopConfiguration`: the same arguments; finalizes the
-  configuration at a top and returns the evaluation result, or the
+  configuration at a caisson top and returns the evaluation result, or the
   evaluation results by system where it is evaluated for several
   systems.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
@@ -2989,7 +2989,7 @@ running machine is not tested.
   configuration evaluated with home-manager's evaluator, the modules
   under `<ecosystemSrc>/modules`. A home-manager configuration is
   declared under `caisson.home-manager.configurations.<name>` in a
-  module of any configuration, or finalized as a top.
+  module of any configuration, or finalized as a caisson top.
   `mkConfigurationWithEcosystemArgs` takes `ecosystemArgs` as well,
   which is how to pass home-manager's `lib` argument.
 
@@ -3056,10 +3056,10 @@ running machine is not tested.
   an option that only home-manager's NixOS module declares, and
   caisson does not use that module.
 - `mkTopConfiguration` takes the same arguments. It finalizes the
-  home-manager configuration at a top and returns the evaluated
+  home-manager configuration at a caisson top and returns the evaluated
   home-manager configuration with its `activationPackage`, which is
   what the home-manager CLI reads.
-- A top publishes home-manager configurations as
+- A caisson top publishes home-manager configurations as
   `homeConfigurations.<name>`. A home-manager configuration declared
   inside a NixOS configuration is published under the name the
   home-manager configuration is declared under, `@`, and the name the
@@ -3104,12 +3104,12 @@ tools read:
 A failed assertion of the user fails `manifest`, `manifestFile` and
 `packages` with its message.
 
-A top publishes the configuration as `hjemConfigurations.alice`, with
+A caisson top publishes the configuration as `hjemConfigurations.alice`, with
 `manifest` and `packages`. `hjem standalone switch --flake .` reads
 `hjemConfigurations."$USER"` from the flake in the current directory, so
 it finds the configuration of the user running it when the two names
 are the same; `--flake-attr` names another attribute. The value of a hjem
-configuration that is a top has `manifest` and `packages` too, which is
+configuration that is a caisson top has `manifest` and `packages` too, which is
 what `hjem standalone switch --config` reads from a file.
 
 **Inside a NixOS configuration.** A NixOS configuration activates the
@@ -3155,7 +3155,7 @@ it. Activation on a running machine is not tested.
   tree, resolved from the composition under the name `hjem` when
   absent.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its value, or the values by system where it is
+  at a caisson top and returns its value, or the values by system where it is
   evaluated for several systems.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the call of `evalModules` (`modules`, `specialArgs`).
@@ -3549,7 +3549,7 @@ deployed through NixOps4 is not published as `nixosConfigurations`.
 The root of a deployment is the composite declared under the name
 `nixops4` where no composite holds it. Its members are the composites
 and resources declared inside it. A resource may hold the caisson
-configurations it deploys, such as a NixOS configuration. A top
+configurations it deploys, such as a NixOS configuration. A caisson top
 declares the root with
 
 ```nix
@@ -4104,9 +4104,9 @@ which finds the configuration by its name.
 
 Its value and its output `json` are the `config.tf.json` file that
 Terraform reads, with the evaluated configuration under
-`passthru.config`. A top publishes it as `terranixConfigurations.infra`,
+`passthru.config`. A caisson top publishes it as `terranixConfigurations.infra`,
 the name terranix's flake-parts module gives its configurations, and a
-terranix configuration that is a top is that file.
+terranix configuration that is a caisson top is that file.
 
 terranix evaluates its modules itself, on the
 library of the package set, and caisson cannot hand it the composed
@@ -4124,7 +4124,7 @@ its `_meta`, so caisson reads the `caisson` options back through
   name in `configs/terranix`. `specialArgs` becomes terranix's
   `extraArgs`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its `config.tf.json`, or the files by system
+  at a caisson top and returns its `config.tf.json`, or the files by system
   where it is evaluated for several systems.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the call of `terranixConfiguration` (`pkgs`, `modules`,
@@ -4157,7 +4157,7 @@ type treefmt-nix's `submoduleWith` returns.
 A flake registers the configuration as `configs/treefmt/formatter/default.nix`
 and declares it with
 `caisson.treefmt.configurations.formatter = lib.caisson.treefmt.mkConfiguration { };`.
-A top publishes only the configuration named for the output it fills,
+A caisson top publishes only the configuration named for the output it fills,
 `formatter`:
 
 | Output | Value |
@@ -4175,7 +4175,7 @@ that the published check is the configuration's `check` over the root.
   `ecosystemSrc` is the treefmt-nix flake or source tree, resolved from
   the composition under the name `treefmt-nix` when absent.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its evaluation result, or the evaluation results by system
+  at a caisson top and returns its evaluation result, or the evaluation results by system
   where it is evaluated for several systems.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
@@ -4198,7 +4198,7 @@ the nvf flake, so `ecosystemSrc` is the nvf flake, resolved from the
 composition under the name `nvf` when absent.
 
 The output is `neovim`, the wrapped Neovim that `neovimConfiguration`
-returns. A top publishes the configuration as
+returns. A caisson top publishes the configuration as
 `nvfConfigurations.<system>.<name>`, in the shape `neovimConfiguration`
 returns: `neovim`, `config` and `options`. caisson's tests check that
 the Neovim is the derivation `neovimConfiguration` builds from the same
@@ -4215,7 +4215,7 @@ configuration it is declared inside activates it. See
   `configModule` defaults to the configuration registered under its
   name in `configs/nvf`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its evaluation result, or the evaluation results by system
+  at a caisson top and returns its evaluation result, or the evaluation results by system
   where it is evaluated for several systems.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
@@ -4237,7 +4237,7 @@ set to the selected package set and the flake as `flake`. So
 `ecosystemSrc` is the nixvim flake, resolved from the composition under
 the name `nixvim` when absent.
 
-The output is `package`, the Neovim (`config.build.package`). A top
+The output is `package`, the Neovim (`config.build.package`). A caisson top
 publishes the evaluated configuration as
 `nixvimConfigurations.<system>.<name>`, the name the nixvim flake
 publishes configurations under. caisson's tests check that the
@@ -4254,7 +4254,7 @@ activates it. See [profiles](#profiles-caissonprofile-activation).
   `configModule` defaults to the configuration registered under its
   name in `configs/nixvim`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its evaluation result, or the evaluation results by system
+  at a caisson top and returns its evaluation result, or the evaluation results by system
   where it is evaluated for several systems.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
@@ -4278,7 +4278,7 @@ default, through `caisson.forChildren`. `ecosystemSrc` is the
 nix-topology flake or source tree, resolved under the name
 `nix-topology`.
 
-The output is `output`, the rendered diagram. A top publishes the
+The output is `output`, the rendered diagram. A caisson top publishes the
 configuration named for that output, `topology`, as
 `topology.<system>`, the evaluation result,
 where nix-topology's flake module publishes it, so
@@ -4305,7 +4305,7 @@ name `kubenix`.
 
 The output is `result`, the resources as the JSON file
 `kubectl apply -f` reads, the `kubernetes.result` of kubenix's `k8s`
-module. A top publishes the configuration as
+module. A caisson top publishes the configuration as
 `kubenixConfigurations.<system>.<name>`, the evaluation result kubenix's
 `evalModules` returns, whose `config.kubernetes.result` is the result.
 caisson's tests check that the result is the result kubenix's
@@ -4325,7 +4325,7 @@ configurations. `ecosystemSrc` is the nixidy flake,
 resolved under the name `nixidy`.
 
 The outputs are `environmentPackage`, the rendered manifests,
-`activationPackage` and `bootstrapPackage`. A top publishes the
+`activationPackage` and `bootstrapPackage`. A caisson top publishes the
 configuration as `nixidyEnvs.<system>.<name>`, which the nixidy CLI
 reads. caisson's tests check that the environment is the environment
 `mkEnv` renders from the same module.
@@ -4352,7 +4352,7 @@ for. A flake registers it as `configs/systemManager/default/default.nix` and
 declares it with
 `caisson.system-manager.configurations.default = lib.caisson.system-manager.mkConfiguration { };`.
 Its value and its output `toplevel` are the system, with the evaluated
-configuration under `passthru.config`. A top publishes it as
+configuration under `passthru.config`. A caisson top publishes it as
 `systemConfigs.default`, which `system-manager switch --flake .` reads
 when it is given no name. A system-manager configuration activates the
 home-manager configurations and the hjem configurations declared
@@ -4397,7 +4397,7 @@ self-retires; see the source comments).
   `configModule` defaults to the configuration registered under its
   name in `configs/systemManager`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its system, or the systems by system where it
+  at a caisson top and returns its system, or the systems by system where it
   is evaluated for several systems.
 - `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the call of `makeSystemConfig` (`modules`, `specialArgs`,

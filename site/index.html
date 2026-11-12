@@ -177,7 +177,7 @@
     closure-lib.caisson.dependencies.some-helper.modules.flake.default
   ];
   <span class="c"># consumers are not required to declare</span>
-  <span class="c"># their own dependency on some-helper</span>
+  <span class="c"># a dependency on some-helper</span>
 }</code></pre>
     </article>
 
@@ -212,9 +212,8 @@
           Modules register under a class key naming the module system
           they belong to: <code>flake</code> for flake-parts modules.
           The class keeps a module from being imported into an
-          evaluation that can't understand it; each shipped
-          integration registers its own class for its module
-          ecosystem.
+          evaluation that can't understand it. Each shipped
+          integration registers a class for its module ecosystem.
         </p>
       </div>
 <pre><code>modules = lib: {
@@ -267,10 +266,10 @@
   <section class="integrations" id="integrations">
     <h2>Integrations</h2>
     <p>
-      caisson ships integrations that carry the same conventions
-      (closed-over dependencies, library overlays, class-keyed modules) into
-      other module ecosystems, each registering its own module class.
-      flake-parts itself is one of them:
+      caisson ships integrations that apply the same conventions
+      (closed-over dependencies, library overlays, class-keyed modules) to
+      other module ecosystems. Each integration registers a module class
+      for its ecosystem. flake-parts itself is among them:
     </p>
     <table class="where">
       <tr><th>Integration</th><th>brings caisson's conventions to…</th></tr>

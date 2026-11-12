@@ -35,7 +35,7 @@ Type notation used below:
 ```
 mkLib :
   { dependencies      : attrs                              # the tree's pinned trees, as a pin reader returns them
-  , root              ? null : root                        # the tree's identity; null for a composition that is not a top
+  , root              ? null : root                        # the tree's identity; null for a composition that is not a caisson top
   , name              ? null : str                         # the project's name, also the namespace it contributes
   , modules           ? (lib: { })
                       : lib -> attrsOf (attrsOf module)    # class -> name -> module
@@ -101,8 +101,8 @@ reads, so a module imports a sibling by name. A registration under a
 `caisson-core/<name>` key replaces that entry from the bootstrap stage
 on; the core lib keeps the original.
 
-`dependencies` and `root` come from a pin reader (see `pins` below); at a
-flake top, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
+`dependencies` and `root` come from a pin reader (see `pins` below); in a
+flake, `inherit (caisson-core.lib.caisson-core.pins.flake inputs)
 dependencies root;`. The manifest records `dependencies` as
 `lib.caisson-core.libManifest.dependencies`, and the registered overlays
 and modules read them as `closure-lib.caisson.dependencies`, so a
@@ -120,13 +120,13 @@ naming `mkLib` and pointing at the pattern.
   covers. `lib: lib.caisson-core.mkModules ./modules` reads the
   conventional layout.
 - `configs` receives the bootstrap lib the same way and returns the
-  configurations of the tree, keyed by module class then name, the
+  configurations of the flake, keyed by module class then name, the
   layout `configs/<class>/<name>` on disk (colmena's class is
   `caisson-colmena`); `lib: lib.caisson-core.mkModules ./configs` reads that
   layout. They come back in the manifest, which
-  `lib.caisson.configs.<class>.<name>` reads, so a top and a
-  configuration that evaluates another beneath itself reach them by
-  name rather than by a path out of their directory.
+  `lib.caisson.configs.<class>.<name>` reads, so a caisson top and a
+  configuration that evaluates another configuration declared inside
+  it read them by name rather than by a path out of their directory.
 - `libOverlays` receives the core lib and returns the registered
   overlays. An entry is made with `lib.caisson-core.mkLibOverlay`,
   which closes it over the composition;
@@ -140,8 +140,8 @@ naming `mkLib` and pointing at the pattern.
   These four arguments take exactly the function shape shown; passing
   anything else is an error.
 - `pkgSets` receives the registered lib and returns the package
-  configs of the tree by name, each a configuration an integration's
-  constructor built:
+  configs of the flake by name, each a configuration that the
+  constructor of an integration built:
   `pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };` declares
   a package config for every configuration in `configs/nixpkgsConfig`
   (see `caisson.nixpkgs` below). `mkLib` finalizes each with the name
@@ -161,7 +161,7 @@ naming `mkLib` and pointing at the pattern.
   Registration also feeds export, so what is registered and what is
   selected can differ.
 - `defaultEcosystemSrc` is a function of `dependencies` returning the
-  tree's default source per ecosystem key, keyed by the exact names
+  default source of the flake per ecosystem key, keyed by the exact names
   the integrations resolve
   (`dependencies: { nixpkgs-lib = dependencies.nixpkgs; nixos = dependencies.nixpkgs; }`
   gives the library and the NixOS module collection from a checkout
@@ -200,7 +200,7 @@ mkPkgOverlays : path -> attrsOf pkgOverlay         # <dir>/<name>/default.nix
 The directory readers. A reader belongs to the lib it is read from:
 it takes a directory and returns the registrations, built with the
 entry constructors of that lib. Each registry
-function of `mkLib` receives a lib, so a tree with the conventional
+function of `mkLib` receives a lib, so a flake with the conventional
 layout takes the reader from it and names the directory:
 
 ```nix
@@ -222,7 +222,7 @@ in its declaration. `mkLibOverlays` applies `mkLibOverlay`, and
 `mkPkgOverlays` applies `mkPkgOverlay`. An entry is
 a directory holding a `default.nix`, a symlink to such a directory
 included; anything else in a directory being read is an error, so a
-stray file cannot silently vanish from a registry. A tree with another
+stray file cannot silently vanish from a registry. A flake with another
 layout writes the registration by hand.
 
 ### `pkgOverlays`, `mkPkgOverlay`, `pkgOverlaysFor`
@@ -291,13 +291,13 @@ both keys, with `imports` defaulted to `[ ]`. Already-built overlays are
 registered directly rather than wrapped.
 
 The closure's `closure-lib` is the composed library of the composition
-that registered the overlay, bound lazily: read it inside the
-`overlay` function or a function it defines, never while the overlay
-is being registered. An integration reaches the registry of its
+that registered the overlay, bound lazily. Read it inside the
+`overlay` function or a function it defines. It is not available
+while the overlay is being registered. An integration reaches the registry of its
 composition through it (`closure-lib.caisson.modules.<class>`),
 wherever it is later composed, and reads the pinned trees of that
-composition as `closure-lib.caisson.dependencies.<name>`, a view of
-`closure-lib.caisson-core.libManifest.dependencies`. The `imports`
+composition as `closure-lib.caisson.dependencies.<name>`, which is
+read from `closure-lib.caisson-core.libManifest.dependencies`. The `imports`
 list is read during registration, so it names registry entries as
 strings and never reads `closure-lib`. The closure's `mkModule` is
 bound to the defining composition, so modules an overlay makes close
@@ -407,7 +407,7 @@ and `pkgOverlays` registrations. A layer event carries `prev` and
 `result` as the stage that recorded it composed them.
 
 ```
-event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib and the top
+event : { manifest : listOf { type : str; name : str; };   # [ ] for the root lib and the caisson top
           type : str;                                        # "lib", or the integration
           operation : "registry" | "layer" | "declaration";
           key : str; index : int;                            # index within its operation
@@ -429,12 +429,12 @@ The manifest of every configuration has a `history` too. The history
 of its childless manifest is the history of its parent, then a
 `declaration` event for each module its evaluator received, in that
 order. The history of its full manifest is the history of the
-childless manifest, then what each configuration beneath adds after
-the history it began with, so the history of a child always begins
-with the childless history of its parent. `manifest` is the name path
-of the configuration, the `{ type, name }` of each manifest beneath
-the top, which gives its attribute path under `children` of the top's
-manifest; a configuration evaluated per system has its system as a
+childless manifest, then what each configuration declared inside it
+adds after the history it began with, so the history of a child always
+begins with the childless history of its parent. `manifest` is the name
+path of the configuration, the `{ type, name }` of each manifest on the
+way from the caisson top to the configuration, which gives its attribute path under `children` of the manifest of
+the caisson top; a configuration evaluated per system has its system as a
 segment. The key of a `declaration` event says what the module is:
 
 - the name of the ecosystem, such as `nixos`, for the module list of
@@ -461,24 +461,24 @@ so its history says where it came from.
 A file inside a source in the Nix store is written relative to that
 source.
 
-A configuration reads the childless view of its parent, which holds
-none of the configurations beneath the parent, so no loop between a
-configuration and its parent can be written. A level that sets
-`unsafeCrossChildReferences` for a class in `caisson.forChildren`,
-`caisson.forNearestChildren` or `caisson.forDirectChildren` gives the
-configurations of that class it reaches the full evaluation of the
-level instead. Those configurations can reach every configuration
-beneath the level. The manifest of such a configuration records the
+A configuration reads the result of the childless evaluation of its
+parent, which holds none of the configurations declared inside the
+parent, so no loop between a configuration and its parent can be
+written. A level that sets `unsafeCrossChildReferences` for a class in
+`caisson.forChildren`, `caisson.forNearestChildren` or
+`caisson.forDirectChildren` gives the configurations of that class it
+applies to the result of the full evaluation of the level instead. Those configurations can read any configuration
+declared inside the level. The manifest of such a configuration records the
 full manifest of that level as `crossChildLevel`. It records the name
 path of that level as `crossChildLevelPath`. On the manifest of any
 other configuration, both fields are null. The childless manifest of a
 level that sets `unsafeCrossChildReferences` for some class carries
 the full manifest of the level as `crossChildFull`, and on any other
-manifest that field is null. When several settings reach a
-configuration, the one through `forDirectChildren` wins over
+manifest that field is null. When several settings apply to a
+configuration, the setting through `forDirectChildren` wins over
 `forNearestChildren`, which wins over `forChildren`. Within one
 container, the nearest parent that sets it wins. A loop among the
-configurations it reaches is a Nix infinite recursion.
+configurations it applies to is a Nix infinite recursion.
 
 ### `definers`
 
@@ -510,7 +510,7 @@ manifestOf : any -> nullOr manifest
 ```
 
 Finds the manifest in whatever a file returns, so that a tool reading
-a flakeless top needs only its `default.nix`. The value may be:
+a flakeless caisson top needs only its `default.nix`. The value may be:
 
 - a manifest, returned as it is;
 - an attrset carrying a manifest at `caisson.manifest`;
@@ -525,7 +525,7 @@ a flakeless top needs only its `default.nix`. The value may be:
 A value carrying none of these returns null.
 
 ```nix
-manifestOf (import ./.)   # the manifest of a flakeless top
+manifestOf (import ./.)   # the manifest of a flakeless caisson top
 manifestOf lib            # lib.caisson-core.libManifest
 ```
 
@@ -633,30 +633,32 @@ when it is called; the manifest the configuration returns reads
 `value`, `outputs` and `children` from `evaluate` when they are read.
 
 `evaluate` performs the evaluator's call on `lib`, and returns the
-evaluation as the evaluator returned it (`value`), the integration's
+evaluation result as the evaluator returned it (`value`), the integration's
 references into it (`outputs`) and the finalized configurations
-declared beneath it, by integration and then name (`children`).
+declared inside it, by integration and then name (`children`).
 The manifest carries `argsNeeded` and `discoverArgs` from `evaluate`
 as well. A configuration whose `evaluate` returns neither takes no
 args, and its manifest has an empty `argsNeeded` and a `discoverArgs`
 that returns null ([Deferred configurations](#deferred-configurations)).
 
-The evaluation has a childless view and a full view. Each is a
-manifest, and each runs on the declaring lib rebuilt with that manifest
-as `evalManifest` (`withManifests`).
+caisson evaluates a configuration with children twice: a childless
+evaluation and a full evaluation. The result of each is a manifest,
+and each runs on the declaring lib rebuilt with that manifest as
+`evalManifest` (`withManifests`).
 
-- The **childless** view is the evaluation without the configurations
-  declared beneath it: `childless = true` and no `children`.
-- The **full** view is the manifest returned. It carries the childless
-  manifest as `childlessManifest`, and children are finalized against
-  that, so a child's `parent` and `nearest.<integration>` are the
-  childless manifest of the configuration that declares it.
+- The **childless evaluation** leaves out the configurations declared
+  inside the configuration. Its result has `childless = true` and no
+  `children`.
+- The result of the **full evaluation** is the manifest returned. It
+  carries the result of the childless evaluation as
+  `childlessManifest`, and children are finalized against that, so a
+  child's `parent` and `nearest.<integration>` are the childless
+  manifest of the configuration that declares it.
 
-A configuration with children is evaluated in both views, and a
-configuration with none is evaluated once.
+caisson evaluates a configuration with no children once.
 
-`forChildren` is what the evaluation gives the configurations
-declared inside it. It has three fields:
+`forChildren` is what the evaluation result gives the configurations
+declared inside the configuration. It has three fields:
 
 - `extraDefaultModuleImports`, by class a list of selections, each a
   function of a lib returning modules.
@@ -665,17 +667,18 @@ declared inside it. It has three fields:
 - `systems`, the systems its children are evaluated for. It is null
   when the configuration lists no systems.
 
-They are read from the childless evaluation and recorded on the
+They are read from the result of the childless evaluation and recorded on the
 manifest as `forChildren`. A configuration declared inside inherits
 the selections of its parent, extended by them. Its manifest holds
 the selections added above it as `defaultModuleImports`, those from
-the top first, each a record `{ select; file; level; }`: `select` is
+the caisson top first, each a record `{ select; file; level; }`: `select` is
 the selection, `file` the file that defines it, and `level` the name
-path of the level that added it. Every level extends them in turn, so a selection
-reaches the configurations beneath the level that added it, nested
-ones and ones beneath a system included.
+path of the level that added it. Each level extends them in turn, so
+the configurations declared inside the level that added a selection
+get it, including configurations nested inside other configurations
+and the evaluation results for each system.
 
-Both views carry `type`, `name`, `parent`, `ancestors` (the parent's
+The results of both evaluations carry `type`, `name`, `parent`, `ancestors` (the parent's
 list with the parent appended), `nearest` (the parent's attrset with
 the parent under its integration; a lib is not among them), `inputs`,
 and the parent's `dependencies`, `root`, `systems`, `projects`,
@@ -683,23 +686,24 @@ and the parent's `dependencies`, `root`, `systems`, `projects`,
 a field `mkConfiguration` writes is refused.
 
 An integration that evaluates a configuration per system passes
-`perSystem = true`. A declared configuration is then an evaluation for
-every system in force where it is declared, and the configuration
-returns those evaluations by system. In the tree the system sits
-above the name:
+`perSystem = true`. caisson then evaluates a declared configuration
+for each system its parent evaluates its children for, and finalizing
+the configuration returns those evaluation results by system. In the
+tree of manifests the system sits above the name:
 
 ```
 flake
 └── children.system
     ├── x86_64-linux                     type system
-    │   └── children.nixos.hostname2     an evaluation, with a value
+    │   └── children.nixos.hostname2     an evaluation result, with a value
     └── aarch64-linux                    type system
-        └── children.nixos.hostname2     an evaluation, with a value
+        └── children.nixos.hostname2     an evaluation result, with a value
 ```
 
-There are as many evaluations as there are systems in force, also for
-a single system, and none where no system is in force; nothing is
-refused. Each evaluation is a manifest as described above, under the
+There are as many evaluation results as there are systems its parent
+evaluates its children for, also for a single system, and none where
+the parent evaluates its children for no system; nothing is refused.
+Each evaluation result is a manifest as described above, under the
 name it is declared by, carrying its system as `system`, and its
 parent is the system, a manifest of type `system`. The parent's full
 manifest holds each system under `children.system`, beside the
@@ -709,20 +713,21 @@ configurations evaluated once for every system, which stay under
 Where a configuration that is evaluated per system is declared inside
 another, the system of its parent is the default. A home-manager
 configuration declared inside a NixOS configuration has, by default,
-one evaluation per evaluation of the machine, for the same system. The
-manifest of each evaluation of the machine holds that system as
-`systems`.
+an evaluation result for each evaluation result of the NixOS
+configuration, for the same system. The manifest of each evaluation
+result of the NixOS configuration holds that system as `systems`.
 
 A parent changes this by returning `forChildren.systems`, the systems
-its per-system children are evaluated for: a machine that holds an
-image for another architecture states that architecture there. A configuration
+its per-system children are evaluated for. A NixOS configuration that
+holds an image for another architecture states that architecture
+there. A configuration
 that is evaluated once can return a list the same way, to narrow what
 its children are evaluated for. The list has to come from the systems
 allowed where that parent is declared, and a system outside them is
 refused.
 
-`finalizeChild` accepts either result, a manifest or the evaluations
-by system.
+`finalizeChild` accepts either result, a manifest or the evaluation
+results by system.
 
 ### `elide`
 
@@ -731,7 +736,7 @@ lib.caisson-core.elide : listOf path -> listOf (listOf str)
 path = listOf { type : str; name : str; }
 ```
 
-The naming rule. A path is the list of segments from a top down to a
+The naming rule. A path is the list of segments from a caisson top down to a
 thing, ending in the name of the thing; a system is a segment of type
 `system`. For each path, in order, `elide` returns the segments
 needed to tell the thing apart from the others, as strings in path
@@ -740,7 +745,7 @@ order.
 It keeps the last segment of every path, and beyond it only the
 segments where paths that end in the same name fork. Among those
 paths it drops the prefix they share, keeps the segment at which they
-first differ, the segment nearest the top that separates them, and
+first differ, the segment nearest the caisson top that separates them, and
 does the same within each branch.
 
 ```nix
@@ -753,7 +758,7 @@ elide [
 ```
 
 A name that is alone stays bare, whatever sits above it, so the system
-above a configuration with a single system in force drops out. A
+above a configuration evaluated for a single system drops out. A
 segment is kept as its name, or as `type/name` where the branches of
 that fork hold the same name under several types. How the kept
 segments are written out as a name, and a clash between equal paths,
@@ -765,7 +770,7 @@ are for whoever publishes them (`caisson.integrations.publish`).
 lib.caisson-core.finalizeTop : configuration -> manifest
 ```
 
-Finalizes the configuration a top ends with. A top has no parent that
+Finalizes the configuration a caisson top ends with. A caisson top has no parent that
 declares it under an attribute, so its name is the name the composition
 declares on `mkLib`, absent when it declares none, and its parent is
 the lib's manifest. An integration's `mkTopConfiguration` is this
@@ -793,10 +798,10 @@ args. Args are values a deployment tool supplies after the flake is
 evaluated, such as the outputs of the resources a NixOps4 deployment
 applies. A deferred configuration is a function of exactly
 `{ name, parent, args }`, where a configuration is a function of
-exactly `{ name, parent }`. The args reach it only through `args`.
+exactly `{ name, parent }`. The args are passed to it only through `args`.
 Apart from that, it is an ordinary configuration. It is declared under
-its parent, and it reads the childless view of its parent, as every
-configuration does. Its `type` and `class` are known at flake time, so
+its parent, and it reads the result of the childless evaluation of
+its parent, as every configuration does. Its `type` and `class` are known at flake time, so
 the additions for the nearest configurations of its class connect at
 it.
 
@@ -809,8 +814,8 @@ is plain data the entry carries, such as how the entry is published
 function of exactly `{ name, parent, args }`, so neither kind of
 configuration can be finalized as the other.
 
-A parent cannot call a deferred configuration, because it has no args
-to give. The `caisson.<integration>.configurations` options hold the
+caisson cannot finalize a deferred configuration while it evaluates
+the parent, because the parent has no args to give. The `caisson.<integration>.configurations` options hold the
 entry that `deferChild` makes in its place. The entry holds the
 `record`, the name, the type and the class. It holds the childless
 manifest of the parent as `parent`, and the function `finalize`.
@@ -828,10 +833,10 @@ value of that arg came from. A tool with one source of values passes a
 function that ignores the path, such as `_: "NixOps4"`. The manifest
 never carries the values of the args. Every caller that finalizes a
 deferred configuration calls `finalize`. Those callers are the
-deployment tool, a tool that walks the tree ahead of time, and a
-parent that has args of its own.
+deployment tool, a tool that walks the tree of manifests ahead of
+time, and caisson when it evaluates a parent that was given args.
 
-Every manifest says which args its evaluation takes in `argsNeeded`.
+Every manifest says which args its configuration takes in `argsNeeded`.
 `argsNeeded` is an attribute set whose leaves are made by `mkArg`. It
 is empty for a configuration that takes no args. `finalize` fills the
 args against the `argsNeeded` of the manifest it returns. A given arg
@@ -839,8 +844,8 @@ is passed on without being evaluated. An arg the caller did not give
 throws `caisson-deferred: needs <path>` when it is read, where
 `<path>` is the names of the arg joined with `.`. A tool reads that
 text to learn which arg an evaluation is blocked on. The evaluation
-reads `argsNeeded` from its own result, so the names at each level of
-`argsNeeded` must not depend on the args beneath that level. Args given
+reads `argsNeeded` from its result, so the names at each level of
+`argsNeeded` must not depend on the args nested under that level. Args given
 as something other than an attribute set, where `argsNeeded` declares
 an attribute set of args, fail with an error that names the path they
 were given at. That error does not start with
@@ -863,14 +868,14 @@ so it first calls `finalize` with the args it has. A tool keeps only
 the leaves marked `cacheable` in its cache.
 
 A finalized configuration gives each of its deferred children their
-part of its own args, by calling `finalize` on their entries. It holds
-the manifests `finalize` returns under `children`. A tool that walks
-the tree finds them as it finds any other child.
+part of the args it was given, by calling `finalize` on their entries.
+It holds the manifests `finalize` returns under `children`. A tool that
+walks the tree of manifests finds them as it finds any other child.
 
-Each deferred configuration has its own entry, its own `argsNeeded`
-and its own discovery program. Deferred configurations of several
-tools can therefore be declared side by side in one flake, and each
-entry is finalized on its own.
+Each deferred configuration has a separate entry, a separate
+`argsNeeded` and a separate discovery program. Deferred configurations
+of several tools can therefore be declared side by side in one flake,
+and each entry is finalized separately.
 
 ### `importApply`
 
@@ -911,7 +916,7 @@ integration of caisson, beside the manifests they type.
 - `types.manifest`: a structural type for the caisson-core lib
   manifest (`{ dependencies, root, modules, libOverlays,
   defaultEcosystemSrc, projects, systems }`). The core module reads
-  the manifest of the evaluation through `caisson.manifest`, an
+  the manifest of the evaluation in progress through `caisson.manifest`, an
   option of this type, before it projects the exports and the
   `flake.modules` output.
 
@@ -1042,7 +1047,7 @@ each null where the reader has no value for it. The names are fixed
 and the values lazy, since inside a flake's `outputs` asking which
 attributes `self` has forces the outputs being computed. The names of
 a flake input's `pin` are fixed for the same reason, and `pin.url` and
-`pin.follows` are null where they do not apply. A flakeless top in a
+`pin.follows` are null where they do not apply. A flakeless caisson top in a
 git working tree reads its root with `pins.gitRoot ./.` under an
 impure evaluation. The result has the revision of a clean working
 tree, or `dirty = true` with `dirtyRev` for a dirty working tree.
@@ -1054,7 +1059,7 @@ inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;
 # test-only pins beside the pins of the flake
 inherit (lib.caisson.pins.flake-compat ./tests/dependencies) dependencies;
 
-# a flakeless top pinned with npins
+# a flakeless caisson top pinned with npins
 inherit (lib.caisson.pins.npins ./npins) dependencies;
 root = lib.caisson.pins.gitRoot ./.;
 ```
@@ -1236,8 +1241,9 @@ These modules are what a NixOS configuration gives the home-manager
 configurations declared inside it.
 
 home-manager has a NixOS module that embeds home-manager
-configurations in a machine. For each home-manager configuration, that
-module sets a few options of the configuration from the machine.
+configurations in a NixOS configuration. For each home-manager
+configuration, that module sets a few options of the home-manager
+configuration from the NixOS configuration.
 caisson does not use that NixOS module. A home-manager configuration
 declared inside a NixOS configuration is a caisson configuration, and
 it gets the same settings from the home-manager module
@@ -1248,48 +1254,51 @@ NixOS configuration imports every registered module named `default`
 unless it passes `moduleImports`. This module sets
 `caisson.forChildren.extraDefaultModuleImports.homeManager`, which adds
 `caisson/nixos-parent` to the modules that the home-manager
-configurations declared inside the machine import by default. It also
-imports
+configurations declared inside the NixOS configuration import by
+default. It also imports
 [`caisson/home-manager-activation`](#modulesnixoscaissonhome-manager-activation),
-which runs those home-manager configurations on the machine.
+which activates those home-manager configurations when the system of
+the NixOS configuration is activated.
 
 `caisson/default` also imports `caisson/activation-marker`, described
 under
 [drift detection](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift).
 With it, a home-manager configuration prints a warning when it is
-activated on a machine it was not built for.
+activated on a system other than the system it was built for.
 
 `caisson/default` also imports
 [`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation), which
-activates the hjem configurations declared inside the machine, and adds
+activates the hjem configurations declared inside the NixOS
+configuration, and adds
 the hjem module
 [`caisson/nixos-parent`](#moduleshjemcaissonnixos-parent) to the modules
 those configurations import by default.
 
 `caisson/default` also defines `networking.hostName` as the name the
 NixOS configuration is declared under, at `mkDefault` priority. So the
-machine declared as `nas-1` names itself `nas-1`, and a host name the
-machine's modules set replaces it. A NixOS configuration with no
-name, and an evaluation without NixOS's networking module (the minimal
-NixOS evaluator), keep NixOS's default.
+NixOS configuration declared as `nas-1` sets the host name `nas-1`,
+and a host name that its modules set replaces it. A NixOS
+configuration with no name keeps NixOS's default. So does a NixOS
+configuration evaluated without NixOS's networking module, as the
+minimal NixOS evaluator does.
 
 `caisson/nixos-parent` sets these options of the home-manager
 configuration:
 
 | Option of the home-manager configuration | Value |
 | --- | --- |
-| `home.homeDirectory` | `users.users.<user>.home` of the machine, when the machine declares that account |
-| `home.uid` | `users.users.<user>.uid` of the machine, when the machine declares that account and its `uid` is set |
-| `nix.enable` | `nix.enable` of the machine |
-| `nix.package` | `nix.package` of the machine, when the machine has Nix enabled |
-| `submoduleSupport.enable` | `true`, which home-manager reads to tell that a machine activates the home-manager configuration |
+| `home.homeDirectory` | `users.users.<user>.home` of the NixOS configuration, when the NixOS configuration declares that account |
+| `home.uid` | `users.users.<user>.uid` of the NixOS configuration, when the NixOS configuration declares that account and its `uid` is set |
+| `nix.enable` | `nix.enable` of the NixOS configuration |
+| `nix.package` | `nix.package` of the NixOS configuration, when the NixOS configuration has Nix enabled |
+| `submoduleSupport.enable` | `true`, which home-manager reads to tell that a NixOS configuration activates the home-manager configuration |
 | `submoduleSupport.externalPackageInstall` | [`caisson.useUserPackages`](./options.md#caissonuseuserpackages) of the home-manager configuration, `false` by default |
 | `home.packages` | home-manager's command-line program, when the home-manager configuration sets `programs.home-manager.enable` |
 
 `<user>` is `home.username` of the home-manager configuration.
 
-A machine whose user is managed by systemd-homed has no entry for
-that user in `users.users`. For such a home-manager configuration,
+A NixOS configuration whose user is managed by systemd-homed has no
+entry for that user in `users.users`. For such a home-manager configuration,
 `nixos-parent` leaves `home.homeDirectory` and `home.uid` alone, and
 the home-manager configuration sets its home directory itself.
 
@@ -1314,8 +1323,8 @@ selection. The home-manager configuration lists
 `caisson/nixos-parent`, which is a home-manager module, in its
 selection.
 
-`nixos-parent` reads the machine through the manifest of the
-home-manager configuration, so only a home-manager configuration with
+`nixos-parent` reads the NixOS configuration through the manifest of
+the home-manager configuration, so only a home-manager configuration with
 a NixOS configuration above it can import it.
 
 In a NixOS evaluation whose library is not a caisson composition,
@@ -1326,8 +1335,8 @@ nothing there.
 
 - **Source:** `modules/nixos/home-manager-activation/`
 
-The NixOS module with which a machine activates the home-manager
-configurations declared inside it. `caisson/default` for the `nixos`
+The NixOS module with which a NixOS configuration activates the
+home-manager configurations declared inside it. `caisson/default` for the `nixos`
 class imports it, so a NixOS configuration has it unless it passes
 `moduleImports`.
 
@@ -1336,8 +1345,8 @@ script of its activation package as the user of the home-manager
 configuration. The script links the files of the home-manager
 configuration into the home directory and installs its packages. This
 module writes a systemd unit for each home-manager configuration, so
-that switching the machine to a new generation also applies its
-home-manager configurations. caisson does not use home-manager's NixOS
+that a switch to a new generation of the NixOS configuration also
+applies its home-manager configurations. caisson does not use home-manager's NixOS
 module for this.
 
 **Which home-manager configurations.** The module activates the
@@ -1348,25 +1357,25 @@ through a structural configuration, that its
 out:
 
 - A home-manager configuration declared inside a NixOS configuration
-  that is itself inside this one. That home-manager configuration
-  belongs to the inner machine.
+  that is itself inside this NixOS configuration. The inner NixOS
+  configuration activates that home-manager configuration.
 - A home-manager configuration evaluated for a system other than the
-  system of this machine.
+  system this NixOS configuration is evaluated for.
 
-**The account of the user.** The module expects the machine to declare
+**The account of the user.** The module expects the NixOS configuration to declare
 the account of the user of each home-manager configuration in
 `users.users`. A home-manager configuration whose user has no account
 there is refused, with an assertion that names the home-manager
-configuration and the user. On most machines such a home-manager
-configuration is a mistake: a misspelled user name, or a home-manager
-configuration declared on the wrong machine.
+configuration and the user. Such a home-manager configuration is
+usually a mistake: a misspelled user name, or a home-manager
+configuration declared inside the wrong NixOS configuration.
 
 Some accounts are provided by something other than `users.users`. An
 account that systemd-homed manages is one. systemd-homed keeps the
-record of it, the machine must not declare it a second time, and its
+record of it, the NixOS configuration must not declare it a second time, and its
 home directory is mounted only at login. The option
 [`caisson.home-manager.activation.usersDeclaredElsewhere`](./options.md#caissonhome-manageractivationusersdeclaredelsewhere)
-lists the users that have such an account on the machine. The
+lists the users that have such an account. The
 home-manager configuration of a listed user is not refused.
 
 **Which unit.** The unit depends on what provides the account of the
@@ -1395,7 +1404,7 @@ which leaves the profile alone.
 configuration, `home.path`, into `~/.nix-profile`. A home-manager
 configuration that sets
 [`caisson.useUserPackages`](./options.md#caissonuseuserpackages)
-leaves its packages to the machine. The module then installs
+leaves its packages to the NixOS configuration. The module then installs
 `home.path` in `/etc/profiles/per-user/<user>`, which NixOS builds as
 part of the system:
 
@@ -1405,13 +1414,13 @@ part of the system:
 
 The module also adds `/etc/profile.d` to `environment.pathsToLink`, so
 the profile holds the file with the session variables of the
-home-manager configuration. A system-manager machine refuses a
+home-manager configuration. A system-manager configuration refuses a
 home-manager configuration that sets the option. The module reads where
 the profile is and what it holds from the profile adapter of the
 home-manager configuration, `activation.profileAdapter` on its
 manifest, which `topside profiles` prints too.
 
-**Two home-manager configurations for one user.** A machine that would
+**Two home-manager configurations for one user.** A NixOS configuration that would
 activate two home-manager configurations with the same
 `home.username` fails an assertion. The message names the user and
 both home-manager configurations. Give one of the home-manager
@@ -1421,22 +1430,21 @@ configurations a different `home.username`, or leave one out with
 **Where the module defines nothing.** The module reads the
 home-manager configurations from the full evaluation of the NixOS
 configuration, so it defines nothing in the childless evaluation. It
-also defines nothing in a NixOS evaluation that declares no systemd
-options. The nixos-minimal integration produces such an evaluation,
-and a machine of that kind
-cannot run units.
+also defines nothing in a NixOS evaluation result that declares no
+systemd options. The nixos-minimal integration produces such an
+evaluation result, and a system built from it cannot run units.
 
 ### `modules.nixos."caisson/hjem-activation"`
 
 - **Source:** `modules/nixos/hjem-activation/`
 
-The NixOS module with which a machine activates the hjem configurations
-declared inside it. `caisson/default` for the `nixos` class imports it,
+The NixOS module with which a NixOS configuration activates the hjem
+configurations declared inside it. `caisson/default` for the `nixos` class imports it,
 so a NixOS configuration has it unless it passes `moduleImports`.
 
 Activating a hjem configuration means applying its manifest with
 hjem's CLI. The CLI links the files of the user and removes the files of
-the previous generation, whose manifest the machine keeps in
+the previous generation, whose manifest the system keeps in
 `/var/lib/hjem/manifest-<user>.json`. The module writes the units that
 hjem's NixOS module writes, under the same names:
 
@@ -1446,10 +1454,10 @@ hjem's NixOS module writes, under the same names:
 | `hjem-activate@<user>` | as the user, links the files of the new manifest |
 | `hjem-reload@<user>` | as the user, reloads the systemd user units that the change touched, when the service manager of the user is running |
 | `hjem-update-state@<user>` | stores the new manifest in `/var/lib/hjem` |
-| `hjem-cleanup` | removes the stored manifests of users that are no longer activated |
+| `hjem-cleanup` | removes the stored manifests of users that the new generation does not activate |
 
-The target `hjem` requires them all, and starts at boot and when the
-machine switches to a new generation. Each instance runs the CLI of the
+The target `hjem` requires them all, and starts at boot and at a
+switch to a new generation of the NixOS configuration. Each instance runs the CLI of the
 hjem configuration of its user. The units link with hjem's CLI and
 back up a file they replace under the prefix `.backup-`. hjem's NixOS
 options for another linker, for `systemd-tmpfiles` and for
@@ -1462,14 +1470,15 @@ user in the closure of the system.
 
 **Which configurations.** The hjem configurations that the NixOS
 configuration passes up and that are enabled, leaving out those
-declared inside a NixOS configuration that is itself inside this one,
-and those evaluated for another system. A machine that would activate
+declared inside a NixOS configuration that is itself inside this
+NixOS configuration, and those evaluated for another system. A NixOS
+configuration that would activate
 two hjem configurations with the same `user` fails an assertion naming
 the user.
 
 The module defines nothing in the childless evaluation, and nothing in
-a NixOS evaluation that declares no systemd options, such as one from
-the nixos-minimal integration.
+a NixOS evaluation result that declares no systemd options, such as an
+evaluation result of the nixos-minimal integration.
 
 ### `modules.hjem."caisson/nixos-parent"`
 
@@ -1478,12 +1487,13 @@ the nixos-minimal integration.
 The hjem module that a NixOS configuration adds to the modules that the
 hjem configurations declared inside it import by default, through
 `caisson/default`. It sets `directory` to `users.users.<user>.home` of
-the machine, at `mkDefault` priority. It refuses an enabled
-configuration whose user has no enabled account on the machine, with an
+the NixOS configuration, at `mkDefault` priority. It refuses an enabled
+hjem configuration whose user has no enabled account in the NixOS
+configuration, with an
 assertion naming the user, as hjem's NixOS module does.
 
 A hjem configuration that passes `moduleImports` gets this module only
-if its list names it. The module reads the machine through the manifest
+if its list names it. The module reads the NixOS configuration through the manifest
 of the configuration, so only a hjem configuration with a NixOS
 configuration above it can import it.
 
@@ -1499,17 +1509,20 @@ configuration above it can import it.
 A configuration with an activation, declared inside another
 configuration with an activation, warns when it is activated by hand
 after being built for a different version of the configuration above
-it. A home-manager configuration inside a machine is the common case.
+it. A home-manager configuration inside a NixOS configuration is the
+common case.
 
-The machine activates the home-manager configurations declared inside
-it. The user can also activate such a home-manager configuration by
-hand, with `home-manager switch`, which builds the home-manager
-configuration from the source the user has checked out. That source
-can describe a different machine than the machine that is applied.
-This happens when the user changed the machine and has not switched it
-yet, or when the checkout is older than the machine. A home-manager
-configuration reads settings of its machine, so it was then built for
-a machine other than the machine it is activated on.
+The NixOS configuration activates the home-manager configurations
+declared inside it. The user can also activate such a home-manager
+configuration by hand, with `home-manager switch`, which builds the
+home-manager configuration from the source the user has checked out.
+In that source, the NixOS configuration can differ from the version
+that is applied. This happens when the user changed the NixOS
+configuration and has not switched to it yet, or when the checkout is
+older than the applied version. A home-manager configuration reads
+settings of its NixOS configuration, so it was then built for a
+version of the NixOS configuration other than the version that is
+applied.
 
 **Which configurations.** An integration whose configurations are
 activated passes `activation` to `mkModuleConfiguration`, and the
@@ -1524,37 +1537,40 @@ manifest: the identity of a configuration and the path of its marker.
 | `nvf`, `nixvim` | the Neovim | beside its profile; nothing is declared inside one to read it |
 
 A marker of a user is named by `$HOME` and not by `$XDG_STATE_HOME`,
-because a unit of the machine and a shell of the user may see
+because a system unit and a shell of the user may see
 `$XDG_STATE_HOME` differently, and both must find the same file.
 
-The identity is that of the childless evaluation, which leaves out the
-configurations declared inside. A change to a home-manager
-configuration leaves the identity of its machine the same, and a
-change to anything else about the machine changes it.
+The identity is computed from the result of the childless evaluation,
+which leaves out the configurations declared inside. A change to a
+home-manager configuration leaves the identity of its NixOS
+configuration the same, and a change to anything else about the NixOS
+configuration changes it.
 
 Every configuration with an activation checks the nearest
-configuration above it that has one. A machine is the exception: it is
-applied on the host it describes, so a machine declared inside another, such as
-an image, checks nothing above it.
+configuration above it that has one. A NixOS, nix-darwin or
+system-manager configuration is the exception. Its system is applied
+on the computer that runs it, so such a configuration declared inside
+another, such as an image, checks nothing above it.
 
 **The marker.** The `default` module of each of these classes imports
 its `caisson/activation-marker`. When a configuration declared inside
 checks it, the activation writes the SHA-256 digest of the store path
 of the identity into the marker, as `{ "identity": "<digest>" }`.
-Computing the store path evaluates the childless evaluation and builds
-nothing, and the digest names no store path, so the marker depends on
-nothing and cannot be read as a path. A machine writes it with
+Computing the store path forces the result of the childless evaluation
+and builds nothing, and the digest names no store path, so the marker
+depends on nothing and cannot be read as a path. A NixOS, nix-darwin
+or system-manager configuration writes it with
 `environment.etc`, a home-manager configuration with an activation
 step after its files are linked, and a hjem configuration adds it to
 its files. The marker is
 not written in the childless evaluation, or in a NixOS evaluation
-without `environment.etc`, which the nixos-minimal integration can
-produce.
+result without `environment.etc`, which the nixos-minimal integration
+can produce.
 
 **The check.** `driftCheckOf` is the shell text of the check. It
 compares the marker of the configuration above with the digest of the
 identity of that configuration as this configuration was built for it, computed
-from the same childless evaluation through the manifest. It prints a
+from the same result of the childless evaluation through the manifest. It prints a
 warning to standard error when they differ, or when the marker does
 not exist, and does not stop the activation. A home-manager
 configuration runs it from the home-manager module
@@ -1563,31 +1579,33 @@ imports, as an activation step before `writeBoundary`. The option
 [`caisson.drift.warn`](./options.md#caissondriftwarn) of the
 home-manager configuration removes the step.
 
-**Profiles the machine sets.** The identity of a machine leaves out the
-home-manager configurations inside it. A machine that installs the
+**Profiles a switch sets.** The identity of a NixOS configuration
+leaves out the home-manager configurations inside it. A NixOS
+configuration that installs the
 packages of a home-manager configuration with
 [`caisson.useUserPackages`](./options.md#caissonuseuserpackages) writes
 one more field into its marker, `profiles`. For each such home-manager
 configuration, under the name of its marker file, it holds the digest
-of the `home.path` the machine installed:
+of the `home.path` that the NixOS configuration installed:
 `{ "identity": "<digest>", "profiles": { "home-manager-<name>.json": { "packages": "<digest>" } } }`.
 `lib.caisson.integrations.machineProfilesOf` reads these digests from
 the profile adapter of the home-manager configuration. The check of
-that home-manager configuration also compares the digest with its own
-`home.path`, and prints a warning when they differ. A
-`home-manager switch` of a version other than the one the machine
-installed then says that the packages are those of the machine. A
-machine without such a home-manager configuration writes the marker
-with `identity` alone.
+that home-manager configuration also compares the digest with the
+`home.path` of the home-manager configuration, and prints a warning
+when they differ. A `home-manager switch` of a version other than the
+version that the NixOS configuration installed then says that the
+packages are those the NixOS configuration installed. A NixOS
+configuration without such a home-manager configuration writes the
+marker with `identity` alone.
 
 **When the configuration above activates it.** The marker then already
 belongs to the generation being activated, so the two are equal, and
 the check prints nothing.
 
-**Cost.** Computing the identity evaluates the configuration above a
-second time, without what is declared inside it. A configuration with
-nothing declared inside it that checks it writes no marker, and does
-not pay for the second evaluation.
+**Cost.** Computing the identity forces the childless evaluation of
+the configuration above, a second evaluation without what is declared
+inside it. A configuration with nothing declared inside it that checks
+it writes no marker, and does not pay for the second evaluation.
 
 ### `modules.darwin."caisson/default"`
 
@@ -1597,41 +1615,41 @@ not pay for the second evaluation.
 
 `caisson/default` is the `default` darwin module caisson registers. A
 darwin configuration imports every registered module named `default`
-unless it passes `moduleImports`. It holds what a macOS machine does
-for the home-manager configurations and the hjem configurations
-declared inside it.
+unless it passes `moduleImports`. It holds the modules a nix-darwin
+configuration needs for the home-manager configurations and the hjem
+configurations declared inside it.
 
 It adds the home-manager module `caisson/darwin-parent` to the modules
-that the home-manager configurations inside the machine import by
-default, and the hjem
-module `caisson/darwin-parent` to those of the hjem configurations.
-They set what home-manager's and hjem's nix-darwin modules set from the
-machine:
+that the home-manager configurations inside the nix-darwin
+configuration import by default, and the hjem module
+`caisson/darwin-parent` to those of the hjem configurations. They set
+what home-manager's and hjem's nix-darwin modules set from the
+nix-darwin configuration:
 
 | Module | Option | Value |
 | --- | --- | --- |
-| home-manager `darwin-parent` | `home.homeDirectory` | `users.users.<user>.home` of the machine, when the machine declares that account and sets its `home` |
-| | `home.uid` | `users.users.<user>.uid` of the machine, when it is set |
-| | `nix.enable`, `nix.package` | those of the machine |
+| home-manager `darwin-parent` | `home.homeDirectory` | `users.users.<user>.home` of the nix-darwin configuration, when the nix-darwin configuration declares that account and sets its `home` |
+| | `home.uid` | `users.users.<user>.uid` of the nix-darwin configuration, when it is set |
+| | `nix.enable`, `nix.package` | those of the nix-darwin configuration |
 | | `submoduleSupport.enable` | `true` |
 | | `home.packages` | home-manager's command-line program, when the home-manager configuration sets `programs.home-manager.enable` |
-| hjem `darwin-parent` | `directory` | `users.users.<user>.home` of the machine, at `mkDefault` priority |
+| hjem `darwin-parent` | `directory` | `users.users.<user>.home` of the nix-darwin configuration, at `mkDefault` priority |
 
-nix-darwin leaves `users.users.<user>.home` at `null` until the machine
-sets it. When the machine declares no account for the user, or the
-account sets no `home`, reading `home.homeDirectory` of the
-home-manager configuration or `directory` of the hjem configuration
-fails with a message that says which of the two the machine is
-missing. The hjem module also refuses such a user with an assertion,
+nix-darwin leaves `users.users.<user>.home` at `null` until the
+nix-darwin configuration sets it. When the nix-darwin configuration
+declares no account for the user, or the account sets no `home`,
+reading `home.homeDirectory` of the home-manager configuration or
+`directory` of the hjem configuration fails with a message that says
+which of the two the nix-darwin configuration is missing. The hjem module also refuses such a user with an assertion,
 which covers a hjem configuration that sets `directory` itself. An
 account without `uid` is accepted, and `home.uid` of the home-manager
 configuration stays unset, as with home-manager's nix-darwin module.
 
 #### `modules.darwin."caisson/home-manager-activation"`
 
-The darwin module with which a machine activates the home-manager
-configurations declared inside it. `caisson/default` imports it. A
-step of the machine's `postActivation` script runs the `activate`
+The darwin module with which a nix-darwin configuration activates the
+home-manager configurations declared inside it. `caisson/default`
+imports it. A step of its `postActivation` script runs the `activate`
 script of each home-manager configuration as its user, through
 `launchctl asuser` and `sudo`, as home-manager's nix-darwin module
 does, so `darwin-rebuild switch` applies the home-manager
@@ -1650,18 +1668,18 @@ which leaves the profile alone.
 
 #### `modules.darwin."caisson/hjem-activation"`
 
-The darwin module with which a machine applies the hjem configurations
-declared inside it. `caisson/default` imports it. It writes the two
+The darwin module with which a nix-darwin configuration applies the
+hjem configurations declared inside it. `caisson/default` imports it. It writes the two
 launchd agents of hjem's nix-darwin module, with the same labels and
 scripts:
 
 | Agent | Runs |
 | --- | --- |
-| `org.hjem.activate` | at login and when the machine is activated, as the user: applies the manifest of the user, with the state in `~/Library/Application Support/Hjem` |
+| `org.hjem.activate` | at login and when the system is activated, as the user: applies the manifest of the user, with the state in `~/Library/Application Support/Hjem` |
 | `org.nix.link-nix-apps` | the same: links the applications of the packages of the user into `~/Applications/Nix User Apps` |
 
-Each agent exits for a user that no hjem configuration of the machine
-names, and runs the CLI of the hjem configuration of the user it runs
+Each agent exits for a user that no hjem configuration of the
+nix-darwin configuration names, and runs the CLI of the hjem configuration of the user it runs
 for. The module also adds each user's `packages` to
 `users.users.<user>.packages`, and lists each user's
 `extraDependencies` in `/etc/hjem/extra-dependencies`, which keeps them
@@ -1674,13 +1692,13 @@ the agents and in how it applies the files at an activation:
   in `/Library/LaunchAgents`, where launchd loads them for every user
   who logs in. hjem's nix-darwin module declares them in
   `launchd.user.agents`, which nix-darwin installs for
-  `system.primaryUser` alone, and it requires the machine to set
-  `system.primaryUser`.
+  `system.primaryUser` alone, and it requires the nix-darwin
+  configuration to set `system.primaryUser`.
 - It applies the files of each hjem user who is logged in from
   `postActivation`, which nix-darwin runs after it installs the agents
   of the new generation. nix-darwin loads the agents of
   `/Library/LaunchAgents` as root, which loads them into no session, so
-  a user who is logged in when the machine is activated has the agents
+  a user who is logged in when the system is activated has the agents
   of the generation that was current at the login, or none. For each
   such user, the step removes the agents from the session, runs the
   program of each agent of the new generation as the user, so the files
@@ -1702,7 +1720,8 @@ the agents and in how it applies the files at an activation:
 
 An nvf or nixvim configuration is a program a person runs. It relates
 to the configuration it is declared inside as a home-manager
-configuration relates to its machine: it has a separate activation,
+configuration relates to the NixOS configuration it is declared
+inside: it has a separate activation,
 which the configuration above runs each time it is activated itself.
 
 **The profile.** The configuration has the outputs `activationPackage`
@@ -1717,19 +1736,20 @@ so it can be rolled back with `nix-env --profile <path> --rollback`.
 
 | Declared inside | Profile | Activated by |
 | --- | --- | --- |
-| a NixOS or system-manager machine | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |
-| a darwin machine | the same | a step of `postActivation`, as root |
+| a NixOS or system-manager configuration | `/nix/var/nix/profiles/caisson/<kind>/<name>` | the unit `caisson-profile-<kind>-<name>`, as root, wanted by `multi-user.target` |
+| a nix-darwin configuration | the same | a step of `postActivation`, as root |
 | a home-manager configuration | `$HOME/.local/state/caisson/profiles/<kind>/<name>` | a step of the activation of the home-manager configuration, after its files are linked |
-| a hjem configuration inside a NixOS machine | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the machine, as the user, after `hjem-activate@<user>`, wanted by `hjem.target` and part of it |
-| a hjem configuration inside a system-manager machine | the same | the unit `hjem-activate@<user>` of the machine, as the user, after it applies the files of the user |
-| a hjem configuration inside a darwin machine | the same | a step of `postActivation`, as the user, after the hjem agents are restarted |
-| a hjem configuration with no machine above it, on Linux | the same | the systemd user service `caisson-profiles` in the files of the hjem configuration, when the systemd of the user starts and at each `hjem standalone switch` |
-| a hjem configuration with no machine above it, on macOS | the same | the launchd agent `org.caisson.profiles` in the files of the hjem configuration, when launchd loads it at login and at each `hjem standalone switch` |
-| nothing (a top) | the same | running `activate` by hand |
+| a hjem configuration inside a NixOS configuration | the same | the unit `caisson-profile-<user>-<kind>-<name>` of the NixOS configuration, as the user, after `hjem-activate@<user>`, wanted by `hjem.target` and part of it |
+| a hjem configuration inside a system-manager configuration | the same | the unit `hjem-activate@<user>` of the system-manager configuration, as the user, after it applies the files of the user |
+| a hjem configuration inside a nix-darwin configuration | the same | a step of `postActivation`, as the user, after the hjem agents are restarted |
+| a hjem configuration with no NixOS, nix-darwin or system-manager configuration above it, on Linux | the same | the systemd user service `caisson-profiles` in the files of the hjem configuration, when the systemd of the user starts and at each `hjem standalone switch` |
+| a hjem configuration with no NixOS, nix-darwin or system-manager configuration above it, on macOS | the same | the launchd agent `org.caisson.profiles` in the files of the hjem configuration, when launchd loads it at login and at each `hjem standalone switch` |
+| nothing (a caisson top) | the same | running `activate` by hand |
 
 `<kind>` is `nvf` or `nixvim`. A hjem configuration has no activation
-step that a configuration can add to. A machine activates the profiles
-of a hjem configuration declared inside it. On a NixOS machine,
+step that a configuration can add to. A NixOS, nix-darwin or
+system-manager configuration activates the profiles of a hjem
+configuration declared inside it. In a NixOS configuration,
 `hjem.target` starts the units that apply the files of each user, at
 boot and again at every switch, and the unit of each profile starts
 with it.
@@ -1737,7 +1757,7 @@ with it.
 system-manager reloads a changed unit by its name, which fails for a
 template, restarts each changed unit in a separate request, so the order
 between units does not hold, and does not stop `hjem.target` at an
-activation. On a system-manager machine, caisson therefore writes a
+activation. In a system-manager configuration, caisson therefore writes a
 single unit for each hjem user, `hjem-activate@<user>`, wanted by
 `multi-user.target`, which links the files, reloads the units of the
 user, stores the state and activates the profiles inside the hjem
@@ -1747,7 +1767,8 @@ it, when the files or the profiles of the user change. Activating the
 same generation again starts no unit, so a profile changed by hand is
 put back at the next activation that changes it, or at a boot.
 
-A hjem configuration with no machine above it is applied with
+A hjem configuration with no NixOS, nix-darwin or system-manager
+configuration above it is applied with
 `hjem standalone switch`. On Linux, its files hold the systemd user
 units that activate its profiles. The service `caisson-profiles` runs
 `~/.local/state/caisson/activate-profiles`, which the files link to the
@@ -1778,10 +1799,12 @@ profiles before the next login, run
 **Reset.** The configuration above runs `activate` each time it is
 activated. A profile changed by hand is put back to what the
 configuration above declares at the next activation: `home-manager
-switch` for a home-manager configuration, a switch of the machine, a
-boot, since the machine activates its home-manager configurations and
-its profiles at boot, and `hjem standalone switch` or `hjem standalone
-rollback` for a hjem configuration with no machine above it.
+switch` for a home-manager configuration, a switch to the NixOS
+configuration, a boot, since the NixOS configuration activates its
+home-manager configurations and its profiles at boot, and `hjem
+standalone switch` or `hjem standalone rollback` for a hjem
+configuration with no NixOS, nix-darwin or system-manager
+configuration above it.
 
 **Choosing a profile.** Each class installs, with
 `profileShimsOf`, a program for each program the Neovims have in
@@ -1791,13 +1814,13 @@ read each time it runs, and of the default of the configuration that
 installed it when the variable is unset. A home-manager configuration
 and a hjem configuration set the variable to their profile, with
 `home.sessionVariables` and `environment.sessionVariables`, so the
-programs the machine installs choose the same profile. A shell can
+programs the NixOS configuration installs choose the same profile. A shell can
 `export` another value.
 
 The default is the only profile of the configuration for that variable.
 Where several share it,
 [`caisson.profiles.selected`](./options.md#caissonprofilesselected)
-names the default, and an evaluation without it fails with a message
+names the default, and evaluating the configuration without it fails with a message
 listing them.
 
 ### `modules.systemManager."caisson/default"`
@@ -1812,20 +1835,21 @@ listing them.
 
 `caisson/default` is the `default` system-manager module caisson
 registers. A system-manager configuration imports every registered
-module named `default` unless it passes `moduleImports`. It holds what
-a machine running another Linux distribution does for the
-configurations declared inside it, as `caisson/default` of the `nixos`
-class does for a NixOS machine:
+module named `default` unless it passes `moduleImports`. It holds the
+modules a system-manager configuration, for a computer running another
+Linux distribution, needs for the configurations declared inside it,
+as `caisson/default` of the `nixos` class holds them for a NixOS
+configuration:
 
 | Part | What it does |
 | --- | --- |
-| `caisson/home-manager-activation` | writes the system unit `home-manager-<user>` that activates each home-manager configuration declared inside the machine |
-| `caisson/hjem-activation` | writes the units of hjem that apply each hjem configuration declared inside the machine, and adds the packages of each user to `users.users.<user>.packages` |
-| `caisson/profile-activation` | activates the profile of each nvf or nixvim configuration declared inside the machine, and installs the programs that choose among them; see [profiles](#profiles-caissonprofile-activation) |
-| `caisson/activation-marker` | records what the machine applied; see [drift detection](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift) |
+| `caisson/home-manager-activation` | writes the system unit `home-manager-<user>` that activates each home-manager configuration declared inside the system-manager configuration |
+| `caisson/hjem-activation` | writes the units of hjem that apply each hjem configuration declared inside the system-manager configuration, and adds the packages of each user to `users.users.<user>.packages` |
+| `caisson/profile-activation` | activates the profile of each nvf or nixvim configuration declared inside the system-manager configuration, and installs the programs that choose among them; see [profiles](#profiles-caissonprofile-activation) |
+| `caisson/activation-marker` | records what the system-manager configuration applied; see [drift detection](#drift-detection-caissonactivation-marker-moduleshomemanagercaissonactivation-drift) |
 | `caisson.forChildren` | gives each home-manager configuration the home-manager module `caisson/system-manager-parent` and each hjem configuration the hjem module `caisson/system-manager-parent` |
 
-The two activation modules are those of a NixOS machine. system-manager
+The two activation modules are those of a NixOS configuration. system-manager
 declares `users.users` and the systemd options, and starts the units
 that ask for `multi-user.target` with `system-manager.target`,
 so `system-manager switch` applies the home-manager configurations and
@@ -1838,15 +1862,17 @@ keeps no extra dependencies in the system there.
 The two `system-manager-parent` modules are the `nixos-parent` modules,
 which read the nearest NixOS or system-manager configuration above the
 child. They set `home.homeDirectory` and `directory` from the account
-the machine declares in `users.users`. A home-manager configuration or
-a hjem configuration inside a system-manager machine is refused when
-the machine declares no account for its user, unless, for a
-home-manager configuration, the user is listed in
+that configuration declares in `users.users`. A home-manager
+configuration or a hjem configuration inside a system-manager
+configuration is refused when the system-manager configuration
+declares no account for its user, unless, for a home-manager
+configuration, the user is listed in
 `caisson.home-manager.activation.usersDeclaredElsewhere`.
 
-A home-manager configuration declared inside a system-manager machine
-is published as `homeConfigurations."<user>@<machine>"`, as a
-home-manager configuration inside a NixOS machine is.
+A home-manager configuration declared inside a system-manager
+configuration is published as `homeConfigurations."<user>@<name>"`,
+where `<name>` is the name of the system-manager configuration, as a
+home-manager configuration inside a NixOS configuration is.
 
 ### `modules.flake."caisson/nixpkgs"`
 
@@ -1890,7 +1916,7 @@ of the evaluator's call as the integration composed them, beside
 anything `evaluate` needs, such as the resolved source. It then calls
 `evaluate` with that set and the call to make. When the arguments
 carry `ecosystemArgs`, which only the pattern of the
-`WithEcosystemArgs` twin admits, they are merged over the composed
+`WithEcosystemArgs` variant admits, they are merged over the composed
 call verbatim, last.
 
 The pattern is the whole check. Every entry point is a function of an
@@ -1958,37 +1984,38 @@ integrationsDeclaringIn : options -> listOf str
 ```
 
 `integrationsDeclaringIn` is the part of `integrationsIn` whose
-`caisson.<integration>.configurations` a module of the evaluation
-defines. `childrenOf` and re-export read only those integrations, so an
-evaluation does not merge the options of an integration it holds no
-configurations of.
+`caisson.<integration>.configurations` a module of the configuration
+defines. `childrenOf` and re-export read only those integrations, so
+caisson does not merge the options of an integration that a
+configuration holds no configurations of.
 
 `nearestOf` takes a list of integration names and a manifest, and
 returns the nearest configuration above the manifest whose integration
 is one of them, null when there is none. The home-manager and hjem
-integrations find the machine of a configuration with
+integrations find the NixOS or nix-darwin configuration above a
+configuration with
 `nearestOf [ "nixos" "darwin" ]`.
 
-`integrationsIn` takes the options of an evaluation and lists the
-integrations whose configurations it can hold beneath it: those whose
-`configurationsModule` the evaluation imports, which declares
+`integrationsIn` takes the options of an evaluation result and lists
+the integrations whose configurations it can hold: those whose
+`configurationsModule` the configuration imports, which declares
 `caisson.<integration>.configurations` and
 `caisson.<integration>.exported`. `configurationsModuleFor` takes a
-list of integration names and returns one module that declares those
-options for all of them. The core module of caisson imports it once,
-for every integration of caisson, which costs less to evaluate than a
+list of integration names and returns a module that declares those
+options for all of them. The `core` module of caisson imports it for
+the integrations of caisson, which costs less to evaluate than a
 module per integration. `childrenOf` takes the
 options and the `config` of an evaluated configuration and returns
-the configurations declared beneath it, by integration and then name,
+the configurations declared inside it, by integration and then name,
 leaving out an integration with none: the `children`
 `mkModuleConfiguration` hands to `lib.caisson-core.mkConfiguration`.
-It reads only the options that a module of the evaluation defines.
+It reads only the options that a module of the configuration defines.
 
 #### `frameworkModules`, `mkModuleConfiguration`, `ecosystemUnit`, `inEcosystem`
 
 ```
 frameworkModules      : str -> attrsOf module -> listOf module
-mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; selection ? null; evaluate : view -> evaluated; } -> configuration
+mkModuleConfiguration : { type : str; perSystem ? false; defaultPkgs ? null; exportsTo ? null; selection ? null; evaluate : { lib, manifest } -> evaluated; } -> configuration
 evaluated = { value; outputs ? { }; config ? value.config; modules ? listOf (module | unit);
               children ? attrsOf (attrsOf manifest); argsNeeded ? attrs;
               discoverArgs ? { system } -> nullOr derivation; }
@@ -2000,19 +2027,19 @@ export    = { attrset : str; value : manifest -> value; single ? false : bool;
               name ? : { name, manifest } -> { value : str; description ? : str; }; }
 ```
 
-`mkModuleConfiguration` builds a configuration that is a module
-evaluation. `type` and `perSystem` are what
+`mkModuleConfiguration` builds a configuration that caisson evaluates
+with the module system. `type` and `perSystem` are what
 `lib.caisson-core.mkConfiguration` takes. `evaluate` is the evaluator
-step of the integration: from the view being evaluated,
-`{ lib, manifest }`, it returns `value`, the evaluation as the
-evaluator returned it, and `outputs`, the references into it that the
+step of the integration. It takes `{ lib, manifest }` of the
+evaluation in progress, the childless or the full evaluation. It
+returns `value`, the evaluation result as the evaluator returned it, and `outputs`, the references into it that the
 integration declares (`config` says where the evaluated options are
 when that is not `value.config`). `defaultPkgs` is the package set
 selection the configuration was constructed with, which the builder
 records on the manifest (`pkgSetOf` below). `selection` is
-`{ class; args; }`, the class of the evaluation and the arguments the
-configuration was constructed with, from which the builder records
-how the evaluation selected its modules as `moduleImports`
+`{ class; args; }`, the class of the configuration and the arguments
+the configuration was constructed with, from which the builder records
+how the configuration selected its modules as `moduleImports`
 (`selectionAccountOf` below). Every integration of caisson passes it.
 
 `evaluate` also returns `modules`, the list of modules the evaluator
@@ -2052,7 +2079,7 @@ published name therefore agree.
 
 `bySystem` says the output is keyed by system first, as flakes key
 `packages` and `formatter`. Each configuration is published under the
-system of its evaluation, `<attrset>.<system>.<name>`, named by the
+system it is evaluated for, `<attrset>.<system>.<name>`, named by the
 usual rules over its path without the systems on it. With `single`
 too, the output holds the configuration named for it for each system,
 as `formatter.<system>` holds the configuration named `formatter`. A configuration with no system,
@@ -2075,22 +2102,22 @@ The entry of a deferred configuration is published in the same way,
 from the `exportsTo` its `record` holds
 ([Deferred configurations](#deferred-configurations)). `value` and
 `only` then receive the entry, which holds the name, the type, the
-class and the parent. Nothing beneath the entry is evaluated at flake
-time, so the entry passes nothing else up.
+class and the parent. Nothing declared inside the entry is evaluated
+at flake time, so the entry passes nothing else up.
 
-The configuration holds configurations of any integration beneath
-it: those its modules declare under
+The configuration can hold configurations of any integration declared
+inside it: those its modules declare under
 `caisson.<integration>.configurations` are its children, and
 `caisson.exports`, which carries what they pass up, is its `exports`
 output. What its modules define under `caisson.forChildren` is what
-it registers for the configurations beneath it
+it registers for the configurations declared inside it
 (`lib.caisson-core.mkConfiguration`).
 
 An integration whose evaluation finalizes its children itself returns
 them from `evaluate` as `children`, by integration and then name. They
 are then the children of the configuration in place of the values of
 `caisson.<integration>.configurations`. A deferred configuration
-finalizes the deferred configurations declared beneath it this way,
+finalizes the deferred configurations declared inside it this way,
 each with its part of the args of the deferred configuration.
 `evaluate` may also return `argsNeeded` and `discoverArgs`, which the
 manifest carries as caisson-core describes them. A configuration whose
@@ -2112,15 +2139,16 @@ built with both.
 moduleImportsOf : str -> { lib, manifest } -> args -> registry -> listOf module
 ```
 
-The selection of an evaluation over the registry of its class. It
-takes the class, the view being evaluated and the arguments of the
-configuration, and reads two of them:
+The selection of modules for a configuration from the registry of its
+class. It takes the class, `{ lib, manifest }` of the evaluation in
+progress and the arguments of the configuration, and reads two of
+them:
 
 - `moduleImports` replaces the default of the class. With none given,
   the selection is that default: every entry named `default`,
-  followed by what the levels above the evaluation added with
-  `caisson.forChildren.extraDefaultModuleImports`, those from the top
-  first, each applied to the lib of the evaluation.
+  followed by what the levels above the configuration added with
+  `caisson.forChildren.extraDefaultModuleImports`, those from the
+  caisson top first, each applied to the lib of the evaluation.
 - `extraModuleImports` is appended to the selection, whichever it is.
   A configuration that adds a module with it keeps the default of its
   class.
@@ -2138,7 +2166,7 @@ account = { act : "default" | "appended" | "reset";
             selected : listOf (nullOr str); }
 ```
 
-How an evaluation of `class`, constructed with `args`, selected its
+How a configuration of `class`, constructed with `args`, selected its
 modules. The manifest of every configuration records it as
 `moduleImports`, through the `selection` argument of
 `mkModuleConfiguration`. `act` is `default` when the configuration
@@ -2176,13 +2204,13 @@ account = { from : "ecosystemSrc" | "defaultEcosystemSrc" | "dependencies";
             source : nullOr str; }
 ```
 
-How an evaluation came by the source of the ecosystem `name`. It
+How a configuration came by the source of the ecosystem `name`. It
 takes the arguments `resolveEcosystemSrc` takes and follows the same
 order. `from` names the declaration that supplied the source:
 `ecosystemSrc` for the selection of the configuration,
-`defaultEcosystemSrc` for the selection of the tree, and `dependencies` for
-the source the tree pins under exactly that name. `source` is the name
-of that source among the pinned dependencies of the tree, where
+`defaultEcosystemSrc` for the selection of the flake, and `dependencies` for
+the source the flake pins under exactly that name. `source` is the name
+of that source among the pinned dependencies of the flake, where
 `dependencies.<name>.pin` records its revision. It is null where a selection
 builds the value in another way, such as a directory inside a source.
 The name is read from the selection applied to the sources tagged with
@@ -2190,11 +2218,11 @@ their names (`caisson-core.selectedSourceName`), so reading the
 account forces no source the selection does not read.
 
 The manifest of every configuration records `ecosystems`, an account
-for each part of the stack the evaluation used, keyed as the parts are
+for each part of the stack the configuration used, keyed as the parts are
 resolved. `nixpkgs-lib` is always there, since every evaluation runs on
 the lib. An integration adds the ecosystems it resolves, and its
 `evaluate` returns them as `ecosystems`. For a NixOS configuration
-that selects its module collection, in a tree whose
+that selects its module collection, in a flake whose
 `defaultEcosystemSrc` names its `nixpkgs` input for the library:
 
 ```nix
@@ -2233,16 +2261,16 @@ lib.caisson.nixos.mkConfiguration {
 ```
 
 The function receives the available sets as an attribute set and
-returns the one to run on, here the set of the package config named
+returns the set to run on, here the set of the package config named
 `stable`.
 
-A selection holds for the subtree: the configuration that makes it
-and every configuration beneath it that selects none, through levels
-of any integration. A configuration that selects none runs on what
-the nearest configuration above it selected. A module of a
-configuration selects for the configurations beneath it, and not for
+A selection applies to the configuration that makes it and to each
+configuration declared inside it that selects no set, through
+configurations of any integration. A configuration that selects no set
+runs on what the nearest configuration above it selected. A module of a
+configuration selects for the configurations declared inside it, and not for
 the configuration itself, with the `caisson.forChildren.defaultPkgs`
-option. Where no configuration from the top down selects, a configuration runs on the set named
+option. Where no configuration from the caisson top down selects, a configuration runs on the set named
 `default`, and a composition that declares no `default` and selects
 nothing is told so, with the sets it declares.
 
@@ -2250,16 +2278,17 @@ The modules of a configuration can also use any available set by
 name, through the `pkgSets` argument.
 
 `pkgSetsForSystem` gives the sets available to an evaluation: the package
-configs its manifest holds, each projected to its set for the system.
-`pkgSetOf` applies the selection in force at the manifest (`defaultPkgs`,
-which `mkModuleConfiguration` records from the argument and
-`lib.caisson-core` carries to everything beneath) to those sets.
+configs its manifest holds, each as its set for the system.
+`pkgSetOf` applies the package set selection that applies to the
+manifest (`defaultPkgs`, which `mkModuleConfiguration` records from the
+argument and `lib.caisson-core` passes to the configurations declared
+inside, unless they select another) to those sets.
 
 `context` and `what` are used only in the errors the two functions
 raise. `context` names the entry point that was called, and `what`
-names the evaluation being built. A package config that builds no set
-for the evaluation's system fails only when the evaluation selects it
-or reads it by name. With `context = "lib.caisson.nixos.mkConfiguration"`
+names the configuration being evaluated. A package config that builds
+no set for the system the configuration is evaluated for fails only
+when the configuration selects it or reads it by name. With `context = "lib.caisson.nixos.mkConfiguration"`
 and ``what = "the NixOS configuration `builder-arm` for aarch64-linux"``,
 the message reads:
 
@@ -2273,7 +2302,8 @@ The argument is on the nixos, nixos-minimal, home-manager,
 home-manager-minimal, flake-parts, structural and colmena
 constructors. In a
 flake it selects the `pkgs` of `perSystem`. A structural configuration
-runs on no package set and selects for what is beneath it.
+runs on no package set and selects for the configurations declared
+inside it.
 
 #### `pkgSetAccountOf`
 
@@ -2285,20 +2315,21 @@ account = { name : nullOr str; level : nullOr namePath; }
 Which package config a configuration runs on, and which configuration
 selected it. The manifest of every configuration records it as
 `pkgSet`. `name` is the name of the package config whose set the
-selection in force returns. It is read from the selection applied to
+package set selection that applies to it returns. It is read from the selection applied to
 the available sets tagged with their names, so it is null where the
 selection returns a set it builds in another way. `level` is the name
 path of the configuration that made the selection: the configuration
 itself when it was constructed with `defaultPkgs`, else the nearest
-configuration above that selected for the configurations beneath it,
-with its own `defaultPkgs` or with `caisson.forChildren.defaultPkgs`.
-The top has the empty name path, `[ ]`. Where no configuration
+configuration above that selected for the configurations declared
+inside it, with the `defaultPkgs` it was constructed with or with
+`caisson.forChildren.defaultPkgs`.
+The caisson top has the empty name path, `[ ]`. Where no configuration
 selects, `name` is `default` and `level` is null.
 
 A configuration evaluated once for every system, such as a structural
 configuration or a flake, runs on no single set. Its `name` is null,
-and its `level` still says who selected for the configurations beneath
-it. For a NixOS configuration beneath a structural configuration
+and its `level` still says who selected for the configurations declared
+inside it. For a NixOS configuration declared inside a structural configuration
 `group` that selects `pkgSets: pkgSets.other`, the NixOS configuration
 records:
 
@@ -2339,7 +2370,7 @@ displayName : listOf str -> str
 topValue    : attrsOf manifest -> value | attrsOf value
 ```
 
-How the configurations in a tree are named and published.
+How the configurations in a flake are named and published.
 
 `entriesOf` gives the entries a configuration passes up: an entry for
 each configuration declared inside it, directly or deeper, whose
@@ -2361,37 +2392,37 @@ flake-parts and system levels on the way are segments of the path.
 caisson's core module defines `caisson.exports.configurations` with
 `entriesOf`.
 
-`publish` is what a top does with the entries. It groups them by the
+`publish` is what a caisson top does with the entries. It groups them by the
 output attribute set named in each entry, computes the names in each
 group from `lib.caisson-core.elide` over the paths, and returns the
 values by attribute set and name. Entries that still share a name are
-refused, with their paths. The flake-parts top writes the
-result into the flake outputs, and the structural top into what it
+refused, with their paths. The flake-parts caisson top writes the
+result into the flake outputs, and the structural caisson top into what it
 returns.
 
 `recordOf` is the export record of the same entries, keyed as
 `publish` keys the values. For each name published, `from.namePath`
-is the path from the top to the configuration by the names the
+is the path from the caisson top to the configuration by the names the
 configurations are declared under, before any `exported` renamed
 them, so it is the address of the configuration's manifest under the
-`children` of the top's manifest. `notes` holds the sentence the
+`children` of the manifest of the caisson top. `notes` holds the sentence the
 integration's `exportsTo.name` wrote, when it wrote a sentence, and
 then the `exportNote` of each level the configuration passed through.
 `code` holds the files that define each level's `exported`, and the
 file and line number where the integration gives its `exportsTo`, in
-the same order, from the configuration up to the top. A position is
+the same order, from the configuration up to the caisson top. A position is
 `{ file; line; }`, with the line number in `line`. The module system
-records the file of each definition of an option but not its line
-number, so the position of an `exported` has a `line` of null. Both
-tops publish their manifest as `caisson.manifest`,
+records the file of each definition of an option but not its
+line number, so the position of an `exported` has a `line` of null. Both
+caisson tops publish their manifest as `caisson.manifest`,
 carrying the record as `exportRecord`.
 
 `displayName` writes the kept segments out as a name: in path order,
 separated by `/`. Every name caisson publishes is written by it.
 
-`topValue` is what a tool reads from a top that is a configuration
-evaluated per system, given its evaluations by system. They are
-named as anything published is, and the name of the top, which the
+`topValue` is what a tool reads from a caisson top that is a configuration
+evaluated per system, given its evaluation results by system. They are
+named as anything published is, and the name of the caisson top, which the
 file that returns it stands for, is left out of each: a single
 evaluation is its value, and several are the values by system.
 
@@ -2423,11 +2454,12 @@ written as pattern functions whose body is
 `mkEvaluation { compose, evaluate }` applied to the admitted
 arguments. The pattern of `mkConfiguration` names the arguments
 every entry point takes (`ecosystemSrc`, `pkgSets`, `configModule`,
-`moduleImports`, `specialArgs`) and the few of its target, with the
+`moduleImports`, `specialArgs`) and the few of its ecosystem, with the
 required arguments bare and the rest defaulting to `null`; a comment
 beside each argument says what it is, and the `at` line of Nix's
-argument error points at that block. The twin's pattern repeats the
-entry point's plus `ecosystemArgs`, merged over the composed call
+argument error points at that block. The pattern of the
+`WithEcosystemArgs` variant repeats the pattern of the entry point plus
+`ecosystemArgs`, merged over the composed call
 before evaluating, so the caller can set or replace anything the
 evaluator takes. `mkModule` is `lib.caisson-core.mkModule` bound to
 `class`. `extra` is for the members a declaration cannot generate,
@@ -2435,11 +2467,11 @@ such as a variant entry point, an adapter, or the composition an alt
 over this class builds on.
 
 `configurationsModule` is the module that lets a configuration hold
-configurations of this integration beneath it. It declares
+configurations of this integration declared inside it. It declares
 `caisson.<name>.configurations` and `caisson.<name>.exported`. An
 integration written outside caisson registers a module that imports
 it where its configurations may be declared. The integrations of
-caisson have their options declared by the core module of caisson,
+caisson have their options declared by the `core` module of caisson,
 through `configurationsModuleFor`, so importing the
 `configurationsModule` of one of them into a caisson evaluation
 declares its options a second time.
@@ -2456,7 +2488,7 @@ returns an attribute set. That set must hold `ecosystemArgs`, the
 arguments of the evaluator's call as the integration composed them; it
 may hold anything else `evaluate` needs, such as the resolved source.
 `evaluate` receives that set and the call arguments to use, and
-returns the evaluation.
+returns the evaluation result.
 
 The constructor returns values rather than an overlay output, because
 the attribute names an overlay produces must not depend on `final`.
@@ -2530,7 +2562,7 @@ Builds memoized derivation-content readers; see the source header.
 Each integration is a library overlay exported by this flake
 (`libOverlays.<ecosystem>`). Composing an integration contributes its
 `lib.caisson.<ecosystem>` namespace, documented below (the flake-parts
-integration also contributes the `lib.flake-parts` mirror of
+integration also contributes the `lib.flake-parts` copy of
 the flake-parts library, instantiated over the composed lib). Each
 entry point takes its ecosystem as an `ecosystemSrc` argument, and
 every ecosystem, flake-parts included, is resolved from the
@@ -2542,7 +2574,7 @@ An adapter's ecosystem source resolves in layers: the explicit
 returns for `<name>` (`defaultEcosystemSrc` is an mkLib argument,
 carried by the manifest); then the source named exactly `<name>` in
 the `dependencies` passed to mkLib. The name is the integration's
-ecosystem, and a single ecosystem may serve several integrations:
+ecosystem, and an ecosystem may be used by several integrations:
 `nixos` for the nixos and nixos-minimal integrations, `nixpkgs` for
 the nixpkgs integration, `colmena` for the caisson-colmena and colmena
 integrations, `disko` for the caisson-disko and disko integrations,
@@ -2555,12 +2587,12 @@ miss throws at the adapter, naming those places; a composition
 built without mkLib (no manifest) accepts only the explicit argument.
 Common conventions:
 
-- Every integration exports `mkConfiguration` (evaluate the target's
-  module system with the selected class modules) and, where it has a
-  module class, `mkModule`, the form a tree registers that
-  class's modules with (`caisson-core.mkModule` bound to the class).
-  Target-specific variants and helpers sit beside them under the same
-  namespace.
+- Every integration exports `mkConfiguration` (evaluate the module
+  system of the ecosystem with the selected class modules) and, where
+  it has a module class, `mkModule`, the form a flake registers the
+  modules of that class with (`caisson-core.mkModule` bound to the
+  class). Variants and helpers specific to the ecosystem sit beside
+  them under the same namespace.
 - Every integration exports `types`, the option types that
   `mkIntegration` builds from its name and its class. `types.module`
   is the option type of a module of the class. It is the
@@ -2621,7 +2653,7 @@ Common conventions:
   not take), or surfacing as a conflict inside the evaluator
   (`pkgs` beside the framework's `nixpkgs.pkgs`).
 - The full surface of the evaluator is reachable, deliberately, through
-  the `mkConfigurationWithEcosystemArgs` twin of each entry point. It takes the same
+  the `mkConfigurationWithEcosystemArgs` variant of each entry point. It takes the same
   arguments plus `ecosystemArgs`, an attrset merged over the composed
   evaluator call verbatim, last: anything the evaluator accepts can
   be set or replaced there, including what caisson composed
@@ -2643,13 +2675,13 @@ Common conventions:
 
 - **Source:** `lib-overlays/structural/default.nix`
 
-The empty integration: it wraps no ecosystem, and its class carries
-nothing but caisson's core module: the manifest, the configurations
-declared beneath, the registry selectors and `caisson.exports`. A
-structural configuration is the top of a repository whose point is
-what it exports (the `default.nix` of caisson is such a top), and a
-layer at any depth, declared beneath another configuration under
-`caisson.structural.configurations`.
+The empty integration: it wraps no ecosystem, and its class holds
+nothing but the `core` module of caisson: the manifest, the
+configurations declared inside it, the registry selectors and
+`caisson.exports`. A structural configuration is the caisson top of a
+repository whose point is what it exports (the `default.nix` of
+caisson is such a caisson top), and a layer declared inside another
+configuration under `caisson.structural.configurations`.
 
 - `mkModule : freeformModule -> module`: the registration form for
   structural modules.
@@ -2669,27 +2701,27 @@ mkConfiguration :
 Returns a configuration, a function of `{ name, parent }`, built with
 `lib.caisson-core.mkConfiguration`. The parent that declares it under
 `caisson.structural.configurations.<name>` finalizes it, and
-`mkTopConfiguration` finalizes it at a top. Nothing is evaluated
+`mkTopConfiguration` finalizes it at a caisson top. Nothing is evaluated
 until the manifest is read.
 
-The evaluation is the framework module (every `core` of the class,
+caisson evaluates the framework module (every `core` of the class,
 the `core` of caisson, read through the integration's closure), the
 selected structural modules and the config module, with `evalModules`
-over the lib of the view being evaluated. When `configModule` is
+over the lib of the evaluation in progress. When `configModule` is
 absent, the config module is the configuration registered under the
 configuration's name, `lib.caisson.configs.structural.<name>`,
 and there is none when nothing is registered under it. The manifest's
-`value` is the evaluation as `evalModules` returned it (`config`,
+`value` is the evaluation result as `evalModules` returned it (`config`,
 `options`); `outputs.exports` is `caisson.exports`, the `lib`,
 `libOverlays`, `modules` and `pkgOverlays` the selectors chose; and
-`children` holds the configurations declared beneath it. The
+`children` holds the configurations declared inside it. The
 integration wraps no ecosystem, so the signature has no `ecosystemSrc`.
 
 - `mkConfigurations`: a configuration for every configuration
   registered in the class, each as `mkConfiguration` builds it without
   `configModule`.
-- `mkConfigurationWithEcosystemArgs`: the twin; `ecosystemArgs` is
-  merged over the `evalModules` call (`class`, `modules`,
+- `mkConfigurationWithEcosystemArgs`: the `WithEcosystemArgs` variant;
+  `ecosystemArgs` is merged over the `evalModules` call (`class`, `modules`,
   `specialArgs`).
 - `mkTopConfiguration`: the same arguments. It finalizes the
   configuration with `lib.caisson-core.finalizeTop` and returns
@@ -2720,12 +2752,12 @@ mkConfiguration :
   Returns a configuration, a function of `{ name, parent }`, built
   with `lib.caisson-core.mkConfiguration`. A parent that declares it
   under `caisson.flake-parts.configurations.<name>` finalizes it, and
-  `mkTopConfiguration` finalizes it at a top. The evaluator's call is
-  flake-parts' `evalFlakeModule` over the lib of the view being
-  evaluated: the manifest's `value` is the evaluation (`config`,
+  `mkTopConfiguration` finalizes it at a caisson top. The evaluator's call is
+  flake-parts' `evalFlakeModule` over the lib of the evaluation in
+  progress. The manifest's `value` is the evaluation result (`config`,
   `options`), `outputs.flake` is what flake-parts' `mkFlake` returns
   from it, `outputs.exports` is `caisson.exports`, and `children`
-  holds the configurations declared beneath it. When `configModule` is
+  holds the configurations declared inside it. When `configModule` is
   absent, the config module is the configuration registered under the
   configuration's name, `lib.caisson.configs.flake.<name>`.
   flake-parts' `inputs` are the manifest's pinned `dependencies`, and the
@@ -2735,7 +2767,7 @@ mkConfiguration :
   so flake-parts modules receive `self`, `self'` and `inputs` as they
   would under Nix's flake evaluation. `moduleImports` selects over
   the `flake` class of `lib.caisson.modules`, the same registry
-  every adapter selects from, so modules arriving by local
+  every adapter selects from, so modules that come from local
   registration, overlay contribution, or consumed project are all
   selectable. flake-parts itself resolves like every ecosystem, from
   `ecosystemSrc`, the source `defaultEcosystemSrc dependencies` returns for
@@ -2746,7 +2778,7 @@ mkConfiguration :
   configuration with `lib.caisson-core.finalizeTop`, under the name
   the composition declares on `mkLib`, and returns its flake outputs
   (`outputs.flake`). It is what a `flake.nix` returns from `outputs`,
-  and what a flakeless top that keeps flake-parts returns from
+  and what a flakeless caisson top that keeps flake-parts returns from
   `default.nix`.
 - `mkConfigurations`: a configuration for every configuration
   registered in the class, each as `mkConfiguration` builds it without
@@ -2772,7 +2804,7 @@ mkConfiguration :
   Returns a configuration, a function of `{ name, parent }`, built
   with `lib.caisson-core.mkConfiguration`. A parent that declares it
   under `caisson.nixos.configurations.<name>` finalizes it, and
-  `mkTopConfiguration` finalizes it at a top. `ecosystemSrc` resolves
+  `mkTopConfiguration` finalizes it at a caisson top. `ecosystemSrc` resolves
   under the `nixos` key (see
   [Ecosystem sources](../concepts/ecosystem-sources.md)); the
   evaluation is `<ecosystemSrc>/nixos/lib/eval-config.nix`, a nixpkgs
@@ -2783,23 +2815,24 @@ mkConfiguration :
   `lib.caisson.configs.nixos.<name>`.
 
   A NixOS configuration is evaluated per system, so the integration
-  passes `perSystem`: a declared configuration is an evaluation for
-  every system in force where it is declared (`systems` on `mkLib`),
-  each under its name beneath its system in the tree. There are as
-  many as there are systems, also for a single system, and none where
-  no system is in force. An evaluation's `value` is the evaluated
-  NixOS configuration, and its `outputs` are `toplevel`, `vm`,
+  passes `perSystem`. A declared configuration has an evaluation result
+  for each system its parent evaluates its children for (at the caisson top,
+  `systems` on `mkLib`), each under its name below its system in the
+  tree of manifests. There are as many as there are systems, also for
+  a single system, and none where the parent evaluates its children
+  for no system. The `value` of an evaluation result is what NixOS's
+  `eval-config.nix` returns, and its `outputs` are `toplevel`, `vm`,
   `vmWithBootLoader` and `images`, each a reference into
   `config.system.build`, and `exports`, what the configuration passes
   up to its parent.
 
-  A module of the configuration declares configurations beneath it
+  A module of the configuration declares configurations inside it
   under `caisson.<integration>.configurations`. They see the
-  evaluation as `nearest.nixos`.
+  evaluation result as `nearest.nixos`.
 
   The package set comes from the composition, through the manifest.
-  An evaluation runs on the set the `defaultPkgs` argument selects
-  from the package sets available for the system of the evaluation
+  Each evaluation result runs on the set the `defaultPkgs` argument
+  selects from the package sets available for its system
   (see `caisson.integrations.pkgSetOf`), defined as `nixpkgs.pkgs`. A
   configuration that passes none runs on what the nearest
   configuration above it selected, and on the set named `default`
@@ -2811,8 +2844,8 @@ mkConfiguration :
 
   A NixOS configuration records `exportsTo` as `nixosConfigurations`,
   the value being the evaluated configuration: a flake-parts or
-  structural top
-  publishes the NixOS configurations declared beneath it there, under
+  structural caisson top
+  publishes the NixOS configurations declared inside it there, under
   names from their paths.
 - `mkTopConfiguration`: the same arguments. It finalizes the
   configuration with `lib.caisson-core.finalizeTop` and returns what a
@@ -2822,7 +2855,7 @@ mkConfiguration :
   evaluated configurations by system where there are several.
 - `mkConfigurationFull`: as `mkConfiguration`, additionally passing nixpkgs'
   `module-list.nix` as `baseModules`.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`
   (see the conventions above); eval-config's `baseModules` is among
   the arguments reachable that way.
 - `mkConfigurations`: a configuration for every configuration
@@ -2830,13 +2863,13 @@ mkConfiguration :
   `configModule`.
 - `compose : { context?, nixpkgsModule? } -> { lib, manifest } -> args
   -> { modules, specialArgs, system, pkgSets, src }`: the composition
-  of the class on the view being evaluated, from the caisson arguments
+  of the class on the evaluation in progress, from the caisson arguments
   (the framework and selected modules, the config module, the
   package-set module, the system, the resolved nixpkgs
   source), which every entry point here builds on and which an
   integration evaluating the `nixos` class with another evaluator
-  reads, so two evaluators cannot express different machines from the
-  same arguments. `nixpkgsModule = false` delivers the package set as
+  reads, so two evaluators cannot build different NixOS systems from
+  the same arguments. `nixpkgsModule = false` passes the package set as
   the `pkgs` module argument for an evaluation without NixOS'
   nixpkgs module.
 
@@ -2847,33 +2880,35 @@ mkConfiguration :
 A second integration over the `nixos` class: the minimal evaluator,
 `evalModules` from `<ecosystemSrc>/nixos/lib`, with no NixOS base
 modules, so the config module declares any options it uses and the
-package set arrives as the `pkgs` module argument rather than through
-`nixpkgs.pkgs`. It carries constructors only. The class, its
+package set is passed as the `pkgs` module argument rather than through
+`nixpkgs.pkgs`. It holds constructors only. The class, its
 registration form (`caisson.nixos.mkModule`), its framework module and
 its default default belong to the nixos integration, and the module
 list comes from `caisson.nixos.compose`; composing it needs the nixos
-integration composed beside it. In the tree its configurations are
-nixos configurations: the manifest's `type` is `nixos`, a
-configuration is declared under `caisson.nixos.configurations` and
-published under `nixosConfigurations`, and it is `nearest.nixos` for
-what is declared beneath it.
+integration composed beside it. In the tree of manifests its
+configurations are nixos configurations: the manifest's `type` is
+`nixos`, a configuration is declared under
+`caisson.nixos.configurations` and published under
+`nixosConfigurations`, and it is `nearest.nixos` for what is declared
+inside it.
 
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?, moduleImports?, extraModuleImports?,
   specialArgs?, prefix? } -> configuration`: the arguments of
   `caisson.nixos.mkConfiguration` plus `prefix`, and the same result,
-  a configuration whose manifest's `value` is the evaluation. The
-  system and the package set come from the composition as they do
+  a configuration whose manifest's `value` is the evaluation result.
+  The system and the package set come from the composition as they do
   there.
 - `mkTopConfiguration`: the same arguments; finalizes the
-  configuration at a top and returns the evaluation.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`
+  configuration at a caisson top and returns the evaluation result.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`
   (`prefix`, `modules`, `specialArgs`).
 
 ### `caisson.darwin` (module class `darwin`)
 
 - **Source:** `lib-overlays/darwin/default.nix`
 
-A darwin configuration is a macOS machine, evaluated with nix-darwin's
+A nix-darwin configuration describes the system of a macOS computer.
+caisson evaluates it with nix-darwin's
 `eval-config.nix` over the composed library, the way nix-darwin's
 `darwinSystem` calls it. caisson adds to the modules what
 `darwinSystem` adds: `nixpkgs.source` from the nixpkgs the
@@ -2881,45 +2916,50 @@ composition declares, no check of `NIX_PATH`, and the revision of the
 nix-darwin source in the version of the system.
 
 Like a NixOS configuration, a darwin configuration is evaluated per
-system, for every system in force where it is declared, and runs on the package
+system, for each system its parent evaluates its children for, and runs on the package
 set selected for it (`defaultPkgs`, else the set named `default`),
 which caisson hands to `nixpkgs.pkgs`. `nixpkgs.hostPlatform`
 defaults to the system of the evaluation. nix-darwin records no
 nixpkgs revision for a package set it did not build itself, so the
 system carries none, as with `darwinSystem` given `pkgs`.
 
-A tree registers the machine as `configs/darwin/macbook-1/default.nix`
+A flake registers the nix-darwin configuration as `configs/darwin/macbook-1/default.nix`
 and declares it with
 `caisson.darwin.configurations.macbook-1 = lib.caisson.darwin.mkConfiguration { };`,
 which finds the configuration by its name. It is published as
 `darwinConfigurations.macbook-1`, the evaluated configuration with
 `system` beside `config`, which is what `darwin-rebuild` reads.
-`darwin-rebuild` without `--flake '.#<name>'` looks the machine up by
-its local host name, so we recommend declaring a machine under that
-name.
+`darwin-rebuild` without `--flake '.#<name>'` looks the nix-darwin
+configuration up by the local host name of the computer, so we
+recommend declaring a nix-darwin configuration under that name.
 
-Every configuration evaluated per system has an evaluation for each
-system in force where it is declared. A tree whose `systems` hold both
-Linux and darwin systems therefore declares its darwin machines under a
-configuration that narrows the systems beneath it, such as a structural
+Every configuration evaluated per system has an evaluation result for
+each system its parent evaluates its children for. A flake whose
+`systems` hold both Linux and darwin systems therefore declares its
+nix-darwin configurations under a configuration that narrows the
+systems its children are evaluated for, such as a structural
 configuration with `caisson.forChildren.systems = [ "aarch64-darwin" ];`,
-and its NixOS machines under one narrowed to its Linux systems.
+and its NixOS configurations under a configuration narrowed to its
+Linux systems.
 
-A darwin machine activates the home-manager configurations and the
-hjem configurations declared inside it, with the modules of
+A nix-darwin configuration activates the home-manager configurations
+and the hjem configurations declared inside it, with the modules of
 [`modules.darwin."caisson/default"`](#modulesdarwincaissondefault).
-A home-manager configuration inside a darwin machine is published as
-`<user>@<machine>`, as a home-manager configuration inside a NixOS
-machine is, and gets `osClass = "darwin"` and the machine as
-`darwinConfig`, as home-manager's nix-darwin module gives them.
+A home-manager configuration inside a nix-darwin configuration is
+published as `<user>@<name>`, where `<name>` is the name of the
+nix-darwin configuration, as a home-manager configuration inside a
+NixOS configuration is. It gets `osClass = "darwin"` and the
+nix-darwin configuration as `darwinConfig`, as home-manager's
+nix-darwin module gives them.
 
-caisson's tests evaluate a darwin machine on Linux and compare its
-system with what `darwinSystem` builds from the same module and package
-set. They also evaluate a machine with a home-manager configuration and
-a hjem configuration inside it, and compare the manifest of the hjem configuration with the
-manifest hjem's nix-darwin module makes. caisson's CI builds the systems
-of both machines on a macOS runner. Activation on a running machine is
-not tested.
+caisson's tests evaluate a nix-darwin configuration on Linux and
+compare its system with what `darwinSystem` builds from the same
+module and package set. They also evaluate a nix-darwin configuration
+with a home-manager configuration and a hjem configuration inside it,
+and compare the manifest of the hjem configuration with the manifest
+hjem's nix-darwin module makes. caisson's CI builds the systems of
+both nix-darwin configurations on a macOS runner. Activation on a
+running machine is not tested.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   darwin modules.
@@ -2931,9 +2971,10 @@ not tested.
   tree, resolved from the composition under the name `nix-darwin` when
   absent.
 - `mkTopConfiguration`: the same arguments; finalizes the
-  configuration at a top and returns the evaluation, or the evaluations
-  by system where several systems are in force.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  configuration at a caisson top and returns the evaluation result, or the
+  evaluation results by system where it is evaluated for several
+  systems.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the call of `eval-config.nix` (`modules`, `specialArgs`).
 
 ### `caisson.home-manager` (module class `homeManager`)
@@ -2948,7 +2989,7 @@ not tested.
   configuration evaluated with home-manager's evaluator, the modules
   under `<ecosystemSrc>/modules`. A home-manager configuration is
   declared under `caisson.home-manager.configurations.<name>` in a
-  module of any configuration, or finalized as a top.
+  module of any configuration, or finalized as a caisson top.
   `mkConfigurationWithEcosystemArgs` takes `ecosystemArgs` as well,
   which is how to pass home-manager's `lib` argument.
 
@@ -2980,27 +3021,28 @@ not tested.
   config name, through the `pkgSets` special argument.
 
   A home-manager configuration declared inside a NixOS configuration
-  is given that machine. The integration hands the home-manager
-  configuration the configuration of the machine as the module
-  argument `osConfig`, and the class of the machine as `osClass`.
+  reads the result of the childless evaluation of that NixOS
+  configuration. The integration hands the home-manager configuration
+  the `config` of that evaluation result as the module argument
+  `osConfig`, and the class of the NixOS configuration as `osClass`.
   These are the arguments home-manager's NixOS module passes to a
-  home-manager configuration it embeds. The configuration of the
-  machine is the childless evaluation of the NixOS configuration, which
-  leaves out the configurations declared inside it, because the
-  home-manager configuration is one of them. A home-manager
-  configuration with no NixOS configuration above it gets
+  home-manager configuration it embeds. The childless evaluation leaves
+  out the configurations declared inside the NixOS configuration,
+  because the home-manager configuration is one of them. A
+  home-manager configuration with no NixOS configuration above it gets
   `osConfig = null`, as a home-manager configuration evaluated by
   home-manager alone does. An `osConfig` passed to `mkConfiguration`
-  takes the place of the configuration of the machine.
+  takes the place of the `config` of the NixOS configuration.
 
   Such a home-manager configuration also imports the home-manager
   module `nixos-parent` by default, which the NixOS configuration adds,
   and which sets the options of the home-manager configuration that
-  come from the machine. The home-manager `default` module gives every
-  home-manager configuration `activation-drift`, which makes a
-  home-manager configuration print a warning when it is activated on a
-  machine it was not built for. The machine activates the home-manager
-  configuration with the NixOS module `home-manager-activation`. See
+  come from the NixOS configuration. The home-manager `default` module
+  gives every home-manager configuration `activation-drift`, which
+  makes a home-manager configuration print a warning when it is
+  activated on a system other than the system it was built for. The
+  NixOS configuration activates the home-manager configuration with the
+  NixOS module `home-manager-activation`. See
   [`modules.nixos."caisson/default"`](#modulesnixoscaissondefault-moduleshomemanagercaissonnixos-parent).
 
   A home-manager configuration that passes `moduleImports` selects all
@@ -3014,10 +3056,10 @@ not tested.
   an option that only home-manager's NixOS module declares, and
   caisson does not use that module.
 - `mkTopConfiguration` takes the same arguments. It finalizes the
-  home-manager configuration at a top and returns the evaluated
+  home-manager configuration at a caisson top and returns the evaluated
   home-manager configuration with its `activationPackage`, which is
   what the home-manager CLI reads.
-- A top publishes home-manager configurations as
+- A caisson top publishes home-manager configurations as
   `homeConfigurations.<name>`. A home-manager configuration declared
   inside a NixOS configuration is published under the name the
   home-manager configuration is declared under, `@`, and the name the
@@ -3036,17 +3078,17 @@ with the options of hjem's user module (`files`, `xdg.config.files`,
 and nix-darwin modules, as an entry of `hjem.users`. caisson evaluates
 the user module itself, with the arguments those modules pass: hjem's
 library as `hjem-lib`, the name of the user as `name`, the package set
-as `pkgs`, and the machine above the configuration as `osConfig`, null
-when there is none.
+as `pkgs`, and the `config` of the NixOS or nix-darwin configuration
+above the hjem configuration as `osConfig`, null when there is none.
 
-A hjem configuration is evaluated per system, once for each system in
-force where it is declared, and runs on the package set selected for it (`defaultPkgs`,
+A hjem configuration is evaluated per system, once for each system its
+parent evaluates its children for, and runs on the package set selected for it (`defaultPkgs`,
 else the selection of the nearest configuration above, else the set
 named `default`). `user` defaults to the name the configuration is
 declared under, and `clobberFiles` defaults to false, as in hjem's NixOS
 module.
 
-A tree registers the user as `configs/hjem/alice/default.nix` and
+A flake registers the user as `configs/hjem/alice/default.nix` and
 declares it with
 `caisson.hjem.configurations.alice = lib.caisson.hjem.mkConfiguration { };`,
 which finds the configuration by its name. Its outputs are what hjem's
@@ -3062,41 +3104,45 @@ tools read:
 A failed assertion of the user fails `manifest`, `manifestFile` and
 `packages` with its message.
 
-A top publishes the configuration as `hjemConfigurations.alice`, with
+A caisson top publishes the configuration as `hjemConfigurations.alice`, with
 `manifest` and `packages`. `hjem standalone switch --flake .` reads
 `hjemConfigurations."$USER"` from the flake in the current directory, so
 it finds the configuration of the user running it when the two names
 are the same; `--flake-attr` names another attribute. The value of a hjem
-configuration that is a top has `manifest` and `packages` too, which is
+configuration that is a caisson top has `manifest` and `packages` too, which is
 what `hjem standalone switch --config` reads from a file.
 
-**Inside a NixOS machine.** A NixOS configuration activates the hjem
-configurations declared inside it with
+**Inside a NixOS configuration.** A NixOS configuration activates the
+hjem configurations declared inside it with
 [`caisson/hjem-activation`](#modulesnixoscaissonhjem-activation), and
 gives each of them the hjem module
 [`caisson/nixos-parent`](#moduleshjemcaissonnixos-parent), which sets
-`directory` from the account of the user on the machine. Such a
-configuration also imports hjem's `modules/nixos/systemd.nix` with the
-`utils` and options of the machine, as a user that hjem's NixOS module
+`directory` from the account of the user in the NixOS configuration.
+Such a hjem configuration also imports hjem's
+`modules/nixos/systemd.nix` with the `utils` and options of the NixOS
+configuration, as a user that hjem's NixOS module
 embeds does, so it can declare systemd user units under
 `systemd.services` and the other unit types. hjem's NixOS module is not
 used.
 
-**Inside a darwin machine.** A darwin configuration applies the hjem
-configurations declared inside it with the launchd agent of
+**Inside a nix-darwin configuration.** A nix-darwin configuration
+applies the hjem configurations declared inside it with the launchd
+agent of
 [`caisson/hjem-activation`](#modulesdarwincaissonhjem-activation), and
 gives each of them the hjem module `caisson/darwin-parent`, which sets
-`directory` from the account of the user on the machine.
+`directory` from the account of the user in the nix-darwin
+configuration.
 
-**Inside a system-manager machine.** A system-manager configuration
-activates the hjem configurations declared inside it with the same
-`caisson/hjem-activation` module and units as a NixOS machine, and
+**Inside a system-manager configuration.** A system-manager
+configuration activates the hjem configurations declared inside it
+with the same `caisson/hjem-activation` module and units as a NixOS
+configuration, and
 gives each of them the hjem module `caisson/system-manager-parent`, the
 same module as `caisson/nixos-parent` under a second name. See
 [`modules.systemManager."caisson/default"`](#modulessystemmanagercaissondefault).
 
 caisson's tests compare the manifest of a hjem configuration inside a
-NixOS machine with the manifest hjem's NixOS module makes from the same
+NixOS configuration with the manifest hjem's NixOS module makes from the same
 user module, and build its manifest file and the units that activate
 it. Activation on a running machine is not tested.
 
@@ -3109,9 +3155,9 @@ it. Activation on a running machine is not tested.
   tree, resolved from the composition under the name `hjem` when
   absent.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its value, or the values by system where several
-  systems are in force.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  at a caisson top and returns its value, or the values by system where it is
+  evaluated for several systems.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the call of `evalModules` (`modules`, `specialArgs`).
 - `manifestOf : hjemLib -> config -> manifest`: the manifest of an
   evaluated user, from hjem's library and the `config` of the user.
@@ -3123,7 +3169,7 @@ it. Activation on a running machine is not tested.
 A second integration over the `homeManager` class: home-manager's
 minimal evaluation, the module list that omits what a standalone
 activation needs, which home-manager selects with its `minimal` flag.
-It carries constructors only. The class, its registration form
+It holds constructors only. The class, its registration form
 (`caisson.home-manager.mkModule`), its framework module and its
 default default belong to the home-manager integration, and the
 configuration it builds comes from `caisson.home-manager.configuration`;
@@ -3136,7 +3182,7 @@ composing it needs the home-manager integration composed beside it.
   `homeConfigurations`.
 - `mkTopConfiguration` takes the same arguments and returns the
   evaluated home-manager configuration.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`.
 
 ### `caisson.nixpkgs` (module class `nixpkgsConfig`)
 
@@ -3163,29 +3209,29 @@ lib.caisson.nixpkgs.mkConfiguration :
 Declares a package config, in `mkLib`'s `pkgSets`. `configModule`
 defaults to the configuration registered under the name the config is
 declared under (`lib.caisson.configs.nixpkgsConfig.<name>`), and
-a config with neither evaluates with no module of the tree.
+a config with neither evaluates with no module of the flake.
 `moduleImports` selects from the `nixpkgsConfig` module registry and
 defaults to every entry named `default`. `ecosystemSrc` is a function
-of `dependencies` returning the nixpkgs tree for this config, replacing
+of `dependencies` returning the nixpkgs source tree for this config, replacing
 the `nixpkgs` key for this evaluation and nothing else; a value given
 in place of the function is refused. A config on another nixpkgs
 revision writes
 `ecosystemSrc = dependencies: dependencies.nixpkgs-stable;`. When
-`ecosystemSrc` is absent, the tree resolves from the composition's
+`ecosystemSrc` is absent, the source tree resolves from the composition's
 declarations (see
 [Ecosystem sources](../concepts/ecosystem-sources.md)).
 
 It returns a configuration: a function `{ name, parent }: manifest`
 that `mkLib` calls. The manifest has `type = "nixpkgs"`, the config's
-`name`, its `systems`, the evaluation as `value`, the config handed
+`name`, its `systems`, the evaluation result as `value`, the config handed
 to nixpkgs as `config`, and one package set per system under
 `children.nixpkgs.<system>`, whose `value` is the set.
 
 These options under `caisson.nixpkgs` declare the sets:
 
 - `caisson.nixpkgs.systems`: the systems to build a set for. It
-  defaults to the `systems` declared on `mkLib`; a config with no
-  systems in force is an error saying to declare them.
+  defaults to the `systems` declared on `mkLib`; a config that ends up
+  with no systems is an error saying to declare them.
 - `caisson.nixpkgs.overlays`: the package overlay registry entries the
   sets apply, each after the entries it imports and each key once. It
   defaults to every entry named `default` or `<project>/default`, and
@@ -3216,7 +3262,7 @@ Declares a package config for every configuration registered in
 `configs/nixpkgsConfig`, by its name, each as `mkConfiguration`
 builds it without `configModule`. The arguments apply to all of them.
 `pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };` is the
-usual declaration; a tree that wants only some configs, or a config that
+usual declaration; a flake that wants only some configs, or a config that
 differs, declares them with `mkConfiguration`. `mkIntegration`
 generates this function for every integration whose
 `mkConfiguration` finds its module by name.
@@ -3293,7 +3339,7 @@ in the traced set of the `default` config, the steps are
 lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by name
 ```
 
-`pkgSets` is a view of the manifest. It holds the package configs
+`pkgSets` is read from the manifest. It holds the package configs
 `mkLib` recorded, by name.
 
 #### Overlay constructors and types
@@ -3316,8 +3362,8 @@ lib.caisson.nixpkgs.pkgSets : attrsOf manifest     # the package configs, by nam
 
 - **Source:** `lib-overlays/caisson-colmena/default.nix`
 
-`caisson-colmena` is the native colmena integration, and the one we
-recommend for writing new configurations. Its machines are NixOS
+`caisson-colmena` is the native colmena integration, and the integration we
+recommend for writing new configurations. Its nodes are NixOS
 configurations declared like any other, so they share modules through
 the registry and through structural groups, and they take their
 package sets from caisson's package configs. The integration named
@@ -3328,12 +3374,12 @@ A colmena configuration is a module of the `caisson-colmena` class, a
 class caisson defines itself, since colmena's hive format is not a
 module class; the class carries the `caisson-` prefix because the bare
 name is not caisson's to claim. The integration is not compatible with
-colmena's hive modules (`makeHive`, `defaults`, `meta.nixpkgs`). The
+the hive format colmena evaluates (`makeHive`, `defaults`, `meta.nixpkgs`). The
 word hive names only the output colmena's CLI reads.
 
 A colmena configuration declares `meta` (`name`, `description`,
-`machinesFile`, `allowApplyAll`), and the machines colmena deploys as
-NixOS configurations, under `caisson.nixos.configurations.<name>`, the
+`machinesFile`, `allowApplyAll`), and the nodes colmena deploys, as
+NixOS configurations under `caisson.nixos.configurations.<name>`, the
 way any configuration declares them:
 
 ```nix
@@ -3365,9 +3411,9 @@ hive: `__schema`, `nodes`, `toplevel`, `deploymentConfig`,
 the hive. The hive refuses a node that declares no `deployment`
 options, and a node whose name colmena's `--on` filter could never
 select: a name containing a comma, starting with `@`, or empty. A node
-is one evaluation, so the hive also refuses a NixOS configuration
-evaluated per system for more than one system, such as one inside a colmena
-configuration that sets `caisson.forChildren.systems` to two systems.
+is a single evaluation result, so the hive also refuses a NixOS configuration
+evaluated per system for more than one system, such as a NixOS
+configuration inside a colmena configuration that sets `caisson.forChildren.systems` to two systems.
 The message names the configuration and its systems. Names
 colmena's hive format reserves (`meta`, `defaults`, `network`) are
 ordinary names. The schema version is asserted against the `makeHive`
@@ -3379,8 +3425,8 @@ holds a single value, so the colmena configuration declared under the
 name of that output, `colmenaHive`, fills it, and another name is
 refused there. Its nodes
 are published as `nixosConfigurations.<name>` as well, from the same
-evaluation, so `nixos-rebuild` and `colmena apply` build the same
-machine.
+evaluation result, so `nixos-rebuild` and `colmena apply` build the
+same system.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   colmena modules.
@@ -3391,9 +3437,9 @@ machine.
   `caisson.caisson-colmena.configurations.<name>`. `configModule` defaults to
   the configuration registered under its name in `configs/caisson-colmena`.
   `ecosystemSrc` is the colmena flake, resolved from the composition
-  when absent. `pkgSets.pkgs` serves `colmena eval` (`introspect`) and
-  nothing else.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  when absent. `pkgSets.pkgs` is used by `colmena eval` (`introspect`)
+  and nothing else.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call (`class`, `modules`,
   `specialArgs`).
 - `metaOptions`, `hiveOf`, `exportsTo`, `ecosystemSrcOf`: the `meta`
@@ -3418,7 +3464,7 @@ colmena's CLI, which deploys from `colmenaHive` either way.
 
 It takes a hive in the format colmena reads: `meta` (or `network`, its
 older name), `defaults`, and a module or list of modules per node. Each node
-becomes a caisson NixOS configuration declared beneath the colmena
+becomes a caisson NixOS configuration declared inside the colmena
 configuration, and is published as `nixosConfigurations.<node>`:
 
 ```nix
@@ -3437,12 +3483,12 @@ of the node, with the special arguments `name`, `nodes`,
 `meta.specialArgs` and `meta.nodeSpecialArgs.<node>`. With `name`
 given, `deployment.targetHost` defaults to the name of the node, as in
 colmena. `nodes` holds every node by name, the node that reads it
-included. Each node in it is a NixOS configuration declared beneath
+included. Each node in it is a NixOS configuration declared inside
 the colmena configuration, as caisson evaluates it. A node reads them
 through the full evaluation of the colmena configuration, since the
 colmena configuration sets
 `caisson.forNearestChildren.unsafeCrossChildReferences.nixos`. A node
-inside a structural group or a disk layout beneath the colmena
+inside a structural group or a disk layout declared inside the colmena
 configuration therefore gets them too. Two nodes that read each other in a loop are a Nix infinite
 recursion, as they are in colmena.
 
@@ -3470,7 +3516,7 @@ caisson-colmena does, and is published as `colmenaHive`.
   or a function returning one, as colmena accepts. `defaultPkgs`
   selects the package set of a node the hive names none for.
   `pkgSets.pkgs` serves `colmena eval`, else `meta.nixpkgs`.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call of the colmena configuration.
 
 ### `caisson.caisson-nixops4-composite` (module class `caisson-nixops4-composite`)
@@ -3496,14 +3542,14 @@ A composite and a resource are deferred configurations (see
 `outputValues` and `resourceProviderSystem`. `resourceProviderSystem`
 is the system NixOps4 runs providers on. For a composite,
 `outputValues` holds the outputs of its members, by member name. For a
-resource, `outputValues` holds its own outputs. Nothing in a
-deployment is evaluated at flake time, so a machine deployed through
-NixOps4 is not published as `nixosConfigurations`.
+resource, `outputValues` holds the outputs of the resource. Nothing in a
+deployment is evaluated at flake time, so a NixOS configuration
+deployed through NixOps4 is not published as `nixosConfigurations`.
 
 The root of a deployment is the composite declared under the name
 `nixops4` where no composite holds it. Its members are the composites
-and resources declared beneath it. A resource may hold the caisson
-configurations it deploys, such as a NixOS configuration. A top
+and resources declared inside it. A resource may hold the caisson
+configurations it deploys, such as a NixOS configuration. A caisson top
 declares the root with
 
 ```nix
@@ -3511,7 +3557,7 @@ caisson.caisson-nixops4-composite.configurations.nixops4 =
   lib.caisson.caisson-nixops4-composite.mkConfiguration { };
 ```
 
-and the tree registers its module as
+and the flake registers its module as
 `configs/caisson-nixops4-composite/nixops4/default.nix`:
 
 ```nix
@@ -3524,7 +3570,7 @@ and the tree registers its module as
 
 The resource `nas-1` takes its module from
 `configs/caisson-nixops4-resource/nas-1/default.nix`, and the NixOS
-configuration beneath it takes its module from
+configuration declared inside it takes its module from
 `configs/nixos/nas-1/default.nix`:
 
 ```nix
@@ -3538,7 +3584,7 @@ configuration beneath it takes its module from
 The root is published as the flake output `nixops4`, which the NixOps4
 command reads. The output holds a single value, so a composite
 declared under another name where no composite holds it is refused
-there. A composite declared beneath another composite is a member and
+there. A composite declared inside another composite is a member and
 is not published. The output holds `_type = "nixops4Component"`,
 `rootFunction` and `getProviders`, as NixOps4's `mkRoot` returns them.
 Only NixOps4 calls `rootFunction`. It takes the `outputValues` and the
@@ -3546,7 +3592,7 @@ Only NixOps4 calls `rootFunction`. It takes the `outputValues` and the
 and returns the export of the root. `getProviders { system }`
 finalizes the root with the system alone. It builds the providers the
 root declares, as NixOps4's `getProviders` does. Reading an output
-there fails, as it does in NixOps4. Providers declared beneath the
+there fails, as it does in NixOps4. Providers declared inside the
 root are not built there, and NixOps4 builds none of them there
 either.
 
@@ -3555,19 +3601,19 @@ args. A member `x` receives `outputValues.x` of the composite as its
 `outputValues`, and the `resourceProviderSystem` of the composite. The
 manifest of a finalized composite holds the manifests of its members
 under `children`, by integration and then name. A tool that walks the
-tree ahead of time, such as topside, therefore finalizes only the
+tree of manifests ahead of time, such as topside, therefore finalizes only the
 entry of the root. What NixOps4 reads of a composite is its export,
 which holds the exports of its members by name.
 
-A composite declares providers with NixOps4's own `providers` option.
+A composite declares providers with the `providers` option of NixOps4.
 Its module reads its members through the `members` module argument.
 `members.<name>.outputs` holds the outputs of the member, from the
 args of the composite. `members.<name>.absoluteMemberPath` holds the
 member path, which NixOps4's `state` option takes. Both come from the
 args and the names the members are declared under. The config of a
-member is not reachable through `members`. A member reads the
-childless view of its composite, as every configuration reads the
-childless view of its parent. Data the members share is therefore
+member is not reachable through `members`. A member reads the result
+of the childless evaluation of its composite, as every configuration
+reads the result of the childless evaluation of its parent. Data the members share is therefore
 declared on the composite. A composite connects one member to another
 by setting an option of a member from `members` in the module it gives
 that member.
@@ -3595,11 +3641,11 @@ resource. When no resource sets `state`, `discoverArgs { system }`
 returns null. Otherwise it returns a program built for `system`, the
 system of the tool that asks. The program runs `nixops4 state dump`
 for each resource that holds state, in the working directory, which
-NixOps4 finds the flake from. It passes its own arguments on to
+NixOps4 finds the flake from. It passes the arguments it was given on to
 NixOps4, such as `--override-input`. It prints the outputs NixOps4
 recorded as `outputValues`, with the system as
 `resourceProviderSystem`. Only resources with a state have recorded
-outputs. A composite beneath the root gives no discovery program.
+outputs. A composite declared inside the root gives no discovery program.
 
 - `mkModule : freeformModule -> module`: class-bound `mkModule` for
   modules of the caisson-nixops4-composite class.
@@ -3615,7 +3661,7 @@ outputs. A composite beneath the root gives no discovery program.
   the package set the composite and its members run on. `ecosystemSrc`
   is the NixOps4 flake, resolved from the composition under the name
   `nixops4` when absent.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call of the composite last.
 - `mkCompositeConfiguration`: the builder the `nixops4` integration
   builds its composites with, over another class, other base modules
@@ -3626,14 +3672,14 @@ outputs. A composite beneath the root gives no discovery program.
 - **Source:** `lib-overlays/caisson-nixops4-resource/default.nix`
 
 A resource of a NixOps4 deployment. A resource is a member of the
-composite it is declared beneath, and a deferred configuration like
+composite it is declared inside, and a deferred configuration like
 the composite. The composite finalizes it with its part of the args of
 the composite. A resource is evaluated with NixOps4's resource options
 (`inputs`, `outputs`, `state` and the rest), its `type` option and its
 `providers` option. `type` is a resource type of a provider, such as
 `providers.local.exec`.
 
-A resource reads its own outputs as `config.outputs`, which holds the
+A resource reads its outputs as `config.outputs`, which holds the
 `outputValues` its composite gives it. An output NixOps4 has not
 passed fails when it is read, and the error names the output.
 `absoluteMemberPath` holds the member path of the resource, built from
@@ -3650,11 +3696,11 @@ cacheable unless it is listed. The `argsNeeded` of a resource names
 `resourceProviderSystem` and one arg for each output in the
 `outputsSkeleton` of the resource.
 
-A resource may hold caisson configurations beneath it. NixOps4 does
+A resource may hold caisson configurations declared inside it. NixOps4 does
 not see them. A module of the class turns them into the inputs of the
 resource. The NixOS adapter is registered as `nixos` in the class, and
 the default module of the class selects it. It deploys the NixOS
-configuration declared beneath a resource as the NixOS resource of
+configuration declared inside a resource as the NixOS resource of
 nixops4-nixos does. It makes the resource an `exec` resource of
 NixOps4's `local` provider, unless the resource sets `type` itself.
 The inputs of that resource copy the toplevel to the host with
@@ -3672,7 +3718,7 @@ adapter refuses more.
 
 The default module of the class also adds caisson's NixOS module
 `nixops4-apply` to the default selection of the nearest NixOS
-configurations beneath a resource. That module imports the `apply`
+configurations declared inside a resource. That module imports the `apply`
 NixOS module of nixops4-nixos, which adds `bin/apply` to the toplevel,
 from the source the composition declares or pins under the name
 `nixops4-nixos`. A NixOS configuration that passes `moduleImports`
@@ -3689,8 +3735,8 @@ checks as anywhere else. Composites and resources have none.
   `caisson.caisson-nixops4-resource.configurations.<name>`.
   `configModule` defaults to the configuration registered under its
   name in `configs/caisson-nixops4-resource`. `defaultPkgs` selects
-  the package set the configurations beneath the resource run on.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  the package set the configurations declared inside the resource run on.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call of the resource last.
 - `mkResourceConfiguration`: the builder the `nixops4` integration
   builds its resources with.
@@ -3717,7 +3763,7 @@ caisson.nixops4.configurations.nixops4 = lib.caisson.nixops4.mkConfiguration {
 };
 ```
 
-Here the tree registers the root module as
+Here the flake registers the root module as
 `modules/nixops4Component/deployment/default.nix`.
 
 Each component is evaluated with NixOps4's class name, so a module
@@ -3726,7 +3772,7 @@ NixOps4's resource, `type` and `providers` options. A composite
 declares `members` again, as `lazyAttrsOf deferredModule`, and decides
 what each member becomes with the test NixOps4 applies. A member whose
 `resourceType` is defined, which setting `type` does, becomes a
-caisson-nixops4-resource configuration beneath the composite. Any
+caisson-nixops4-resource configuration declared inside the composite. Any
 other member becomes a caisson-nixops4-composite configuration. Both
 are evaluated with the class `nixops4Component`. A member that sets
 `type` and also declares members is refused, where NixOps4 drops the
@@ -3741,8 +3787,8 @@ sets `caisson.forDirectChildren.unsafeCrossChildReferences.nixops4Component`.
 In a resource, `members` is empty, as it is in NixOps4.
 
 A member that imports the NixOS resource module of nixops4-nixos gets
-its `nixos.module` evaluated as a caisson NixOS configuration beneath
-it, under the name of the member. Its special arguments are
+its `nixos.module` evaluated as a caisson NixOS configuration declared
+inside it, under the name of the member. Its special arguments are
 `nixos.specialArgs`. The `nixosSystem` call of nixops4-nixos does not
 evaluate it. The module `nixos` of the `nixops4Component` class makes
 `nixpkgs.lib.nixosSystem` return that configuration instead. The
@@ -3766,22 +3812,22 @@ module of nixops4-nixos.
   `web`. `moduleImports` selects over the `nixops4Component` class of
   the registry for the root. The root gives its discovery program as a
   native root does.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`.
 
 ### `caisson.caisson-disko` (module class `caisson-disko`)
 
 - **Source:** `lib-overlays/caisson-disko/default.nix`
 
-`caisson-disko` is the native disko integration, and the one we
+`caisson-disko` is the native disko integration, and the integration we
 recommend for new configurations. A disko configuration is a disk
 layout, and the NixOS configurations installed onto it are declared
 inside it. Those NixOS configurations get the file systems, boot
 settings and swap the layout produces. The scripts that format and
 destroy the disks are outputs of the layout. The layout and each
-machine installed onto it are separate configurations, and one layout
-can hold several machines. The integration named `disko`, below, is
-disko's two forms, where a machine and its layout are one
-configuration or the layout stands alone.
+NixOS configuration installed onto it are separate configurations, and
+a layout can hold several NixOS configurations. The integration named
+`disko`, below, is disko's two forms, where a NixOS configuration and
+its layout are a single configuration or the layout stands alone.
 
 A disko configuration is a module of the `caisson-disko` class. It sets
 `disko.devices`, disko's grammar for the disks, typed with disko's type
@@ -3791,7 +3837,7 @@ the layout under `caisson.nixos.configurations.<name>`, the way any
 configuration declares them, and it may declare none, as for a data
 array:
 
-A tree registers the layout as `configs/caisson-disko/nas-1/default.nix`:
+A flake registers the layout as `configs/caisson-disko/nas-1/default.nix`:
 
 ```nix
 { ... }:
@@ -3852,14 +3898,15 @@ settings under any other key. A NixOS configuration that passes
 layout reads it as `lib.caisson-core.evalManifest.nearest.caisson-disko`.
 
 A layout passes up its NixOS configurations under the names they are
-declared with. So the machine declared as `nas-1` inside the layout
-`nas-1` is published as `nixosConfigurations.nas-1`, and is the node
-`nas-1` of a colmena configuration that declares the layout.
+declared with. So the NixOS configuration declared as `nas-1` inside
+the layout `nas-1` is published as `nixosConfigurations.nas-1`, and is
+the node `nas-1` of a colmena configuration that declares the layout.
 
-Where a layout holds one machine, we recommend naming the machine after
-the layout. The layout's module declares it under the layout's name,
-read from the manifest, and caisson's default NixOS module names the host
-after the name the machine is declared under:
+Where a layout holds a single NixOS configuration, we recommend naming
+the NixOS configuration after the layout. The layout's module declares
+it under the layout's name, read from the manifest, and caisson's
+default NixOS module sets the host name to the name the NixOS
+configuration is declared under:
 
 ```nix
 { lib, ... }: {
@@ -3869,8 +3916,8 @@ after the name the machine is declared under:
 ```
 
 `mkConfiguration` without `configModule` takes the NixOS configuration
-registered under the name the machine is declared under. So the layout
-`nas-1` holds the machine registered as `configs/nixos/nas-1`, and
+registered under the name it is declared under. So the layout `nas-1`
+holds the NixOS configuration registered as `configs/nixos/nas-1`, and
 publishes it as `nixosConfigurations.nas-1`, whose host name is `nas-1`
 unless its modules set another.
 
@@ -3892,7 +3939,7 @@ describes.
   tree, resolved from the composition when absent. `rootMountPoint`
   defaults to `/mnt`. `checked` says whether the scripts are checked
   with shellcheck when they are built, and defaults to false.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
 - `ecosystemSrcOf`, `diskoLibOf`, `devicesOptions`, `layoutOf`,
   `exportsTo`: the resolution of the disko source, disko's type library
@@ -3906,23 +3953,23 @@ describes.
 
 `disko` is the upstream-compatible disko integration. disko has two
 forms, and caisson supports each as disko has it, so a layout or a
-machine written for disko is used with caisson as it is.
+NixOS configuration written for disko is used with caisson as it is.
 
 - **A standalone layout.** A disko configuration is a module of the
   `disko` class: what a file written for disko's `diskoConfigurations`
   sets, `disko.devices`, is its module as it is. It is published as
   `diskoConfigurations.<name>`, which disko's CLI formats and mounts
   with `disko --flake .#<name>`.
-- **A machine that carries its layout.** A NixOS configuration that
-  selects caisson's NixOS module `disko` and writes its layout as
-  `disko.devices` is disko's NixOS form, with the machine and its
-  layout in one configuration. `disko-install`, the image builder and
+- **A NixOS configuration that includes its layout.** A NixOS
+  configuration that selects caisson's NixOS module `disko` and writes
+  its layout as `disko.devices` is disko's NixOS form, with the NixOS
+  configuration and its layout in a single configuration. `disko-install`, the image builder and
   the install test read this form.
 
-For a machine installed onto a layout that is a separate
+For a NixOS configuration installed onto a layout that is a separate
 configuration, we recommend `caisson-disko`, above.
 
-A tree registers a layout as `configs/disko/data-array/default.nix`:
+A flake registers a layout as `configs/disko/data-array/default.nix`:
 
 ```nix
 { ... }:
@@ -3948,7 +3995,7 @@ NixOS configuration selects it with
 `extraModuleImports = modules: [ modules.disko ];`, or
 `modules."caisson/disko"` in a flake that lists caisson in `projects`,
 and sets `disko.devices` and the other options of disko's module, such
-as `disko.imageBuilder`, in its modules. For a layout and a machine
+as `disko.imageBuilder`, in its modules. For a layout and a NixOS
 module with nothing caisson adds to them, it builds the same system,
 with the same format script, as NixOS builds from disko's module and
 the same modules.
@@ -3962,14 +4009,14 @@ the same modules.
   under `caisson.disko.configurations.<name>`. `configModule` defaults
   to the configuration registered under its name in `configs/disko`.
   The other arguments are those of `caisson-disko`.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
 
 ### `caisson.caisson-facter` (module class `caisson-facter`)
 
 - **Source:** `lib-overlays/caisson-facter/default.nix`
 
-A caisson-facter configuration is the hardware of a machine: a module
+A caisson-facter configuration is the hardware of a computer: a module
 of the class with `facter.report`, the hardware report nixos-facter
 writes, as data, or `facter.reportPath`, the `facter.json` it writes,
 which `facter.report` defaults to. It declares the NixOS configurations
@@ -3997,9 +4044,9 @@ of the hardware. A module of such a NixOS configuration that needs more
 of the hardware reads it through
 `lib.caisson-core.evalManifest.nearest.caisson-facter`.
 
-A tree registers the hardware as
+A flake registers the hardware as
 `configs/caisson-facter/box-1/default.nix`, with `facter.reportPath =
-./facter.json;` and the machine
+./facter.json;` and the NixOS configuration
 `caisson.nixos.configurations.${lib.caisson-core.evalManifest.name} =
 lib.caisson.nixos.mkConfiguration { };`. It is not published under an
 output attribute set; its outputs are on its manifest.
@@ -4009,7 +4056,7 @@ output attribute set; its outputs are on its manifest.
   extraModuleImports?, specialArgs? } -> configuration`.
   `configModule` defaults to the configuration registered under its
   name in `configs/caisson-facter`.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
 - `supportedReportVersions`: the report versions the integration
   accepts.
@@ -4019,12 +4066,12 @@ output attribute set; its outputs are on its manifest.
 - **Source:** `lib-overlays/facter/default.nix`
 
 A facter configuration is a `facter.json` as nixos-facter writes it,
-named by `reportPath`, the one option of the class, with the NixOS
+named by `reportPath`, the only option of the class, with the NixOS
 configurations that run on that hardware declared inside it. The
 NixOS configurations get caisson's NixOS module `facter-hardware` by
 default, which sets `hardware.facter.reportPath` to that file at
-`mkDefault` priority, the line a NixOS configuration written for
-nixos-facter carries. The outputs are `reportPath` and `report`, the
+`mkDefault` priority, as a NixOS configuration written for
+nixos-facter sets it. The outputs are `reportPath` and `report`, the
 content of the file. For a report checked against the versions caisson
 knows or extended with options of a project, see
 [`caisson.caisson-facter`](#caissoncaisson-facter-module-class-caisson-facter).
@@ -4034,12 +4081,12 @@ knows or extended with options of a project, see
   extraModuleImports?, specialArgs? } -> configuration`.
   `configModule` defaults to the configuration registered under its
   name in `configs/facter`.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
 
-caisson's tests declare a machine inside each kind of facter
-configuration, from the report of nixpkgs' facter test. Each
-machine gets the report and the kernel modules of its initrd that a
+caisson's tests declare a NixOS configuration inside each kind of
+facter configuration, from the report of nixpkgs' facter test. Each
+NixOS configuration gets the report and the kernel modules of its initrd that a
 NixOS configuration setting `hardware.facter.reportPath` itself gets.
 
 ### `caisson.terranix` (module class `terranix`)
@@ -4048,8 +4095,8 @@ NixOS configuration setting `hardware.facter.reportPath` itself gets.
 
 A terranix configuration is a Terraform configuration written as
 terranix modules, evaluated with terranix's `terranixConfiguration` for
-every system in force where it is declared, on the package set
-selected for it (`defaultPkgs`, else the set named `default`). A tree
+each system its parent evaluates its children for, on the package set
+selected for it (`defaultPkgs`, else the set named `default`). A flake
 registers it as `configs/terranix/infra/default.nix` and declares it
 with
 `caisson.terranix.configurations.infra = lib.caisson.terranix.mkConfiguration { };`,
@@ -4057,9 +4104,9 @@ which finds the configuration by its name.
 
 Its value and its output `json` are the `config.tf.json` file that
 Terraform reads, with the evaluated configuration under
-`passthru.config`. A top publishes it as `terranixConfigurations.infra`,
+`passthru.config`. A caisson top publishes it as `terranixConfigurations.infra`,
 the name terranix's flake-parts module gives its configurations, and a
-terranix configuration that is a top is that file.
+terranix configuration that is a caisson top is that file.
 
 terranix evaluates its modules itself, on the
 library of the package set, and caisson cannot hand it the composed
@@ -4068,8 +4115,7 @@ library as the `lib` argument, and the package sets of the composition
 as `pkgSets`; terranix merges and checks the options with that
 library. terranix returns only the configuration Terraform reads and
 its `_meta`, so caisson reads the `caisson` options back through
-`_meta.caisson`, and a terranix configuration holds no configurations
-beneath it.
+`_meta.caisson`, and a terranix configuration holds no configurations.
 
 - `mkModule : freeformModule -> module`.
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
@@ -4078,9 +4124,9 @@ beneath it.
   name in `configs/terranix`. `specialArgs` becomes terranix's
   `extraArgs`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its `config.tf.json`, or the files by system
-  where several systems are in force.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  at a caisson top and returns its `config.tf.json`, or the files by system
+  where it is evaluated for several systems.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the call of `terranixConfiguration` (`pkgs`, `modules`,
   `extraArgs`, `strip_nulls`).
 
@@ -4088,10 +4134,10 @@ beneath it.
 
 - **Source:** `lib-overlays/treefmt/default.nix`
 
-A treefmt configuration is the formatters of a tree, written as
+A treefmt configuration is the formatters of a source tree, written as
 treefmt-nix modules (`projectRootFile`, `programs.<name>.enable`,
-`settings`). It is evaluated per system, once for each system in force
-where it is declared, on the package set selected for it (`defaultPkgs`, else the
+`settings`). It is evaluated per system, once for each system its
+parent evaluates its children for, on the package set selected for it (`defaultPkgs`, else the
 set named `default`).
 
 treefmt-nix evaluates its modules on the library of a nixpkgs. caisson
@@ -4108,16 +4154,16 @@ type treefmt-nix's `submoduleWith` returns.
 | `programs` | the formatters by name |
 | `check` | a function from a source tree to a derivation that fails when the tree is not formatted |
 
-A tree registers the configuration as `configs/treefmt/formatter/default.nix`
+A flake registers the configuration as `configs/treefmt/formatter/default.nix`
 and declares it with
 `caisson.treefmt.configurations.formatter = lib.caisson.treefmt.mkConfiguration { };`.
-A top publishes only the configuration named for the output it fills,
+A caisson top publishes only the configuration named for the output it fills,
 `formatter`:
 
 | Output | Value |
 | --- | --- |
 | `formatter.<system>` | its wrapper, which `nix fmt` runs |
-| `checks.<system>.treefmt` | its `check` over the root of the tree, `root` on `mkLib`, which `nix flake check` builds; it fails when the tree is not formatted |
+| `checks.<system>.treefmt` | its `check` over the root of the flake, `root` on `mkLib`, which `nix flake check` builds; it fails when the source tree is not formatted |
 
 The check is published where `mkLib` is given a `root`. caisson's tests check that the wrapper is the derivation treefmt-nix's
 `mkWrapper` builds from the same module on the same package set, and
@@ -4129,9 +4175,9 @@ that the published check is the configuration's `check` over the root.
   `ecosystemSrc` is the treefmt-nix flake or source tree, resolved from
   the composition under the name `treefmt-nix` when absent.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its evaluation, or the evaluations by system
-  where several systems are in force.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  at a caisson top and returns its evaluation result, or the evaluation results by system
+  where it is evaluated for several systems.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
 
 ### `caisson.nvf` (module class `nvf`)
@@ -4139,9 +4185,9 @@ that the published check is the configuration's `check` over the root.
 - **Source:** `lib-overlays/nvf/default.nix`
 
 An nvf configuration is a Neovim, written as nvf modules (`vim.*`). It
-is evaluated per system, once for each system in force where it is
-declared, on the package set selected for it (`defaultPkgs`, else the
-set named `default`).
+is evaluated per system, once for each system its parent evaluates
+its children for, on the package set selected for it (`defaultPkgs`,
+else the set named `default`).
 
 nvf evaluates its modules with `neovimConfiguration`, on the library of
 nixpkgs extended with nvf's `lib.nvim`. caisson evaluates the same
@@ -4152,7 +4198,7 @@ the nvf flake, so `ecosystemSrc` is the nvf flake, resolved from the
 composition under the name `nvf` when absent.
 
 The output is `neovim`, the wrapped Neovim that `neovimConfiguration`
-returns. A top publishes the configuration as
+returns. A caisson top publishes the configuration as
 `nvfConfigurations.<system>.<name>`, in the shape `neovimConfiguration`
 returns: `neovim`, `config` and `options`. caisson's tests check that
 the Neovim is the derivation `neovimConfiguration` builds from the same
@@ -4169,9 +4215,9 @@ configuration it is declared inside activates it. See
   `configModule` defaults to the configuration registered under its
   name in `configs/nvf`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its evaluation, or the evaluations by system
-  where several systems are in force.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  at a caisson top and returns its evaluation result, or the evaluation results by system
+  where it is evaluated for several systems.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
 
 ### `caisson.nixvim` (module class `nixvim`)
@@ -4180,8 +4226,8 @@ configuration it is declared inside activates it. See
 
 A nixvim configuration is a Neovim, written as nixvim modules
 (`plugins.*`, `opts`, `keymaps`). It is evaluated per system, once for
-each system in force where it is declared, on the package set selected for it
-(`defaultPkgs`, else the set named `default`).
+each system its parent evaluates its children for, on the package set
+selected for it (`defaultPkgs`, else the set named `default`).
 
 nixvim evaluates its modules with `evalNixvim`, `evalModules` over
 `modules/top-level` on a library extended with the overlay the nixvim
@@ -4191,7 +4237,7 @@ set to the selected package set and the flake as `flake`. So
 `ecosystemSrc` is the nixvim flake, resolved from the composition under
 the name `nixvim` when absent.
 
-The output is `package`, the Neovim (`config.build.package`). A top
+The output is `package`, the Neovim (`config.build.package`). A caisson top
 publishes the evaluated configuration as
 `nixvimConfigurations.<system>.<name>`, the name the nixvim flake
 publishes configurations under. caisson's tests check that the
@@ -4208,9 +4254,9 @@ activates it. See [profiles](#profiles-caissonprofile-activation).
   `configModule` defaults to the configuration registered under its
   name in `configs/nixvim`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its evaluation, or the evaluations by system
-  where several systems are in force.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  at a caisson top and returns its evaluation result, or the evaluation results by system
+  where it is evaluated for several systems.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the `evalModules` call.
 
 ### `caisson.topology` (module class `topology`)
@@ -4221,8 +4267,8 @@ A topology configuration is the diagram of a network: the NixOS
 configurations declared inside it under `caisson.nixos.configurations`,
 whose `topology` options nix-topology reads, and modules of the class
 that add nodes and networks. It is evaluated per system,
-once for each system in force where it is declared, on the package set selected for
-it, extended with the packages of nix-topology.
+once for each system its parent evaluates its children for, on the
+package set selected for it, extended with the packages of nix-topology.
 
 caisson evaluates nix-topology's `topology` modules with
 `evalModules` on the composed library, and sets `nixosConfigurations`
@@ -4232,15 +4278,16 @@ default, through `caisson.forChildren`. `ecosystemSrc` is the
 nix-topology flake or source tree, resolved under the name
 `nix-topology`.
 
-The output is `output`, the rendered diagram. A top publishes the
+The output is `output`, the rendered diagram. A caisson top publishes the
 configuration named for that output, `topology`, as
-`topology.<system>`, the evaluation,
+`topology.<system>`, the evaluation result,
 where nix-topology's flake module publishes it, so
 `nix build '.#topology.x86_64-linux.config.output'` builds the diagram.
-Its machines are published as `nixosConfigurations` like any NixOS
-configuration. caisson's tests check that two machines declared inside
-give the nodes and the diagram nix-topology gives the same machines
-evaluated with its NixOS module.
+The NixOS configurations declared inside it are published as
+`nixosConfigurations` like any NixOS configuration. caisson's tests
+check that two NixOS configurations declared inside a topology
+configuration give the nodes and the diagram that nix-topology gives
+for the same NixOS configurations evaluated with its NixOS module.
 
 ### `caisson.kubenix` (module class `kubenix`)
 
@@ -4251,16 +4298,17 @@ modules, which import the kubenix modules they use from the `kubenix`
 argument (`imports = [ kubenix.modules.k8s ];`). caisson makes the
 evaluation kubenix's `evalModules` makes, on the composed library
 extended with kubenix's `upstreamables.nix`, with the same `kubenix`
-argument, for every system in force on the selected package set.
+argument, for each system its parent evaluates its children for, on
+the selected package set.
 `ecosystemSrc` is the kubenix flake or source tree, resolved under the
 name `kubenix`.
 
 The output is `result`, the resources as the JSON file
 `kubectl apply -f` reads, the `kubernetes.result` of kubenix's `k8s`
-module. A top publishes the configuration as
-`kubenixConfigurations.<system>.<name>`, the evaluation kubenix's
+module. A caisson top publishes the configuration as
+`kubenixConfigurations.<system>.<name>`, the evaluation result kubenix's
 `evalModules` returns, whose `config.kubernetes.result` is the result.
-caisson's tests check that the result is the one kubenix's
+caisson's tests check that the result is the result kubenix's
 `evalModules` gives the same module.
 
 ### `caisson.nixidy` (module class `nixidy`)
@@ -4273,14 +4321,14 @@ nixidy's `mkEnv`, giving it the composed library as the library of
 the evaluation and, through `mkEnv`'s `libOverlay`, the namespaces of
 the composed library that nixidy's library lacks, such as `caisson`.
 `mkEnv` returns no options, so a nixidy configuration holds no
-configurations beneath it. `ecosystemSrc` is the nixidy flake,
+configurations. `ecosystemSrc` is the nixidy flake,
 resolved under the name `nixidy`.
 
 The outputs are `environmentPackage`, the rendered manifests,
-`activationPackage` and `bootstrapPackage`. A top publishes the
+`activationPackage` and `bootstrapPackage`. A caisson top publishes the
 configuration as `nixidyEnvs.<system>.<name>`, which the nixidy CLI
-reads. caisson's tests check that the environment is the one `mkEnv`
-renders from the same module.
+reads. caisson's tests check that the environment is the environment
+`mkEnv` renders from the same module.
 
 Each of the three takes the arguments of `caisson.treefmt`:
 
@@ -4290,21 +4338,21 @@ Each of the three takes the arguments of `caisson.treefmt`:
   `configModule` defaulting to the configuration registered under its
   name in `configs/<class>`.
 - `mkTopConfiguration`, with the same arguments.
-- `mkConfigurationWithEcosystemArgs`, the twin with `ecosystemArgs`,
+- `mkConfigurationWithEcosystemArgs`, the variant with `ecosystemArgs`,
   merged over the evaluator's call (`mkEnv`'s arguments for nixidy).
 
 ### `caisson.system-manager` (module class `systemManager`)
 
 - **Source:** `lib-overlays/system-manager/default.nix`
 
-A system-manager configuration is the system of a machine running
+A system-manager configuration is the system of a computer running
 another Linux distribution, evaluated with system-manager's
-`makeSystemConfig` for every system in force where it is declared. A
-tree registers it as `configs/systemManager/default/default.nix` and
+`makeSystemConfig` for each system its parent evaluates its children
+for. A flake registers it as `configs/systemManager/default/default.nix` and
 declares it with
 `caisson.system-manager.configurations.default = lib.caisson.system-manager.mkConfiguration { };`.
 Its value and its output `toplevel` are the system, with the evaluated
-configuration under `passthru.config`. A top publishes it as
+configuration under `passthru.config`. A caisson top publishes it as
 `systemConfigs.default`, which `system-manager switch --flake .` reads
 when it is given no name. A system-manager configuration activates the
 home-manager configurations and the hjem configurations declared
@@ -4335,7 +4383,7 @@ the platform of the selected set.
 
 The selected set makes `nixpkgs.overlays`, `nixpkgs.config` and the
 `overlays` argument of `makeSystemConfig` ineffective, so a
-configuration that sets one is refused, as one whose
+configuration that sets one is refused, as a configuration whose
 `nixpkgs.hostPlatform` differs from the platform of the selected set
 is. Package configs and package overlays are declared on `mkLib`. The
 modules get the composed library as `lib` and the package sets of the
@@ -4349,8 +4397,8 @@ self-retires; see the source comments).
   `configModule` defaults to the configuration registered under its
   name in `configs/systemManager`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
-  at a top and returns its system, or the systems by system where
-  several systems are in force.
-- `mkConfigurationWithEcosystemArgs`: the twin with `ecosystemArgs`,
+  at a caisson top and returns its system, or the systems by system where it
+  is evaluated for several systems.
+- `mkConfigurationWithEcosystemArgs`: the variant with `ecosystemArgs`,
   merged over the call of `makeSystemConfig` (`modules`, `specialArgs`,
   `allowUnsupportedNixpkgs`; `overlays` is refused).

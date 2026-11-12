@@ -1,4 +1,4 @@
-/* caisson site — the page is the emblem: sky, bridge, water, bedrock.
+/* caisson site: the page is the emblem: sky, bridge, water, bedrock.
    Theming: day/night variables set below; night applies either through
    the system preference (no override stored, or no JS) or through
    html[data-theme="dark"] set by the toggle. */
@@ -160,7 +160,7 @@ nav {
   position: relative;
   background: var(--t-sky-lo);
   /* past the width where the text-driven height would squash the scene,
-     grow with the viewport at the scene's own aspect ratio */
+     grow with the viewport at the aspect ratio of the scene */
   min-height: 48.4375vw;
 }
 

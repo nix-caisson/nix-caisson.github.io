@@ -18,13 +18,13 @@ fight over the same flat namespace.
 ### Where does a registered file find the dependencies of its flake?
 
 A registered file reads them as `closure-lib.caisson.dependencies.<name>`.
-The dependencies are the pinned trees your flake passes to `mkLib`
+The dependencies are the pinned trees a flake passes to `mkLib`
 under their input names, with no `self`, and
 `inherit (caisson.lib.caisson.pins.flake inputs) dependencies root;` in
 the `mkLib` call passes them. `closure-lib` is a member of the
 closure attrset that `mkLibOverlay` and `mkModule` apply to each
 registered file as its first argument list, and
-`closure-lib.caisson.dependencies` is a view of
+`closure-lib.caisson.dependencies` is read from
 `closure-lib.caisson-core.libManifest.dependencies`. A file always
 reads the dependencies of the flake that registered it. An overlay or
 module consumed from another flake sees the dependencies of the flake
@@ -47,7 +47,7 @@ implement whatever merging logic they deem appropriate.
 
 Yes. `lib.caisson.flake-parts.mkTopConfiguration` wraps the
 `mkFlake` of flake-parts, and plain
-flake-parts modules work unchanged. It is recommended to start by
+flake-parts modules work unchanged. We recommend starting by
 composing a library with `lib.caisson.mkLib`. You can hand your
 existing top-level module to `mkTopConfiguration` and let the conventions
 spread file by file from there.
@@ -69,8 +69,8 @@ composing with whatever ecosystem source version you give it, so
 caisson imposes no transitive pins and two consumers of the same
 caisson revision can run different nixpkgs revisions. Version skew
 within your ecosystems lives in your locks, where you can see and
-manage it. A flake that uses one version of an ecosystem everywhere
-can set a flake-level default at `mkLib`, a function of `dependencies`
+manage it. A flake whose configurations all use the same version of
+an ecosystem can set a flake-level default at `mkLib`, a function of `dependencies`
 (`defaultEcosystemSrc = dependencies: { nixos = dependencies.nixpkgs; };`). It
 is also possible to pass `ecosystemSrc`, also a function of
 `dependencies`, explicitly on each caisson call. The explicit argument

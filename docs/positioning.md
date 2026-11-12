@@ -9,7 +9,7 @@ discipline.
 
 ## Plain flake-parts
 
-flake-parts is a minimal module system mirroring the flake schema:
+flake-parts is a minimal module system that follows the flake schema:
 it splits configuration into modules, handles `perSystem`, and
 deliberately avoids broader opinions, positioning itself as "a single
 module that other repositories can build upon" with an ecosystem of
@@ -39,14 +39,14 @@ explicit, dependencies between overlays are declared, and nothing is
 inferred from file layout. If you value minimal ceremony in a single
 project, flakelight gets a working flake with fewer lines. If you
 value being able to trace any attribute of a composed library to a
-declared registration, especially across a fleet of interdependent
-flakes, that explicitness is caisson's point.
+declared registration, especially across several flakes that depend
+on each other, that explicitness is caisson's point.
 
 ## snowfall-lib
 
 snowfall-lib generates systems, packages, modules, and shells from
 directory-structure conventions: predictable filesystem hierarchies
-in exchange for eliminated boilerplate, targeting multi-system NixOS
+in exchange for less boilerplate, targeting multi-system NixOS
 and nix-darwin setups. Its repository currently describes it as
 seeking new maintainers.
 
@@ -69,7 +69,7 @@ values are read from the shared top-level `config` instead of
 `specialArgs` threading.
 
 caisson agrees with more of this than with the generators above:
-both build on flake-parts, both eliminate ambient `specialArgs`
+both build on flake-parts, both remove ambient `specialArgs`
 plumbing (dendritic through the shared top-level config, caisson
 through closed-over dependencies and the composed library), and both group
 modules by the module system they belong to (dendritic by option
@@ -83,7 +83,8 @@ module evaluation and adds export machinery so several repositories
 can publish and consume each other's overlays and modules. Use
 dendritic to structure one flake's configurations by aspect with
 almost no machinery; use caisson when the unit of reuse is a
-repository and the conventions need to hold across a fleet.
+repository and the conventions need to hold across several
+repositories.
 
 ## What is caisson-specific
 
@@ -119,7 +120,7 @@ Everything caisson adds is published through the output the
 flake schema leaves freeform, `lib`: composed libraries, the module
 registry, and the manifest (the composition's self-description) all
 live there, and the remaining flake outputs (`modules.<class>`,
-`libOverlays`, per-system products) are projections from it that keep
+`libOverlays`, per-system products) are derived from it and keep
 the standard schema's addresses. A flake built this way needs only a
 small, regular subset of the flake schema; nothing about it requires
 upstream changes to evaluate.

@@ -33,8 +33,9 @@ generating previews. The favicon is dark-native and serves both modes.
 | gold (rivet only) | `#C9A227` |
 | violet (easter egg) | `#7F5AB6` |
 
-Night tokens (dark variants — night falling on the same bridge; the
-suspenders become the Bay Lights and only the foundation keeps its color):
+Night tokens are the dark variants. They show night falling on the same
+bridge: the suspenders become the Bay Lights, and the foundation keeps
+its color.
 
 | Token | Hex |
 |---|---|

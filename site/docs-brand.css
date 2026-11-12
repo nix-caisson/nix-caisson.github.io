@@ -31,16 +31,16 @@
 
 /* A flex row centers the mark against the word. The box is exactly
    as tall as the bar and aligns to the top of the line box, so it
-   fills the bar the way mdBook's own buttons do with their
-   line-height; without the top alignment an inline-flex box sits on
-   the baseline and rides high. */
+   fills the bar the way the mdBook buttons do with their
+   line-height. Without the top alignment an inline-flex box sits on
+   the baseline and too high. */
 .caisson-site-link {
   display: inline-flex;
   align-items: center;
   vertical-align: top;
   gap: 0.35rem;
   height: var(--menu-bar-height);
-  /* The sibling icons bring their own 8px of left padding, so this
+  /* The sibling icons have 8px of left padding, so this
      side needs less to sit the same distance from the next button. */
   padding: 0 2px 0 8px;
   color: var(--icons);

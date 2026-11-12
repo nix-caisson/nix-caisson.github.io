@@ -51,7 +51,7 @@ The closure attrset contains:
 | `closure-lib` | The defining flake's composed `lib` (distinct from the `lib` module arg); its registry, `closure-lib.caisson.modules.<class>`, is how a module imports a sibling by name, and `closure-lib.caisson.dependencies.<name>` is how a module reads one of the defining flake's dependencies |
 | `mkModule` | A normalizer bound to the same class, for nested composition |
 
-`closure-lib.caisson.dependencies` is a view of `closure-lib.caisson-core.libManifest.dependencies`. It holds the defining flake's pinned trees under their names, with no `self`. It is distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake. A module reads a dependency inside its body:
+`closure-lib.caisson.dependencies` is read from `closure-lib.caisson-core.libManifest.dependencies`. It holds the defining flake's pinned trees under their names, with no `self`. It is distinct from the flake-parts `inputs` module arg, which belongs to the consuming flake. A module reads a dependency inside its body:
 
 ```nix
 { closure-lib, ... }:
@@ -67,7 +67,7 @@ Passing a non-function (attrset, path to a plain module, `null`) is an error: pl
 
 ### mkLibOverlay
 
-`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-lib, mkLibOverlay, mkModule, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`. `closure-lib` is the composed library of the composition that registered the overlay, bound lazily (read it inside the `overlay` function, never while the overlay is being registered, so never in `imports`); an integration reaches the registry of the composition that registered it through it:
+`mkLibOverlay` follows the same convention. A registered overlay takes `{ closure-lib, mkLibOverlay, mkModule, ... }` as its first arg list and returns an `{ imports ? [ ], overlay }` attrset: the `final: prev:` function under `overlay`, and the overlays it depends on under `imports`. `closure-lib` is the composed library of the composition that registered the overlay, bound lazily. Read it inside the `overlay` function: it is not yet available while the overlay is being registered, so `imports` cannot read it. An integration reaches the registry of the composition that registered it through it:
 
 ```nix
 { closure-lib, ... }:

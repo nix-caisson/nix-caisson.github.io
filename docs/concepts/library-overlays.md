@@ -24,7 +24,7 @@ overlay = final: prev: {
 };
 ```
 
-This means two independent projects do not collide unless the project names do: `lib.projectA.helper` and `lib.projectB.helper` coexist without interference, as they would in any language with a module system. caisson's convention helps here: a project declares its name as `name` on `mkLib`, and contributes to the composed library under that name, so if every project uses its canonical name, collisions are unlikely in practice. Choose a distinctive name for your flake; generic names like `utils` or `helpers` invite collisions, while project-specific names like `caisson` or `acme-infra` make them vanishingly rare. This is a convention, not an enforcement mechanism: if two upstream flakes happen to choose the same `name`, their `lib` contributions will merge into the same namespace.
+This means two independent projects do not collide unless the project names do: `lib.projectA.helper` and `lib.projectB.helper` coexist without interference, as they would in any language with a module system. caisson's convention helps here: a project declares its name as `name` on `mkLib`, and contributes to the composed library under that name, so if every project uses its canonical name, collisions are unlikely in practice. Choose a distinctive name for a flake; generic names like `utils` or `helpers` invite collisions, while project-specific names like `caisson` or `acme-infra` make them vanishingly rare. This is a convention, not an enforcement mechanism: if two upstream flakes happen to choose the same `name`, their `lib` contributions will merge into the same namespace.
 
 ### prev-Based Merging
 
@@ -62,7 +62,7 @@ The resolution is recursive: imported overlays can themselves declare imports, a
 
 The safety techniques described here (namespacing, input closure, dependency tracking) apply equally to package overlays and library overlays. The underlying mechanism is the same: both are functions of `final: prev:` that extend an attribute set.
 
-caisson provides the tooling for safe library overlays. The same principles apply to package overlays, but package overlay tooling is the domain of `caisson-nixpkgs` (not yet published), which builds on caisson's foundation.
+caisson provides the tooling for safe library overlays. The same principles apply to package overlays, but package overlay tooling is the domain of `caisson-nixpkgs`, an unpublished project that builds on caisson.
 
 ## Tradeoffs
 
@@ -106,7 +106,7 @@ pins this overlay was written with, no matter which downstream flake
 eventually composes it. An overlay that needs nothing from the closure
 still takes the arg list, as `{ ... }:`.
 
-Register it in your flake's `mkLib` call:
+Register it in the `mkLib` call of the flake:
 
 ```nix
 libOverlays = lib: {

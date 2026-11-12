@@ -32,7 +32,7 @@ entry is a directory holding a `default.nix`, a symlink to such a
 directory included; anything else in a directory being read is an
 error, so a stray file cannot silently vanish from a registry.
 
-A tree with another layout writes the registration by hand, with the
+A flake with another layout writes the registration by hand, with the
 `mkModule` of the integration that owns the class applied to the
 module's path:
 
@@ -63,14 +63,14 @@ differently):
 
 - `core`: the framework module of the class. An integration forces
   every entry named `core` (`core`, `<project>/core`) into every
-  evaluation of its class, before anything the evaluation selects.
+  evaluation of its class, before anything the configuration selects.
   Registering a `core` is the big hammer, for a module the class cannot
   function without; the core module of caisson declares the
-  `caisson.*` options every evaluation carries (the manifest, the
+  `caisson.*` options every evaluation result carries (the manifest, the
   registry selectors, `caisson.exports`).
-- `default`: the default default. When an evaluation passes no
+- `default`: the default default. When a configuration passes no
   `moduleImports`, every entry named `default` (`default`,
-  `<project>/default`) applies; an evaluation that selects by name
+  `<project>/default`) applies; a configuration that selects by name
   replaces that default with the list it names. The `default` of caisson
   for the `flake` class carries the nixpkgs integration's module
   layer.
@@ -92,8 +92,8 @@ The class-keyed registry is in the manifest of the library, and
 registered module inside a module that imports it and carries the key
 `modules.<class>.<name>@<project>`, the registry key and the project
 that registered it. The module system imports the modules that share a
-key once, so a registry entry an evaluation selects twice is imported
-once. The key is also how the history of an evaluation names the
+key once, so a registry entry a configuration selects twice is
+imported once. The key is also how the history of a configuration names the
 registry entry each of its modules is (`declaration` events). Modules
 enter the registry in these ways:
 
@@ -117,7 +117,7 @@ registrations made in the `mkLib` call itself. Precedence is
 deterministic: those local registrations apply last, so a local entry
 wins over a project entry of the same name.
 
-Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.darwin`, `caisson.home-manager`, `caisson.hjem`, `caisson.terranix`, `caisson.caisson-colmena`, `caisson.colmena`, `caisson.caisson-nixops4-composite`, `caisson.caisson-nixops4-resource`, `caisson.nixops4`, `caisson.caisson-disko`, `caisson.disko`, `caisson.caisson-facter`, `caisson.facter`, `caisson.system-manager`, `caisson.treefmt`, `caisson.nvf`, `caisson.nixvim`, `caisson.topology`, `caisson.kubenix`, `caisson.nixidy`, and `caisson.nixpkgs`) each name their class in their declaration (the class of caisson-colmena is `caisson-colmena`, the classes of the native NixOps4 integrations carry their names, the class of the `nixops4` integration is NixOps4's class `nixops4Component`, and the class of caisson-disko is `caisson-disko`; the nodes of a colmena configuration, the machines a NixOps4 resource deploys and the machines of a disko configuration are NixOS configurations); see the [library reference](../reference/lib.md).
+Use class `flake` for flake-parts modules and other class keys for other module ecosystems. The shipped integrations (`caisson.nixos`, `caisson.darwin`, `caisson.home-manager`, `caisson.hjem`, `caisson.terranix`, `caisson.caisson-colmena`, `caisson.colmena`, `caisson.caisson-nixops4-composite`, `caisson.caisson-nixops4-resource`, `caisson.nixops4`, `caisson.caisson-disko`, `caisson.disko`, `caisson.caisson-facter`, `caisson.facter`, `caisson.system-manager`, `caisson.treefmt`, `caisson.nvf`, `caisson.nixvim`, `caisson.topology`, `caisson.kubenix`, `caisson.nixidy`, and `caisson.nixpkgs`) each name their class in their declaration (the class of caisson-colmena is `caisson-colmena`, the classes of the native NixOps4 integrations carry their names, the class of the `nixops4` integration is NixOps4's class `nixops4Component`, and the class of caisson-disko is `caisson-disko`; the nodes of a colmena configuration, what a NixOps4 resource deploys and what a disko configuration lays out disks for are NixOS configurations); see the [library reference](../reference/lib.md).
 
 ## Consuming Exported Modules
 
@@ -155,7 +155,7 @@ caisson.flakeOutputs.modules =
   modules: modules // { nixos = removeAttrs modules.nixos [ "needs-caisson" ]; };
 ```
 
-For flake-parts compatibility, `flake.flakeModules` mirrors
+For flake-parts compatibility, `flake.flakeModules` is a copy of
 `flake.modules.flake`, and the `flake` class always exports a `default`
 entry (an empty module unless the selection provides it) so
 `flakeModules.default` exists for consumers that import it by

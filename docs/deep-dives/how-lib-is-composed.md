@@ -9,15 +9,15 @@ without `mkLib` when you want to.
 ## What goes in
 
 `mkLib` is given a set of declarations, and nothing to compose over:
-the seed is the empty attribute set, and nixpkgs' library arrives as
-an entry like everything else.
+the seed is the empty attribute set, and nixpkgs' library is composed
+as an entry like everything else.
 
-- `defaultEcosystemSrc`: a function of the tree's `dependencies`,
-  returning the tree's default source per ecosystem key (see
+- `defaultEcosystemSrc`: a function of the `dependencies` of the flake,
+  returning the default source of the flake per ecosystem key (see
   [Ecosystem sources](../concepts/ecosystem-sources.md)). An
-  attribute set given in place of the function is refused. A tree
-  declares `nixpkgs-lib` under this key for a mirror such as
-  `nix-community/nixpkgs.lib`, for a flake that carries no nixpkgs, or
+  attribute set given in place of the function is refused. A flake
+  declares `nixpkgs-lib` under this key for the nixpkgs.lib mirror,
+  `nix-community/nixpkgs.lib`, for a flake that pins no nixpkgs, or
   for a nixpkgs checkout pinned under another input name. The
   `nixpkgs-lib` integration of caisson, at `lib-overlays/nixpkgs-lib`
   in the caisson source tree, is the entry that imports the `lib`
@@ -35,14 +35,14 @@ an entry like everything else.
   receives, or registered directly when already built (another
   flake's export, for example).
 - `modules`: the flake's class-keyed module registrations.
-- `projects`: whole upstream contributions, each carrying exported
+- `projects`: whole upstream contributions, each holding exported
   overlays and modules that register under `<project>/<name>`.
 
 The registry also holds the entries caisson-core publishes,
 `caisson-core` (the machinery) and `nixpkgs-lib`, under those names.
 Neither is selectable, and a registration under either name replaces
 the entry for every overlay that imports it, so a polyfill over
-upstream's library or a replacement of the core is an ordinary
+upstream's library or a replacement of caisson-core is an ordinary
 registration.
 
 Registration and application are separate steps: `libOverlayImports`
@@ -60,7 +60,7 @@ and can only see what is built before them:
 - The core lib is the `caisson-core` entries with the lib overlay
   registry recorded on its manifest. `libOverlayImports` receives it
   and picks entries from that registry.
-- The bootstrap lib is the core entries plus the selection, the
+- The bootstrap lib is the `caisson-core` entries plus the selection, the
   sequence below without the module registrations. `modules` and
   `configs` receive it, so they can use every integration's
   constructors, and its manifest lacks what they register.
@@ -111,7 +111,7 @@ that anything an overlay depends on has already applied when its
 registrations both import is applied once per appearance, which is
 harmless for overlays that follow the merge conventions.
 
-## The fold
+## Applying the overlays
 
 Application is the standard Nix overlay contract, folded over the
 sequence above. Each `overlay = final: prev: { ... }` receives

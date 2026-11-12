@@ -1,7 +1,7 @@
 # nix-caisson.github.io
 
-The website for the [caisson](https://github.com/nix-caisson/caisson)
-family, published at <https://nix-caisson.github.io/>.
+The website for [caisson](https://github.com/nix-caisson/caisson) and
+the other nix-caisson projects, published at <https://nix-caisson.github.io/>.
 
 | Path | Content |
 |---|---|

@@ -48,7 +48,7 @@ anywhere in this chain: the only dependencies a registration can see
 are those the registering flake passed to `mkLib`. They do not include
 `self`. The manifest records them as
 `lib.caisson-core.libManifest.dependencies`, and a registration reads
-them as `closure-lib.caisson.dependencies`, a view of that field. A
+them as `closure-lib.caisson.dependencies`, which is read from that field. A
 registration reads the identity of its flake from
 `closure-lib.caisson.libManifest.root` and a sibling module from
 `closure-lib.caisson.modules`.
@@ -59,7 +59,7 @@ At registration time, not at evaluation time. `mkLibOverlay` and
 `mkModule` call the registered function with the closure attrset
 immediately and keep the result, so what sits in the registry, and
 what the flake exports, is an ordinary overlay or module with the
-closure already applied. `closure-lib` is the one lazy value in it:
+closure already applied. `closure-lib` is the lazy value in it:
 it is the composed library of the registering composition, and a file
 reads it inside a module body or an overlay function.
 
@@ -83,8 +83,8 @@ library of the defining composition:
   `closure-lib` is the composition of the definer, so an integration
   reaches the registry of the composition that registered it (its
   `core` module, for example) wherever it is composed. It is read inside
-  the overlay function or a function the overlay defines, never while
-  the overlay is being registered. The `imports` list is read during
+  the overlay function or a function the overlay defines. It is not
+  available while the overlay is being registered. The `imports` list is read during
   registration, so it names registry entries as strings such as
   `"some-flake/default"`. The dependencies of the defining flake are
   `closure-lib.caisson.dependencies`.
@@ -159,7 +159,7 @@ imports = [
 Here `listener.nix` begins `{ port }:` and receives the arguments as
 its first arg list. Wrapping the module in a plain lambda instead
 would work, but the module system would see an anonymous function:
-error messages would no longer point at the file.
+error messages would not point at the file.
 
 ## Seeing it in the example
 

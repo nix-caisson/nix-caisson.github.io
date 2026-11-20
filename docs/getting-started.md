@@ -51,7 +51,7 @@ integrations included, which contributes `lib.caisson` (a namespace per integrat
 target); `lib.caisson.flake-parts.mkTopConfiguration` then evaluates
 flake-parts with that library and your config module, the
 configuration registered under the project's name
-(`configs/flake/my-flake`).
+(`configs/flake-parts/my-flake`).
 flake-parts
 comes from the `flake-parts` input of the flake, like every ecosystem
 caisson wraps: the integration calls that source with the composed
@@ -60,10 +60,10 @@ the composition does.
 
 The config module is the top-level configuration of the flake, and it
 is registered. `lib.caisson.mkModules ./configs` reads
-`configs/<class>/<name>/default.nix` into the `configs` registration,
-and the configuration is then `lib.caisson.configs.flake.my-flake`.
+`configs/<integration>/<name>/default.nix` into the `configs` registration,
+and the configuration is then `lib.caisson.configs.flake-parts.my-flake`.
 Create
-`configs/flake/my-flake/default.nix`:
+`configs/flake-parts/my-flake/default.nix`:
 
 ```nix
 { ... }:

@@ -120,11 +120,13 @@ naming `mkLib` and pointing at the pattern.
   covers. `lib: lib.caisson-core.mkModules ./modules` reads the
   conventional layout.
 - `configs` receives the bootstrap lib the same way and returns the
-  configurations of the flake, keyed by module class then name, the
-  layout `configs/<class>/<name>` on disk (colmena's class is
-  `caisson-colmena`); `lib: lib.caisson-core.mkModules ./configs` reads that
-  layout. They come back in the manifest, which
-  `lib.caisson.configs.<class>.<name>` reads, so a caisson top and a
+  configurations of the flake, keyed by integration then name, the
+  layout `configs/<integration>/<name>` on disk
+  (`configs/nixos-minimal/<name>` for a NixOS configuration of
+  nixos-minimal); `lib: lib.caisson-core.mkModules ./configs` reads that
+  layout. Each configuration has the class of its integration as its
+  `_class`. They come back in the manifest, which
+  `lib.caisson.configs.<integration>.<name>` reads, so a caisson top and a
   configuration that evaluates another configuration declared inside
   it read them by name rather than by a path out of their directory.
 - `libOverlays` receives the core lib and returns the registered
@@ -143,7 +145,7 @@ naming `mkLib` and pointing at the pattern.
   configs of the flake by name, each a configuration that the
   constructor of an integration built:
   `pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };` declares
-  a package config for every configuration in `configs/nixpkgsConfig`
+  a package config for every configuration in `configs/nixpkgs`
   (see `caisson.nixpkgs` below). `mkLib` finalizes each with the name
   it is declared under and the registered manifest as its parent, and
   records them in the manifest's `pkgSets`; the flake reads its
@@ -445,7 +447,7 @@ segment. The key of a `declaration` event says what the module is:
   adds, such as `caisson.nixos.pkgSet`;
 - the registry key, such as `modules.nixos.default`, for a module
   selected from the registry, with the project that registered it;
-- `configs.<class>.<name>`, such as `configs.nixos.laptop`, for the
+- `configs.<integration>.<name>`, such as `configs.nixos.laptop`, for the
   configuration module taken from the registry by the configuration's
   name, with the project and the file that registered it;
 - the path, for a module given as a path;
@@ -2759,7 +2761,7 @@ mkConfiguration :
   from it, `outputs.exports` is `caisson.exports`, and `children`
   holds the configurations declared inside it. When `configModule` is
   absent, the config module is the configuration registered under the
-  configuration's name, `lib.caisson.configs.flake.<name>`.
+  configuration's name, `lib.caisson.configs.flake-parts.<name>`.
   flake-parts' `inputs` are the manifest's pinned `dependencies`, and the
   integration ties `self` the way Nix does for a flake: the
   evaluation's outputs with the root's source info (out path,
@@ -3003,7 +3005,7 @@ running machine is not tested.
   the same way.
 
   `configModule` defaults to the configuration registered as
-  `configs/homeManager/<name>`, where `<name>` is the name of the
+  `configs/home-manager/<name>`, where `<name>` is the name of the
   home-manager configuration. `home.username` defaults to the name the
   home-manager configuration is declared under, and a module of the
   home-manager configuration may set a different username.
@@ -3193,7 +3195,7 @@ package config is a module evaluation of the class nixpkgs evaluates
 `pkgs/top-level/config.nix` under: nixpkgs' options (`allowUnfree`
 and the rest) sit at the top level, as upstream declares them, and
 caisson's sit under `caisson.nixpkgs`. Its module lives at
-`configs/nixpkgsConfig/<name>/default.nix`, and further modules of
+`configs/nixpkgs/<name>/default.nix`, and further modules of
 the class are registered under `modules/nixpkgsConfig/<name>`.
 
 #### `mkConfiguration`
@@ -3208,7 +3210,7 @@ lib.caisson.nixpkgs.mkConfiguration :
 
 Declares a package config, in `mkLib`'s `pkgSets`. `configModule`
 defaults to the configuration registered under the name the config is
-declared under (`lib.caisson.configs.nixpkgsConfig.<name>`), and
+declared under (`lib.caisson.configs.nixpkgs.<name>`), and
 a config with neither evaluates with no module of the flake.
 `moduleImports` selects from the `nixpkgsConfig` module registry and
 defaults to every entry named `default`. `ecosystemSrc` is a function
@@ -3259,7 +3261,7 @@ lib.caisson.nixpkgs.mkConfigurations :
 ```
 
 Declares a package config for every configuration registered in
-`configs/nixpkgsConfig`, by its name, each as `mkConfiguration`
+`configs/nixpkgs`, by its name, each as `mkConfiguration`
 builds it without `configModule`. The arguments apply to all of them.
 `pkgSets = lib: lib.caisson.nixpkgs.mkConfigurations { };` is the
 usual declaration; a flake that wants only some configs, or a config that
@@ -3290,7 +3292,7 @@ asked for. Nix auto-calls a lambda and not a functor, so
 - `overlays` are applied over the config's selection, through the
   set's `appendOverlays`.
 - `config` must be empty. The nixpkgs config is the package config,
-  declared in `configs/nixpkgsConfig/<name>`.
+  declared in `configs/nixpkgs/<name>`.
 
 The set carries its manifest in `pkgs.lib.caisson-core.pkgsManifest`,
 whose parent is the config, so nothing else is added to it.
@@ -4336,7 +4338,7 @@ Each of the three takes the arguments of `caisson.treefmt`:
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
   moduleImports?, extraModuleImports?, specialArgs? } -> configuration`,
   `configModule` defaulting to the configuration registered under its
-  name in `configs/<class>`.
+  name in `configs/<integration>`.
 - `mkTopConfiguration`, with the same arguments.
 - `mkConfigurationWithEcosystemArgs`, the variant with `ecosystemArgs`,
   merged over the evaluator's call (`mkEnv`'s arguments for nixidy).
@@ -4348,7 +4350,7 @@ Each of the three takes the arguments of `caisson.treefmt`:
 A system-manager configuration is the system of a computer running
 another Linux distribution, evaluated with system-manager's
 `makeSystemConfig` for each system its parent evaluates its children
-for. A flake registers it as `configs/systemManager/default/default.nix` and
+for. A flake registers it as `configs/system-manager/default/default.nix` and
 declares it with
 `caisson.system-manager.configurations.default = lib.caisson.system-manager.mkConfiguration { };`.
 Its value and its output `toplevel` are the system, with the evaluated
@@ -4395,7 +4397,7 @@ self-retires; see the source comments).
 - `mkConfiguration : { configModule?, ecosystemSrc?, defaultPkgs?,
   moduleImports?, extraModuleImports?, specialArgs? } -> configuration`.
   `configModule` defaults to the configuration registered under its
-  name in `configs/systemManager`.
+  name in `configs/system-manager`.
 - `mkTopConfiguration`: the same arguments; finalizes the configuration
   at a caisson top and returns its system, or the systems by system where it
   is evaluated for several systems.

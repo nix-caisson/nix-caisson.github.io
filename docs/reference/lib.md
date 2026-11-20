@@ -1588,7 +1588,7 @@ one more field into its marker, `profiles`. For each such home-manager
 configuration, under the name of its marker file, it holds the digest
 of the `home.path` that the NixOS configuration installed:
 `{ "identity": "<digest>", "profiles": { "home-manager-<name>.json": { "packages": "<digest>" } } }`.
-`lib.caisson.integrations.machineProfilesOf` reads these digests from
+`lib.caisson.integrations.profilesSetBySystemConfiguration` reads these digests from
 the profile adapter of the home-manager configuration. The check of
 that home-manager configuration also compares the digest with the
 `home.path` of the home-manager configuration, and prints a warning
@@ -3740,7 +3740,7 @@ checks as anywhere else. Composites and resources have none.
   merged over the `evalModules` call of the resource last.
 - `mkResourceConfiguration`: the builder the `nixops4` integration
   builds its resources with.
-- `ecosystemSrcOf`, `pkgsFor`, `machineOf`, `absoluteMemberPathOf`,
+- `ecosystemSrcOf`, `pkgsFor`, `nixosConfigurationOf`, `absoluteMemberPathOf`,
   `discoverArgsOf`, `systemArg` and the other helpers the composite
   integration, the `nixops4` integration and the NixOS adapters build
   on.

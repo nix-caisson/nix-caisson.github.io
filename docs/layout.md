@@ -18,13 +18,17 @@ directories below.
 ## configs/
 
 ```
-configs/<class>/<config>/
+configs/<integration>/<config>/
 ```
 
-Configurations, grouped by module class and named for **what they
-configure**. A flake-parts config configures the flake itself, so there
-is typically exactly one, named after the flake (this repository uses
-`configs/flake/caisson/`) or `default`. In other classes,
+Configurations, grouped by the integration that evaluates them and
+named for **what they configure**. Modules are grouped by class, and
+configurations by integration, because integrations share classes: a
+configuration under `configs/nixos-minimal/` is a NixOS configuration
+of nixos-minimal, and nixos does not take it. A flake-parts config
+configures the flake itself, so there is typically exactly one, named
+after the flake (this repository uses `configs/flake-parts/caisson/`)
+or `default`. In other integrations,
 a config is named for the thing it describes, such as the host name
 of a NixOS configuration, the user of a home-manager configuration or
 a deployment.

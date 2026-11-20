@@ -13,8 +13,10 @@ This builds on flake-parts' `flake.modules` output, which publishes modules unde
 
 A flake laid out as `modules/<class>/<name>/default.nix` registers its
 modules by naming the directory. `lib.caisson.mkModules` reads the
-directory into the class-keyed registration, and it reads
-`configs/<class>/<name>` the same way:
+directory into the class-keyed registration. It reads
+`configs/<integration>/<name>` the same way, keyed by integration:
+nixos and nixos-minimal share the class `nixos`, and a configuration
+written for one is not a configuration for the other.
 
 ```nix
 modules = lib: lib.caisson.mkModules ./modules;
